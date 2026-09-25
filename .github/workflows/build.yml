@@ -52,6 +52,10 @@ jobs:
             zip \
             unzip
 
+      - name: Install Android Build Tools and AIDL
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.2" "platforms;android-33"
+
       - name: Install Buildozer, Cython, and Packaging Tools
         run: |
           pip install --upgrade pip setuptools wheel
@@ -60,6 +64,7 @@ jobs:
 
       - name: Build APK with Buildozer
         run: |
+          export PATH="$ANDROID_HOME/build-tools/33.0.2:$PATH"
           export CFLAGS="-Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types"
           export CXXFLAGS="-Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types"
           buildozer --warn-on-root=0 android debug
