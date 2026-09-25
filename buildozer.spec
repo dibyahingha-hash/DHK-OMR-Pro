@@ -6,13 +6,11 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0.0
 
-# OpenCV recipe in python-for-android requires numpy
 requirements = python3,kivy,numpy,opencv
 
 orientation = portrait
 fullscreen = 0
 
-# Android permissions & SDK settings
 android.permissions = CAMERA,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 android.api = 33
 android.minapi = 24
