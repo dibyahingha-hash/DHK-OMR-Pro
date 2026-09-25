@@ -27,15 +27,13 @@ jobs:
     - name: Install System Dependencies
       run: |
         sudo apt update
-        sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+        sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev ccache
         pip install --upgrade pip
-        pip install buildozer cython
+        pip install "buildozer==1.5.0" "cython<3.0"
 
-    - name: Configure and Build APK
+    - name: Build APK with Buildozer
       run: |
-        sed -i 's|# android.sdk_path =.*|android.sdk_path = /usr/local/lib/android/sdk|' buildozer.spec
-        sed -i 's|# android.ndk_path =.*|android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653|' buildozer.spec
-        yes | buildozer android debug
+        buildozer -v android debug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
