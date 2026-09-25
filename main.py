@@ -1,6 +1,6 @@
-import os
-import cv2
 import numpy as np
+from PIL import Image
+
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.camera import Camera
@@ -12,7 +12,7 @@ from kivy.utils import platform
 class OMRScannerLayout(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(orientation='vertical', **kwargs)
-        
+
         # 1. Header
         self.header = Label(
             text="[b]DHK OMR Pro - Offline Scanner[/b]",
@@ -28,23 +28,20 @@ class OMRScannerLayout(BoxLayout):
 
         # 3. Status Badge
         self.status = Label(
-            text="Ready to Scan. Aim at sheet and tap 'Scan Sheet'",
+            text="Ready to Scan. Aim at sheet and tap 'Scan Sheet'.",
             size_hint=(1, 0.12),
             font_size='16sp'
         )
         self.add_widget(self.status)
 
-        # 4. Action Buttons
-        self.btn_layout = BoxLayout(size_hint=(1, 0.15))
-        
+        # 4. Action Button
         self.btn_scan = Button(
-            text="📸 Scan Sheet (Offline)",
+            text="Scan Sheet (Offline)",
+            size_hint=(1, 0.15),
             background_color=(0, 0.7, 0.2, 1)
         )
         self.btn_scan.bind(on_press=self.process_frame)
-        self.btn_layout.add_widget(self.btn_scan)
-
-        self.add_widget(self.btn_layout)
+        self.add_widget(self.btn_scan)
 
     def process_frame(self, instance):
         self.status.text = "Processing sheet..."
@@ -52,21 +49,26 @@ class OMRScannerLayout(BoxLayout):
 
     def evaluate_omr(self, dt):
         try:
-            # Capture pixel buffer directly from the live Kivy camera texture
             texture = self.camera.texture
             if not texture:
-                self.status.text = "⚠️ Camera not ready. Please try again."
+                self.status.text = "Camera not ready. Please try again."
                 return
 
             size = texture.size
             pixels = texture.pixels
+
+            # Convert raw RGBA buffer into a PIL Image
+            pil_img = Image.frombytes(mode='RGBA', size=size, data=pixels)
             
-            # Convert raw RGBA buffer to an OpenCV-compatible array
-            img = np.frombuffer(pixels, np.uint8).reshape(size[1], size[0], 4)
-            img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
-            
-            # Successful frame acquisition
-            self.status.text = "✅ Frame captured! Ready for evaluation."
+            # Convert to grayscale and NumPy array
+            gray = pil_img.convert('L')
+            img_arr = np.array(gray)
+
+            # Threshold to identify filled dark marks
+            threshold = 100
+            marked_pixels = int(np.sum(img_arr < threshold))
+
+            self.status.text = f"Sheet captured! Dark pixels detected: {marked_pixels}"
         except Exception as e:
             self.status.text = f"Scan Error: {str(e)[:30]}"
 
