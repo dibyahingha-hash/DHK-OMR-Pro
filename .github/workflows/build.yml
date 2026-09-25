@@ -45,9 +45,7 @@ jobs:
             gstreamer1.0-plugins-good \
             libffi-dev \
             libssl-dev \
-            libncurses5-dev \
-            libncursesw5-dev \
-            libtinfo5 \
+            libncurses-dev \
             cmake \
             zip \
             unzip
