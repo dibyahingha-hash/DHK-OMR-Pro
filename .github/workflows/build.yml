@@ -2,8 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -11,98 +10,37 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-      - name: Checkout Code
-        uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "17"
+    - name: Install System Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev ccache aidl
+        pip install --upgrade pip
+        pip install "buildozer==1.5.0" "cython<3.0"
 
-      - name: Install System Packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            git \
-            zip \
-            unzip \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libncurses5-dev \
-            libncursesw5-dev \
-            cmake \
-            libffi-dev \
-            libssl-dev \
-            ccache
+    - name: Build APK with Buildozer
+      run: |
+        unset ANDROID_NDK
+        unset ANDROID_NDK_HOME
+        unset ANDROID_NDK_ROOT
+        unset ANDROID_NDK_LATEST_HOME
+        yes | buildozer -v android debug
 
-      - name: Install Buildozer
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install "buildozer==1.5.0" "cython<3.0"
-
-      - name: Check Environment
-        run: |
-          python --version
-          java -version
-          buildozer --version
-          cython --version
-
-      - name: Clean Build
-        run: |
-          rm -rf .buildozer
-          rm -rf bin
-
-      - name: Build APK
-        run: |
-          set -o pipefail
-          buildozer -v android debug 2>&1 | tee build.log
-          BUILD_EXIT=${PIPESTATUS[0]}
-
-          echo ""
-          echo "=============================================="
-          echo "BUILD EXIT CODE: $BUILD_EXIT"
-          echo "=============================================="
-
-          echo ""
-          echo "=============================================="
-          echo "SEARCHING FOR ERRORS"
-          echo "=============================================="
-
-          grep -n -i -E \
-            "error|failed|exception|traceback|fatal|command failed" \
-            build.log | tail -100 || true
-
-          echo ""
-          echo "=============================================="
-          echo "LAST 300 LINES"
-          echo "=============================================="
-
-          tail -300 build.log
-
-          exit $BUILD_EXIT
-
-      - name: Upload Build Log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: DHK-OMR-Pro-Build-Log
-          path: build.log
-          if-no-files-found: warn
-
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: DHK-OMR-Pro-APK
-          path: bin/*.apk
-          if-no-files-found: error
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: DHK-OMR-Pro-APK
+        path: bin/*.apk
