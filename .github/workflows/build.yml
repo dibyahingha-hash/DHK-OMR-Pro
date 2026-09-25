@@ -28,35 +28,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            git \
-            ffmpeg \
-            libsdl2-dev \
-            libsdl2-image-dev \
-            libsdl2-mixer-dev \
-            libsdl2-ttf-dev \
-            libportmidi-dev \
-            libswscale-dev \
-            libavformat-dev \
-            libavcodec-dev \
-            zlib1g-dev \
-            libffi-dev \
-            libssl-dev \
-            libncurses-dev \
-            libunwind-dev \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            cmake \
-            zip \
-            unzip
+            build-essential git ffmpeg libsdl2-dev libsdl2-image-dev \
+            libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev \
+            libavformat-dev libavcodec-dev zlib1g-dev libffi-dev libssl-dev \
+            libncurses-dev libunwind-dev autoconf automake libtool pkg-config cmake zip unzip
 
       - name: Install Android Build Tools and AIDL
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.2" "platforms;android-33"
 
-      - name: Install Build Tools
+      - name: Install Pinned Packaging Tools
         run: |
           pip install --upgrade pip setuptools wheel
           pip install "cython<3.0.0"
