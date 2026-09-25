@@ -1,5 +1,3 @@
-streamlit
-pandas
+kivy
 pillow
-opencv-python-headless
 numpy
