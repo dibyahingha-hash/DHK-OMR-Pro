@@ -59,10 +59,9 @@ jobs:
           pip install buildozer
 
       - name: Build APK with Buildozer
-        env:
-          CFLAGS: "-Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types"
-          APP_ANDROID_ARCH: "arm64-v8a"
         run: |
+          export CFLAGS="-Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types"
+          export CXXFLAGS="-Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types"
           buildozer --warn-on-root=0 android debug
 
       - name: Upload APK Artifact
