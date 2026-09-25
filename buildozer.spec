@@ -19,7 +19,7 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 1.0.0
 
 # (list) Application requirements
-# comma separated e.g. requirements = sqlite3,kivy
+# Pinned to Python 3.11.9 to prevent pulling unstable Python 3.14 wheels
 requirements = python3==3.11.9,kivy,pillow
 
 # (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
@@ -49,19 +49,26 @@ android.accept_sdk_license = True
 # (list) The Android archs to build for
 android.archs = arm64-v8a
 
-# (bool) Android logcat filters to showcase
-android.logcat_filters = *:S python:D
-
-# (bool) Copy library instead of making a libdir and dynamic link
+# (bool) Copy library instead of making a libpymodules.so
 android.copy_libs = 1
 
-# (bool) Skip byte compile for .py files
-android.no-byte-compile-python = False
+# (str) Android logcat filters to use
+android.logcat_filters = *:S python:D
+
 
 [buildozer]
 
-# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
+# (int) Log level (0 = error only, 1 = info, 2 = debug)
 log_level = 2
 
 # (int) Display warning if buildozer is run as root (0 = False, 1 = True)
 warn_on_root = 0
+```[span_1](start_span)[span_1](end_span)
+
+---
+
+### What to do:
+1. Open your repository on GitHub and open **`buildozer.spec`**.
+2. Tap the pencil icon (✏️) to edit.
+3. Select everything and replace it completely with the code block above[span_2](start_span)[span_2](end_span).
+4. Scroll down and click **Commit changes...**.
