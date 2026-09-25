@@ -21,13 +21,13 @@ class OMRScannerLayout(BoxLayout):
         )
         self.add_widget(self.header)
 
-        # 2. Camera Viewfinder
-        self.camera = Camera(play=True, resolution=(640, 480), size_hint=(1, 0.65))
+        # 2. Camera Viewfinder (Start with play=False until permissions are granted)
+        self.camera = Camera(index=0, play=False, resolution=(640, 480), size_hint=(1, 0.65))
         self.add_widget(self.camera)
 
         # 3. Status Badge
         self.status = Label(
-            text="Ready to Scan. Aim at sheet and tap 'Scan Sheet'.",
+            text="Waiting for camera permission...",
             size_hint=(1, 0.12),
             font_size='16sp'
         )
@@ -41,6 +41,10 @@ class OMRScannerLayout(BoxLayout):
         )
         self.btn_scan.bind(on_press=self.process_frame)
         self.add_widget(self.btn_scan)
+
+    def start_camera(self, *args):
+        self.camera.play = True
+        self.status.text = "Ready to Scan. Aim at sheet and tap 'Scan Sheet'."
 
     def process_frame(self, instance):
         self.status.text = "Processing sheet..."
@@ -73,14 +77,29 @@ class OMRScannerLayout(BoxLayout):
 
 class DHKOMRApp(App):
     def build(self):
+        self.layout = OMRScannerLayout()
+        return self.layout
+
+    def on_start(self):
         if platform == "android":
             from android.permissions import request_permissions, Permission
-            request_permissions([
-                Permission.CAMERA,
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.WRITE_EXTERNAL_STORAGE
-            ])
-        return OMRScannerLayout()
+            def check_permissions(permissions, grant_results):
+                if all(grant_results):
+                    Clock.schedule_once(self.layout.start_camera, 0.5)
+                else:
+                    self.layout.status.text = "Camera permission denied."
+
+            request_permissions(
+                [
+                    Permission.CAMERA,
+                    Permission.READ_EXTERNAL_STORAGE,
+                    Permission.WRITE_EXTERNAL_STORAGE
+                ],
+                check_permissions
+            )
+        else:
+            # Desktop fallback
+            Clock.schedule_once(self.layout.start_camera, 0.5)
 
 if __name__ == '__main__':
     DHKOMRApp().run()
