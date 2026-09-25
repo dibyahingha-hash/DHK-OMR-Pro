@@ -1,4 +1,3 @@
-import numpy as np
 from PIL import Image
 
 from kivy.app import App
@@ -57,18 +56,18 @@ class OMRScannerLayout(BoxLayout):
             size = texture.size
             pixels = texture.pixels
 
-            # Convert raw RGBA buffer into a PIL Image
+            # 1. Load raw RGBA texture into a PIL image
             pil_img = Image.frombytes(mode='RGBA', size=size, data=pixels)
             
-            # Convert to grayscale and NumPy array
+            # 2. Convert directly to grayscale
             gray = pil_img.convert('L')
-            img_arr = np.array(gray)
 
-            # Threshold to identify filled dark marks
+            # 3. Fast pixel counting using Pillow histogram (counts luminance 0 to 99)
+            histogram = gray.histogram()
             threshold = 100
-            marked_pixels = int(np.sum(img_arr < threshold))
+            marked_pixels = sum(histogram[:threshold])
 
-            self.status.text = f"Sheet captured! Dark pixels detected: {marked_pixels}"
+            self.status.text = f"Scan complete! Dark mark pixels: {marked_pixels}"
         except Exception as e:
             self.status.text = f"Scan Error: {str(e)[:30]}"
 
