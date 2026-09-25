@@ -15,7 +15,7 @@ class OMRScannerLayout(BoxLayout):
         
         # 1. Header
         self.header = Label(
-            text="[b]DHK OMR Pro - Camera Scanner[/b]",
+            text="[b]DHK OMR Pro - Offline Scanner[/b]",
             markup=True,
             size_hint=(1, 0.08),
             font_size='18sp'
@@ -28,7 +28,7 @@ class OMRScannerLayout(BoxLayout):
 
         # 3. Status Badge
         self.status = Label(
-            text="Ready to Scan. Tap 'Scan Sheet'",
+            text="Ready to Scan. Aim at sheet and tap 'Scan Sheet'",
             size_hint=(1, 0.12),
             font_size='16sp'
         )
@@ -38,7 +38,7 @@ class OMRScannerLayout(BoxLayout):
         self.btn_layout = BoxLayout(size_hint=(1, 0.15))
         
         self.btn_scan = Button(
-            text="📸 Scan Sheet (Sub-2s)",
+            text="📸 Scan Sheet (Offline)",
             background_color=(0, 0.7, 0.2, 1)
         )
         self.btn_scan.bind(on_press=self.process_frame)
@@ -48,10 +48,27 @@ class OMRScannerLayout(BoxLayout):
 
     def process_frame(self, instance):
         self.status.text = "Processing sheet..."
-        Clock.schedule_once(self.evaluate_omr, 0.1)
+        Clock.schedule_once(self.evaluate_omr, 0.05)
 
     def evaluate_omr(self, dt):
-        self.status.text = "✅ Scanned: Score 18/20 | Saved to Phone!"
+        try:
+            # Capture pixel buffer directly from the live Kivy camera texture
+            texture = self.camera.texture
+            if not texture:
+                self.status.text = "⚠️ Camera not ready. Please try again."
+                return
+
+            size = texture.size
+            pixels = texture.pixels
+            
+            # Convert raw RGBA buffer to an OpenCV-compatible array
+            img = np.frombuffer(pixels, np.uint8).reshape(size[1], size[0], 4)
+            img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
+            
+            # Successful frame acquisition
+            self.status.text = "✅ Frame captured! Ready for evaluation."
+        except Exception as e:
+            self.status.text = f"Scan Error: {str(e)[:30]}"
 
 class DHKOMRApp(App):
     def build(self):
@@ -66,4 +83,3 @@ class DHKOMRApp(App):
 
 if __name__ == '__main__':
     DHKOMRApp().run()
-
