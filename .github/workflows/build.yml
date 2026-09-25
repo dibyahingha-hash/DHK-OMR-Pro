@@ -44,6 +44,10 @@ jobs:
         /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "build-tools;33.0.2" "platforms;android-33"
 
     - name: Build APK with Buildozer
+      env:
+        ANDROID_NDK_HOME: ""
+        ANDROID_NDK_ROOT: ""
+        ANDROID_NDK: ""
       run: |
         buildozer -v android debug
 
