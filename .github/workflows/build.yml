@@ -7,20 +7,41 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/kivy/buildozer:latest
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Build APK in Clean Container
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install System Dependencies
       run: |
-        buildozer -v android debug
+        sudo apt update
+        sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev ccache aidl
+        pip install --upgrade pip
+        pip install "buildozer==1.5.0" "cython<3.0"
+
+    - name: Build APK with Buildozer
+      run: |
+        export ANDROID_NDK=""
+        export ANDROID_NDK_HOME=""
+        export ANDROID_NDK_ROOT=""
+        export ANDROID_NDK_LATEST_HOME=""
+        yes | buildozer -v android debug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: DHK-OMR-Pro-APK
         path: bin/*.apk
+        
