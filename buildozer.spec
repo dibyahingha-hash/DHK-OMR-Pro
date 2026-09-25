@@ -20,7 +20,7 @@ version = 1.0.0
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,numpy
+requirements = python3,kivy,pillow,numpy
 
 # (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
 orientation = portrait
@@ -39,6 +39,12 @@ android.minapi = 24
 
 # (str) Android NDK version to use
 android.ndk = 25b
+
+# (str) Android build-tools version to use
+android.build_tools_version = 33.0.2
+
+# (bool) Automatically accept SDK licenses
+android.accept_sdk_license = True
 
 # (list) The Android archs to build for
 android.archs = arm64-v8a
