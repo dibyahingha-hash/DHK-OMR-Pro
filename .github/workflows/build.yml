@@ -27,7 +27,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             build-essential \
             git \
             ffmpeg \
@@ -40,12 +40,14 @@ jobs:
             libavformat-dev \
             libavcodec-dev \
             zlib1g-dev \
-            libgstreamer1.0-dev \
-            gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good \
             libffi-dev \
             libssl-dev \
             libncurses-dev \
+            libunwind-dev \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
             cmake \
             zip \
             unzip
@@ -67,3 +69,4 @@ jobs:
         with:
           name: DHK-OMR-Pro-APK
           path: bin/*.apk
+          
