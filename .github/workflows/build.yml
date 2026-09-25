@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -56,11 +56,12 @@ jobs:
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.2" "platforms;android-33"
 
-      - name: Install Buildozer, Cython, and Packaging Tools
+      - name: Install Build Tools
         run: |
           pip install --upgrade pip setuptools wheel
           pip install "cython<3.0.0"
-          pip install buildozer
+          pip install "buildozer==1.5.0"
+          pip install "python-for-android==2024.1.21"
 
       - name: Build APK with Buildozer
         run: |
