@@ -31,6 +31,19 @@ jobs:
         pip install --upgrade pip
         pip install "buildozer==1.5.0" "cython<3.0"
 
+    - name: Setup Android SDK and Buildozer Config
+      run: |
+        # Accept all Android licenses
+        yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+        # Ensure aidl is linked in system bin
+        BUILD_TOOLS_DIR=$(ls -d /usr/local/lib/android/sdk/build-tools/* | sort -V | tail -n 1)
+        sudo ln -sf "$BUILD_TOOLS_DIR/aidl" /usr/local/bin/aidl
+
+        # Point buildozer to pre-installed SDK & NDK 25
+        sed -i 's|# android.sdk_path =.*|android.sdk_path = /usr/local/lib/android/sdk|' buildozer.spec || true
+        sed -i 's|# android.ndk_path =.*|android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653|' buildozer.spec || true
+
     - name: Build APK with Buildozer
       run: |
         buildozer -v android debug
