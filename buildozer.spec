@@ -19,7 +19,8 @@ p4a.branch = release-2024.01.21
 # Display & permissions
 orientation = portrait
 fullscreen = 0
-android.permissions = CAMERA,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,FLASHLIGHT
+android.permissions = CAMERA,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,READ_MEDIA_IMAGES,FLASHLIGHT
+
 # Android build environment
 android.api = 33
 android.minapi = 24
