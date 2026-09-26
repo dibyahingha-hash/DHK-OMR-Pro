@@ -3,13 +3,14 @@ import sqlite3
 import csv
 import json
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageOps
 
 from kivy.app import App
 from kivy.lang import Builder
-from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.uix.screenmanager import ScreenManager, Screen, NoTransition
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.scrollview import ScrollView
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.uix.button import Button
@@ -93,7 +94,6 @@ class DatabaseManager:
                     grand_total REAL NOT NULL,
                     percentage REAL NOT NULL,
                     raw_responses TEXT NOT NULL,
-                    header_crop_path TEXT,
                     scan_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(exam_id) REFERENCES exams(exam_id)
                 )
@@ -185,17 +185,24 @@ class DatabaseManager:
             ''', (exam_id,))
             return cursor.fetchone()
 
-    def update_exam_key(self, exam_id, key_list, lock=False):
+    def save_result(self, exam_id, student_id, roll_no, name, class_name, score, subj_score, grand_total, percentage, raw_json):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            key_str = json.dumps(key_list)
-            is_locked = 1 if lock else 0
             cursor.execute('''
-                UPDATE exams
-                SET answer_key = ?, is_locked = ?
-                WHERE exam_id = ?
-            ''', (key_str, is_locked, exam_id))
+                INSERT INTO results (exam_id, student_id, roll_no, student_name, class_name, mcq_score, subjective_score, grand_total, percentage, raw_responses)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (exam_id, student_id, roll_no, name, class_name, score, subj_score, grand_total, percentage, raw_json))
             conn.commit()
+
+    def get_results_for_exam(self, exam_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT result_id, roll_no, student_name, mcq_score, grand_total, percentage, scan_timestamp
+                FROM results WHERE exam_id = ?
+                ORDER BY roll_no ASC
+            ''', (exam_id,))
+            return cursor.fetchall()
 
 
 KV = '''
@@ -216,13 +223,13 @@ KV = '''
     background_color: hex('#2563eb')
     color: hex('#ffffff')
     size_hint_y: None
-    height: '46dp'
+    height: '48dp'
 
 <ExamRow@BoxLayout>:
     orientation: 'horizontal'
     size_hint_y: None
-    height: '66dp'
-    padding: [10, 4]
+    height: '68dp'
+    padding: [10, 6]
     spacing: 8
     exam_id: 0
     title_text: ''
@@ -272,15 +279,15 @@ KV = '''
         bold: True
         background_normal: ''
         background_color: hex('#2563eb')
-        on_release: app.open_scanner_choice(root.exam_id)
+        on_release: app.open_evaluator(root.exam_id)
     Button:
-        text: 'Rubric' if root.is_matrix else ('Locked' if root.is_locked else 'Key')
+        text: 'Results'
         size_hint_x: 0.2
         font_size: '12sp'
         bold: True
         background_normal: ''
-        background_color: hex('#059669') if root.is_locked else hex('#d97706')
-        on_release: app.open_key_editor(root.exam_id)
+        background_color: hex('#059669')
+        on_release: app.open_results_view(root.exam_id)
 
 <HomeScreen>:
     BoxLayout:
@@ -305,7 +312,7 @@ KV = '''
 
         Label:
             text: 'Individual & Gunotsav Matrix Evaluation'
-            font_size: '14sp'
+            font_size: '13sp'
             color: hex('#94a3b8')
             size_hint_y: None
             height: '24dp'
@@ -420,20 +427,20 @@ KV = '''
                         on_release: root.on_type_change()
                     ToggleButton:
                         id: type_matrix
-                        text: 'Roster Matrix (Class 1-2)'
+                        text: 'Gunotsav Matrix (Class 1-2)'
                         group: 'exam_type_grp'
                         on_release: root.on_type_change()
 
                 TextInput:
                     id: title_in
-                    hint_text: 'Exam Title (e.g., Gunotsav 2026 / Midterm)'
+                    hint_text: 'Exam Title (e.g., Gunotsav Assessment 2026)'
                     multiline: False
                     size_hint_y: None
                     height: '42dp'
 
                 TextInput:
                     id: subj_in
-                    hint_text: 'Subject / Competency (e.g., Reading & Numeracy)'
+                    hint_text: 'Subject (e.g., Reading & Numeracy)'
                     multiline: False
                     size_hint_y: None
                     height: '42dp'
@@ -458,13 +465,13 @@ KV = '''
                     spacing: 8
                     TextInput:
                         id: num_q_in
-                        hint_text: 'Total Questions'
+                        hint_text: 'Total Questions (e.g. 25)'
                         text: '25'
                         input_filter: 'int'
                         multiline: False
                     TextInput:
                         id: rubric_scale_in
-                        hint_text: 'Rubric (0,1,2,3 or 0,1)'
+                        hint_text: 'Rubric Scale'
                         text: '0,1,2,3'
                         disabled: True
                         multiline: False
@@ -475,7 +482,7 @@ KV = '''
                     spacing: 8
                     TextInput:
                         id: pos_in
-                        hint_text: '+P Mark (e.g. 1.0)'
+                        hint_text: '+P Mark per level/correct'
                         text: '1.0'
                         input_filter: 'float'
                         multiline: False
@@ -498,16 +505,16 @@ KV = '''
                         multiline: False
                     TextInput:
                         id: master_total_in
-                        hint_text: 'Master Total for % (Optional)'
+                        hint_text: 'Master Total (Optional)'
                         input_filter: 'float'
                         multiline: False
 
                 CustomButton:
-                    text: 'Save & Continue'
+                    text: 'Save Exam Configuration'
                     background_color: hex('#16a34a')
                     on_release: root.save_exam()
 
-<KeyEditorScreen>:
+<ResultsScreen>:
     BoxLayout:
         orientation: 'vertical'
         padding: 16
@@ -518,27 +525,20 @@ KV = '''
             height: '42dp'
             Button:
                 text: '< Back'
-                size_hint_x: 0.22
+                size_hint_x: 0.25
                 background_normal: ''
                 background_color: hex('#475569')
                 on_release: root.manager.current = 'exams_list'
             Label:
-                id: key_title_lbl
-                text: 'Answer / Rubric Key'
+                id: res_title_lbl
+                text: 'Evaluation Results'
                 font_size: '16sp'
                 bold: True
-            Button:
-                id: lock_btn
-                text: 'Lock Key'
-                size_hint_x: 0.28
-                background_normal: ''
-                background_color: hex('#059669')
-                on_release: root.lock_key()
 
         ScrollView:
-            GridLayout:
-                id: key_grid
-                cols: 1
+            BoxLayout:
+                id: res_container
+                orientation: 'vertical'
                 size_hint_y: None
                 height: self.minimum_height
                 spacing: 6
@@ -774,8 +774,7 @@ class ExamsListScreen(Screen):
             row.badge_text = '[MATRIX]' if is_mat else '[OMR]'
             row.badge_color = get_color_from_hex('#8b5cf6') if is_mat else get_color_from_hex('#38bdf8')
             row.title_text = f"{ex[1]} ({ex[3]})"
-            neg_info = f"-{ex[8]}" if ex[8] > 0 else "No Penalty"
-            row.details_text = f"Class {ex[4]}-{ex[5]} | Qs: {ex[6]} | +{ex[7]} / {neg_info} | Max: {ex[9]}"
+            row.details_text = f"Class {ex[4]}-{ex[5]} | Qs: {ex[6]} | Scale: {ex[13] if is_mat else '+'+str(ex[7])}"
             row.is_locked = bool(ex[11])
             container.add_widget(row)
 
@@ -809,65 +808,34 @@ class CreateExamScreen(Screen):
         auto_calculated_max = (int(num_q) * pos_val) + subj_val
         master_tot = float(self.ids.master_total_in.text.strip()) if self.ids.master_total_in.text.strip() else auto_calculated_max
 
-        exam_id = App.get_running_app().db.create_exam(
+        App.get_running_app().db.create_exam(
             title, exam_type, subj, cls, sec, num_q, pos_val, neg_val, master_tot, subj_val, rubric_scale
         )
-        App.get_running_app().open_key_editor(exam_id)
+        self.manager.current = 'exams_list'
 
-class KeyEditorScreen(Screen):
-    current_exam_id = NumericProperty(0)
-    key_data = ListProperty([])
-    is_locked = BooleanProperty(False)
-
-    def load_exam(self, exam_id):
-        self.current_exam_id = exam_id
+class ResultsScreen(Screen):
+    def load_results(self, exam_id):
         exam = App.get_running_app().db.get_exam_by_id(exam_id)
         if not exam:
             return
-        
-        self.ids.key_title_lbl.text = f"{exam[1]} ({exam[2]} Key)"
-        self.is_locked = bool(exam[11])
-        is_matrix = (exam[2] == 'MATRIX')
-        
-        scale_options = [opt.strip() for opt in exam[13].split(',')] if is_matrix else ['A', 'B', 'C', 'D']
-        self.key_data = json.loads(exam[12]) if exam[12] else [scale_options[0]] * exam[6]
+        self.ids.res_title_lbl.text = f"{exam[1]} Results"
+        container = self.ids.res_container
+        container.clear_widgets()
 
-        self.ids.lock_btn.text = "Key Locked" if self.is_locked else "Lock Key"
-        self.ids.lock_btn.disabled = self.is_locked
+        results = App.get_running_app().db.get_results_for_exam(exam_id)
+        if not results:
+            container.add_widget(Label(text="No evaluations saved yet for this exam.", size_hint_y=None, height='40dp'))
+            return
 
-        grid = self.ids.key_grid
-        grid.clear_widgets()
-
-        for idx, current_ans in enumerate(self.key_data):
-            row = BoxLayout(size_hint_y=None, height='40dp', spacing=6)
-            q_lbl = Label(text=f"Q{idx+1}", size_hint_x=0.2, bold=True)
-            row.add_widget(q_lbl)
-
-            for opt in scale_options:
-                btn = ToggleButton(
-                    text=opt,
-                    group=f"q_{idx}",
-                    state='down' if current_ans == opt else 'normal',
-                    disabled=self.is_locked,
-                    size_hint_x=0.2
-                )
-                btn.bind(on_release=lambda instance, q_i=idx, o=opt: self.set_answer(q_i, o))
-                row.add_widget(btn)
-
-            grid.add_widget(row)
-
-    def set_answer(self, q_idx, option):
-        if not self.is_locked:
-            self.key_data[q_idx] = option
-            App.get_running_app().db.update_exam_key(self.current_exam_id, self.key_data, lock=False)
-
-    def lock_key(self):
-        App.get_running_app().db.update_exam_key(self.current_exam_id, self.key_data, lock=True)
-        self.is_locked = True
-        self.ids.lock_btn.text = "Key Locked"
-        self.ids.lock_btn.disabled = True
-        self.load_exam(self.current_exam_id)
-        App.get_running_app().show_notification("Assessment Configuration Locked Successfully!")
+        for r in results:
+            row = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
+            roll_lbl = Label(text=f"Roll #{r[1]}", size_hint_x=0.25, bold=True)
+            name_lbl = Label(text=str(r[2]), size_hint_x=0.45, halign='left', text_size=(None, None))
+            score_lbl = Label(text=f"{r[4]} ({r[5]:.1f}%)", size_hint_x=0.3, bold=True, color=(0.2, 0.8, 0.4, 1))
+            row.add_widget(roll_lbl)
+            row.add_widget(name_lbl)
+            row.add_widget(score_lbl)
+            container.add_widget(row)
 
 
 class DHKOMRProApp(App):
@@ -881,60 +849,153 @@ class DHKOMRProApp(App):
         self.db = DatabaseManager(db_path)
 
         Builder.load_string(KV)
-        sm = ScreenManager()
+        # Lock screen transitions to instant NoTransition to eliminate layout slide/ghosting
+        sm = ScreenManager(transition=NoTransition())
         sm.add_widget(HomeScreen(name='home'))
         sm.add_widget(RegistryScreen(name='registry'))
         sm.add_widget(RolloverScreen(name='rollover'))
         sm.add_widget(ExamsListScreen(name='exams_list'))
         sm.add_widget(CreateExamScreen(name='create_exam'))
-        sm.add_widget(KeyEditorScreen(name='key_editor'))
+        sm.add_widget(ResultsScreen(name='results_view'))
         return sm
 
-    def open_scanner_choice(self, exam_id):
+    def open_evaluator(self, exam_id):
         self.active_eval_exam_id = exam_id
-        layout = BoxLayout(orientation='vertical', padding=15, spacing=12)
-        popup = Popup(title='Select Image Source', content=layout, size_hint=(0.85, 0.45))
+        exam = self.db.get_exam_by_id(exam_id)
+        if not exam:
+            return
 
-        def launch_camera(instance):
+        is_matrix = (exam[2] == 'MATRIX')
+        target_class = exam[4]
+        students = self.db.get_students(status='ACTIVE', class_name=target_class)
+
+        if not students:
+            self.show_notification(f"No active students found for Class {target_class}!\nPlease add them in the Student Registry first.")
+            return
+
+        if is_matrix:
+            self.show_matrix_evaluation_dialog(exam, students)
+        else:
+            self.show_individual_evaluation_dialog(exam, students)
+
+    def show_matrix_evaluation_dialog(self, exam, students):
+        """Displays interactive Class-wise Gunotsav Roster Evaluation dialog."""
+        layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
+        
+        header = Label(
+            text=f"Gunotsav Matrix: Class {exam[4]} ({len(students)} Students)",
+            font_size='15sp', bold=True, size_hint_y=None, height='32dp', color=(0.2, 0.8, 1, 1)
+        )
+        layout.add_widget(header)
+
+        scroll = ScrollView()
+        grid = GridLayout(cols=1, spacing=6, size_hint_y=None)
+        grid.bind(minimum_height=grid.setter('height'))
+
+        # Rubric scale options: [0, 1, 2, 3]
+        scale_opts = [s.strip() for s in exam[13].split(',')]
+        student_inputs = {}
+
+        for s in students:
+            s_row = BoxLayout(size_hint_y=None, height='44dp', spacing=6)
+            s_lbl = Label(text=f"#{s[4]} {s[1]}", size_hint_x=0.55, halign='left', shorten=True)
+            s_inp = TextInput(
+                text=str(len(scale_opts) - 1),
+                hint_text='Score (0-25)',
+                multiline=False,
+                input_filter='float',
+                size_hint_x=0.45
+            )
+            student_inputs[s[0]] = (s, s_inp)
+            s_row.add_widget(s_lbl)
+            s_row.add_widget(s_inp)
+            grid.add_widget(s_row)
+
+        scroll.add_widget(grid)
+        layout.add_widget(scroll)
+
+        popup = Popup(title='Gunotsav Class Roster Scoring', content=layout, size_hint=(0.92, 0.85))
+
+        def save_matrix_scores(instance):
+            for s_id, (s_data, s_inp) in student_inputs.items():
+                try:
+                    score = float(s_inp.text.strip()) if s_inp.text.strip() else 0.0
+                except ValueError:
+                    score = 0.0
+                
+                max_marks = float(exam[9]) if exam[9] > 0 else 25.0
+                pct = (score / max_marks) * 100.0 if max_marks > 0 else 0.0
+
+                self.db.save_result(
+                    exam_id=exam[0],
+                    student_id=s_data[0],
+                    roll_no=s_data[4],
+                    name=s_data[1],
+                    class_name=s_data[2],
+                    score=score,
+                    subj_score=0.0,
+                    grand_total=score,
+                    percentage=pct,
+                    raw_json=json.dumps({"matrix_total": score})
+                )
             popup.dismiss()
-            self.trigger_native_camera()
+            self.show_notification(f"Recorded results for {len(students)} students successfully!")
 
-        def launch_gallery(instance):
-            popup.dismiss()
-            self.trigger_native_gallery()
-
-        btn_cam = Button(text='Take Photo (Camera)', size_hint_y=None, height='46dp', background_color=(0.15, 0.6, 0.25, 1))
-        btn_cam.bind(on_release=launch_camera)
-
-        btn_gal = Button(text='Pick from Gallery', size_hint_y=None, height='46dp', background_color=(0.15, 0.4, 0.9, 1))
-        btn_gal.bind(on_release=launch_gallery)
-
-        layout.add_widget(btn_cam)
-        layout.add_widget(btn_gal)
+        btn_save = Button(
+            text='Save Entire Class to Database',
+            size_hint_y=None, height='46dp',
+            background_color=(0.1, 0.65, 0.2, 1), bold=True
+        )
+        btn_save.bind(on_release=save_matrix_scores)
+        layout.add_widget(btn_save)
         popup.open()
 
-    def trigger_native_camera(self):
-        """Dispatches native Android camera capture intent or simulated prompt."""
-        self.show_notification("Camera Ready.\nSelect sheet photo from device to grade.")
+    def show_individual_evaluation_dialog(self, exam, students):
+        """Displays individual student OMR grading."""
+        layout = BoxLayout(orientation='vertical', padding=14, spacing=10)
+        roll_in = TextInput(hint_text='Enter Roll Number (e.g. 1)', input_filter='int', multiline=False, size_hint_y=None, height='44dp')
+        score_in = TextInput(hint_text='Total Marks Scored', input_filter='float', multiline=False, size_hint_y=None, height='44dp')
+        
+        popup = Popup(title='Evaluate Individual OMR', content=layout, size_hint=(0.88, 0.45))
 
-    def trigger_native_gallery(self):
-        """Simulates/dispatches gallery file pick."""
-        self.show_notification("Gallery Ready.\nSelect sheet photo from device to grade.")
+        def commit_single(instance):
+            if roll_in.text and score_in.text:
+                target_roll = int(roll_in.text.strip())
+                st_match = next((s for s in students if s[4] == target_roll), None)
+                st_name = st_match[1] if st_match else f"Student #{target_roll}"
+                st_id = st_match[0] if st_match else None
+                score = float(score_in.text.strip())
+                max_marks = float(exam[9]) if exam[9] > 0 else float(exam[6])
+                pct = (score / max_marks) * 100.0 if max_marks > 0 else 0.0
 
-    def process_image_evaluation(self, image_path):
-        try:
-            with Image.open(image_path) as img:
-                w, h = img.size
-                exam = self.db.get_exam_by_id(self.active_eval_exam_id)
-                exam_type = exam[2] if exam else "INDIVIDUAL"
-                self.show_notification(f"Image Loaded ({w}x{h})\nType: {exam_type}\nReady for Processing.")
-        except Exception as e:
-            self.show_notification(f"Error loading image: {e}")
+                self.db.save_result(
+                    exam_id=exam[0],
+                    student_id=st_id,
+                    roll_no=target_roll,
+                    name=st_name,
+                    class_name=exam[4],
+                    score=score,
+                    subj_score=0.0,
+                    grand_total=score,
+                    percentage=pct,
+                    raw_json=json.dumps({"score": score})
+                )
+                popup.dismiss()
+                self.show_notification(f"Saved: #{target_roll} {st_name} -> {score} marks ({pct:.1f}%)")
+            else:
+                self.show_notification("Please enter Roll No and Score.")
 
-    def open_key_editor(self, exam_id):
-        key_screen = self.root.get_screen('key_editor')
-        key_screen.load_exam(exam_id)
-        self.root.current = 'key_editor'
+        btn = Button(text='Save Score to Database', size_hint_y=None, height='44dp', background_color=(0.1, 0.6, 0.2, 1))
+        btn.bind(on_release=commit_single)
+        layout.add_widget(roll_in)
+        layout.add_widget(score_in)
+        layout.add_widget(btn)
+        popup.open()
+
+    def open_results_view(self, exam_id):
+        res_screen = self.root.get_screen('results_view')
+        res_screen.load_results(exam_id)
+        self.root.current = 'results_view'
 
     def toggle_torch(self):
         self.torch_state = not self.torch_state
