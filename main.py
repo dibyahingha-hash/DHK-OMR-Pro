@@ -162,7 +162,6 @@ class DatabaseManager:
                 VALUES (1, 90.0, 10.0, 87.0, 74.0, 61.0, 50.0)
             ''')
 
-            # Populate default indicators if table is empty
             cursor.execute("SELECT COUNT(*) FROM school_indicators")
             if cursor.fetchone()[0] == 0:
                 for ind in DEFAULT_24_INDICATORS:
@@ -388,34 +387,97 @@ KV = '''
 <Screen>:
     canvas.before:
         Color:
-            rgba: hex('#0f172a')
+            rgba: hex('#090d16')
         Rectangle:
             pos: self.pos
             size: self.size
 
-<CustomButton@Button>:
-    font_size: '15sp'
-    bold: True
-    background_normal: ''
-    background_color: hex('#2563eb')
-    color: hex('#ffffff')
-    size_hint_y: None
-    height: '48dp'
+# --- Reusable Premium UI Components ---
 
-<FormLabel@Label>:
+<ModernCard@BoxLayout>:
+    orientation: 'vertical'
     size_hint_y: None
-    height: '24dp'
-    font_size: '13sp'
+    height: self.minimum_height
+    padding: [14, 12]
+    spacing: 8
+    canvas.before:
+        Color:
+            rgba: hex('#151e2e')
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [10,]
+        Color:
+            rgba: hex('#223147')
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, 10)
+            width: 1
+
+<ModernInput@TextInput>:
+    multiline: False
+    size_hint_y: None
+    height: '44dp'
+    padding: [12, 11]
+    font_size: '14sp'
+    background_normal: ''
+    background_active: ''
+    background_color: [0, 0, 0, 0]
+    cursor_color: hex('#38bdf8')
+    foreground_color: hex('#f8fafc')
+    hint_text_color: hex('#64748b')
+    canvas.before:
+        Color:
+            rgba: hex('#1e293b')
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [8,]
+        Color:
+            rgba: hex('#334155') if not self.focus else hex('#38bdf8')
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, 8)
+            width: 1.2 if not self.focus else 1.8
+
+<CardHeader@Label>:
+    size_hint_y: None
+    height: '22dp'
+    font_size: '12sp'
+    bold: True
+    halign: 'left'
+    text_size: self.size
+    color: hex('#38bdf8')
+
+<FieldLabel@Label>:
+    size_hint_y: None
+    height: '20dp'
+    font_size: '11sp'
     bold: True
     halign: 'left'
     text_size: self.size
     color: hex('#94a3b8')
 
+<CustomButton@Button>:
+    font_size: '14sp'
+    bold: True
+    background_normal: ''
+    background_color: [0, 0, 0, 0]
+    color: hex('#ffffff')
+    size_hint_y: None
+    height: '46dp'
+    btn_bg: hex('#2563eb')
+    canvas.before:
+        Color:
+            rgba: self.btn_bg
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [8,]
+
 <ExamRow@BoxLayout>:
     orientation: 'horizontal'
     size_hint_y: None
     height: '68dp'
-    padding: [10, 6]
+    padding: [12, 6]
     spacing: 8
     exam_id: 0
     title_text: ''
@@ -426,11 +488,16 @@ KV = '''
     is_matrix: False
     canvas.before:
         Color:
-            rgba: hex('#1e293b')
+            rgba: hex('#151e2e')
         RoundedRectangle:
             pos: self.pos
             size: self.size
-            radius: [6,]
+            radius: [8,]
+        Color:
+            rgba: hex('#223147')
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, 8)
+            width: 1
 
     BoxLayout:
         orientation: 'vertical'
@@ -475,6 +542,8 @@ KV = '''
         background_color: hex('#059669')
         on_release: app.open_results_view(root.exam_id)
 
+# --- App Screens ---
+
 <HomeScreen>:
     BoxLayout:
         orientation: 'vertical'
@@ -493,7 +562,7 @@ KV = '''
                 text: 'Torch: ' + ('ON' if app.torch_state else 'OFF')
                 size_hint_x: 0.35
                 background_normal: ''
-                background_color: hex('#eab308') if app.torch_state else hex('#475569')
+                background_color: hex('#eab308') if app.torch_state else hex('#334155')
                 on_release: app.toggle_torch()
 
         Label:
@@ -508,32 +577,32 @@ KV = '''
 
         CustomButton:
             text: 'Exams & Evaluate Sheets'
-            background_color: hex('#d97706')
+            btn_bg: hex('#d97706')
             on_release: root.manager.current = 'exams_list'
 
         CustomButton:
-            text: 'School Evaluation Form (Configurable)'
-            background_color: hex('#9333ea')
+            text: 'School Evaluation Form'
+            btn_bg: hex('#7c3aed')
             on_release: root.manager.current = 'school_eval'
 
         CustomButton:
             text: 'School Grade & Norms Calculator'
-            background_color: hex('#059669')
+            btn_bg: hex('#059669')
             on_release: root.manager.current = 'grade_report'
 
         CustomButton:
             text: 'Student Registry (Classes & Rolls)'
-            background_color: hex('#2563eb')
+            btn_bg: hex('#2563eb')
             on_release: root.manager.current = 'registry'
 
         CustomButton:
             text: 'Class Promotion / Rollover'
-            background_color: hex('#0d9488')
+            btn_bg: hex('#0d9488')
             on_release: root.manager.current = 'rollover'
 
         CustomButton:
             text: 'Export Roster Backup (CSV)'
-            background_color: hex('#4f46e5')
+            btn_bg: hex('#4f46e5')
             on_release: app.export_roster()
 
         Widget:
@@ -553,7 +622,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.22
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'Exams & Tests'
@@ -579,16 +648,16 @@ KV = '''
     BoxLayout:
         orientation: 'vertical'
         padding: 16
-        spacing: 8
+        spacing: 10
 
         BoxLayout:
             size_hint_y: None
             height: '42dp'
             Button:
                 text: '< Cancel'
-                size_hint_x: 0.25
+                size_hint_x: 0.24
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'exams_list'
             Label:
                 text: 'Configure New Test'
@@ -600,171 +669,163 @@ KV = '''
                 orientation: 'vertical'
                 size_hint_y: None
                 height: self.minimum_height
-                spacing: 8
-                padding: [4, 6]
+                spacing: 12
+                padding: [2, 4]
 
-                FormLabel:
-                    text: 'Step 1: Choose Evaluation Format'
-                    color: hex('#38bdf8')
-
-                BoxLayout:
-                    size_hint_y: None
-                    height: '44dp'
-                    spacing: 8
-                    ToggleButton:
-                        id: type_matrix
-                        text: 'Gunotsav Matrix (Class 1-2)'
-                        group: 'exam_type_grp'
-                        state: 'down'
-                        on_release: root.on_type_change()
-                    ToggleButton:
-                        id: type_individual
-                        text: 'Individual OMR (Class 3+)'
-                        group: 'exam_type_grp'
-                        on_release: root.on_type_change()
-
-                Label:
-                    id: type_desc_lbl
-                    text: 'Evaluates entire class on 1 sheet across Reading, Writing & Numeracy.'
-                    font_size: '11sp'
-                    color: hex('#a78bfa')
-                    size_hint_y: None
-                    height: '22dp'
-                    halign: 'left'
-                    text_size: self.size
-
-                FormLabel:
-                    text: 'Step 2: Basic Information'
-                    color: hex('#38bdf8')
-
-                TextInput:
-                    id: title_in
-                    hint_text: 'Exam / Assessment Name (e.g. Gunotsav Round 2026)'
-                    text: 'Gunotsav Assessment'
-                    multiline: False
-                    size_hint_y: None
-                    height: '42dp'
-
-                TextInput:
-                    id: subj_in
-                    hint_text: 'Subject / Competency'
-                    text: 'Reading, Writing & Numeracy'
-                    multiline: False
-                    size_hint_y: None
-                    height: '42dp'
-
-                BoxLayout:
-                    size_hint_y: None
-                    height: '66dp'
-                    spacing: 8
+                # Step 1 Card: Format Selection
+                ModernCard:
+                    CardHeader:
+                        text: '1. EVALUATION FORMAT'
                     BoxLayout:
-                        orientation: 'vertical'
-                        FormLabel:
-                            text: 'Class'
-                        TextInput:
-                            id: class_in
-                            hint_text: 'e.g. 2'
-                            text: '2'
-                            multiline: False
-                    BoxLayout:
-                        orientation: 'vertical'
-                        FormLabel:
-                            text: 'Section'
-                        TextInput:
-                            id: sec_in
-                            hint_text: 'e.g. A'
-                            text: 'A'
-                            multiline: False
+                        size_hint_y: None
+                        height: '42dp'
+                        spacing: 8
+                        ToggleButton:
+                            id: type_matrix
+                            text: 'Gunotsav Matrix (Class 1-2)'
+                            group: 'exam_type_grp'
+                            state: 'down'
+                            font_size: '12sp'
+                            bold: True
+                            background_normal: ''
+                            background_color: hex('#7c3aed') if self.state == 'down' else hex('#1e293b')
+                            on_release: root.on_type_change()
+                        ToggleButton:
+                            id: type_individual
+                            text: 'Individual OMR (Class 3+)'
+                            group: 'exam_type_grp'
+                            font_size: '12sp'
+                            bold: True
+                            background_normal: ''
+                            background_color: hex('#2563eb') if self.state == 'down' else hex('#1e293b')
+                            on_release: root.on_type_change()
 
-                FormLabel:
-                    text: 'Step 3: Marking & Questions'
-                    color: hex('#38bdf8')
+                    Label:
+                        id: type_desc_lbl
+                        text: 'Evaluates entire class on 1 sheet across Reading, Writing & Numeracy.'
+                        font_size: '11sp'
+                        color: hex('#94a3b8')
+                        size_hint_y: None
+                        height: '20dp'
+                        halign: 'left'
+                        text_size: self.size
 
-                BoxLayout:
-                    size_hint_y: None
-                    height: '66dp'
-                    spacing: 8
-                    BoxLayout:
-                        orientation: 'vertical'
-                        FormLabel:
-                            id: q_count_lbl
-                            text: 'Total Questions'
-                        TextInput:
-                            id: num_q_in
-                            hint_text: '25'
-                            text: '25'
-                            input_filter: 'int'
-                            multiline: False
-                    BoxLayout:
-                        orientation: 'vertical'
-                        FormLabel:
-                            id: rubric_lbl
-                            text: 'Rubric / Scale'
-                        TextInput:
-                            id: rubric_scale_in
-                            hint_text: '0,1,2,3'
-                            text: '0,1,2,3'
-                            multiline: False
+                # Step 2 Card: Basic Details
+                ModernCard:
+                    CardHeader:
+                        text: '2. BASIC INFORMATION'
+                    FieldLabel:
+                        text: 'Assessment / Exam Title'
+                    ModernInput:
+                        id: title_in
+                        hint_text: 'e.g., Gunotsav Assessment 2026'
+                        text: 'Gunotsav Assessment'
+                    FieldLabel:
+                        text: 'Subject / Competency'
+                    ModernInput:
+                        id: subj_in
+                        hint_text: 'e.g., Reading, Writing & Numeracy'
+                        text: 'Reading, Writing & Numeracy'
 
-                BoxLayout:
-                    size_hint_y: None
-                    height: '66dp'
-                    spacing: 8
                     BoxLayout:
-                        orientation: 'vertical'
-                        FormLabel:
-                            text: 'Marks per Right / Level'
-                        TextInput:
-                            id: pos_in
-                            hint_text: '1.0'
-                            text: '1.0'
-                            input_filter: 'float'
-                            multiline: False
-                    BoxLayout:
-                        orientation: 'vertical'
-                        FormLabel:
-                            text: 'Penalty for Wrong'
-                        TextInput:
-                            id: neg_in
-                            hint_text: '0 (None)'
-                            text: '0.0'
-                            input_filter: 'float'
-                            multiline: False
+                        size_hint_y: None
+                        height: '66dp'
+                        spacing: 10
+                        BoxLayout:
+                            orientation: 'vertical'
+                            FieldLabel:
+                                text: 'Target Class'
+                            ModernInput:
+                                id: class_in
+                                text: '2'
+                                hint_text: 'e.g. 2'
+                        BoxLayout:
+                            orientation: 'vertical'
+                            FieldLabel:
+                                text: 'Section'
+                            ModernInput:
+                                id: sec_in
+                                text: 'A'
+                                hint_text: 'e.g. A'
 
-                FormLabel:
-                    text: 'Step 4: Optional Customization'
-                    color: hex('#94a3b8')
-
-                BoxLayout:
-                    size_hint_y: None
-                    height: '66dp'
-                    spacing: 8
+                # Step 3 Card: Question Setup & Rubric
+                ModernCard:
+                    CardHeader:
+                        text: '3. MARKING & RUBRIC RULES'
                     BoxLayout:
-                        orientation: 'vertical'
-                        FormLabel:
-                            text: 'Non-MCQ Marks (Optional)'
-                        TextInput:
-                            id: subj_max_in
-                            hint_text: '0.0'
-                            text: '0.0'
-                            input_filter: 'float'
-                            multiline: False
-                    BoxLayout:
-                        orientation: 'vertical'
-                        FormLabel:
-                            text: 'Total Marks for % (Optional)'
-                        TextInput:
-                            id: master_total_in
-                            hint_text: 'Auto'
-                            multiline: False
+                        size_hint_y: None
+                        height: '66dp'
+                        spacing: 10
+                        BoxLayout:
+                            orientation: 'vertical'
+                            FieldLabel:
+                                text: 'Total Questions'
+                            ModernInput:
+                                id: num_q_in
+                                text: '25'
+                                hint_text: '25'
+                                input_filter: 'int'
+                        BoxLayout:
+                            orientation: 'vertical'
+                            FieldLabel:
+                                id: rubric_lbl
+                                text: 'Rubric Levels / Options'
+                            ModernInput:
+                                id: rubric_scale_in
+                                text: '0,1,2,3'
+                                hint_text: '0,1,2,3'
 
-                Widget:
-                    size_hint_y: None
-                    height: '10dp'
+                    BoxLayout:
+                        size_hint_y: None
+                        height: '66dp'
+                        spacing: 10
+                        BoxLayout:
+                            orientation: 'vertical'
+                            FieldLabel:
+                                text: 'Marks Per Right / Level'
+                            ModernInput:
+                                id: pos_in
+                                text: '1.0'
+                                hint_text: '1.0'
+                                input_filter: 'float'
+                        BoxLayout:
+                            orientation: 'vertical'
+                            FieldLabel:
+                                text: 'Wrong Penalty (-N)'
+                            ModernInput:
+                                id: neg_in
+                                text: '0.0'
+                                hint_text: '0.0'
+                                input_filter: 'float'
+
+                # Step 4 Card: Optional Custom Scoring
+                ModernCard:
+                    CardHeader:
+                        text: '4. OPTIONAL SCORING CUSTOMIZATION'
+                    BoxLayout:
+                        size_hint_y: None
+                        height: '66dp'
+                        spacing: 10
+                        BoxLayout:
+                            orientation: 'vertical'
+                            FieldLabel:
+                                text: 'Non-MCQ / Oral Marks'
+                            ModernInput:
+                                id: subj_max_in
+                                text: '0.0'
+                                hint_text: '0.0'
+                                input_filter: 'float'
+                        BoxLayout:
+                            orientation: 'vertical'
+                            FieldLabel:
+                                text: 'Total Benchmark for %'
+                            ModernInput:
+                                id: master_total_in
+                                hint_text: 'Auto (Qs x Mark)'
 
                 CustomButton:
-                    text: 'Save & Create Exam'
-                    background_color: hex('#16a34a')
+                    text: 'Save Exam Configuration'
+                    btn_bg: hex('#16a34a')
                     on_release: root.save_exam()
 
 <SchoolEvalScreen>:
@@ -782,7 +843,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.18
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
             Label:
                 id: form_count_lbl
@@ -806,19 +867,17 @@ KV = '''
 
         BoxLayout:
             size_hint_y: None
-            height: '36dp'
+            height: '42dp'
             spacing: 8
-            TextInput:
+            ModernInput:
                 id: year_in
                 text: '2026-2027'
                 hint_text: 'Academic Year'
-                multiline: False
                 size_hint_x: 0.5
-            TextInput:
+            ModernInput:
                 id: date_in
                 text: '2026-09-26'
                 hint_text: 'Date (YYYY-MM-DD)'
-                multiline: False
                 size_hint_x: 0.5
 
         Label:
@@ -852,7 +911,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.22
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'School Grade & Norms'
@@ -872,18 +931,7 @@ KV = '''
                 height: self.minimum_height
                 spacing: 10
 
-                BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_y: None
-                    height: '110dp'
-                    padding: 10
-                    canvas.before:
-                        Color:
-                            rgba: hex('#1e293b')
-                        RoundedRectangle:
-                            pos: self.pos
-                            size: self.size
-                            radius: [8,]
+                ModernCard:
                     Label:
                         text: 'Overall School Final Grade'
                         font_size: '13sp'
@@ -891,28 +939,17 @@ KV = '''
                     Label:
                         id: final_grade_lbl
                         text: 'GRADE --'
-                        font_size: '32sp'
+                        font_size: '34sp'
                         bold: True
                         color: hex('#eab308')
                     Label:
                         id: final_score_lbl
                         text: 'Composite Score: 0.0%'
-                        font_size: '14sp'
+                        font_size: '15sp'
                         bold: True
                         color: hex('#38bdf8')
 
-                BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_y: None
-                    height: '80dp'
-                    padding: 8
-                    canvas.before:
-                        Color:
-                            rgba: hex('#1e293b')
-                        RoundedRectangle:
-                            pos: self.pos
-                            size: self.size
-                            radius: [8,]
+                ModernCard:
                     Label:
                         id: schol_summary_lbl
                         text: 'Scholastic (Academic Learning): 0.0%'
@@ -927,18 +964,7 @@ KV = '''
                         halign: 'left'
                         text_size: self.size
 
-                BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_y: None
-                    height: '80dp'
-                    padding: 8
-                    canvas.before:
-                        Color:
-                            rgba: hex('#1e293b')
-                        RoundedRectangle:
-                            pos: self.pos
-                            size: self.size
-                            radius: [8,]
+                ModernCard:
                     Label:
                         id: school_eval_summary_lbl
                         text: 'School Evaluation Form: 0.0%'
@@ -953,18 +979,7 @@ KV = '''
                         halign: 'left'
                         text_size: self.size
 
-                BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_y: None
-                    height: '110dp'
-                    padding: 10
-                    canvas.before:
-                        Color:
-                            rgba: hex('#1e293b')
-                        RoundedRectangle:
-                            pos: self.pos
-                            size: self.size
-                            radius: [8,]
+                ModernCard:
                     Label:
                         text: 'Active Cut-off Thresholds:'
                         font_size: '12sp'
@@ -982,7 +997,7 @@ KV = '''
 
                 CustomButton:
                     text: 'Refresh Calculation'
-                    background_color: hex('#2563eb')
+                    btn_bg: hex('#2563eb')
                     on_release: root.calculate_report()
 
 <ResultsScreen>:
@@ -998,7 +1013,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.25
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'exams_list'
             Label:
                 id: res_title_lbl
@@ -1028,7 +1043,7 @@ KV = '''
     action_color: hex('#ef4444')
     canvas.before:
         Color:
-            rgba: hex('#1e293b')
+            rgba: hex('#151e2e')
         RoundedRectangle:
             pos: self.pos
             size: self.size
@@ -1073,7 +1088,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.18
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'Directory'
@@ -1085,7 +1100,7 @@ KV = '''
                 text: 'Archived' if root.showing_active else 'Active'
                 size_hint_x: 0.22
                 background_normal: ''
-                background_color: hex('#8b5cf6')
+                background_color: hex('#7c3aed')
                 on_release: root.toggle_view()
             Button:
                 text: 'Import CSV'
@@ -1148,7 +1163,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.3
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'Academic Rollover'
@@ -1163,30 +1178,21 @@ KV = '''
             size_hint_y: None
             height: '45dp'
 
-        TextInput:
+        ModernInput:
             id: old_class_input
             hint_text: 'Current Class (e.g., 1)'
-            multiline: False
-            size_hint_y: None
-            height: '44dp'
 
-        TextInput:
+        ModernInput:
             id: new_class_input
             hint_text: 'Promote To Class (e.g., 2)'
-            multiline: False
-            size_hint_y: None
-            height: '44dp'
 
-        TextInput:
+        ModernInput:
             id: new_year_input
             hint_text: 'New Academic Year (e.g., 2027-2028)'
-            multiline: False
-            size_hint_y: None
-            height: '44dp'
 
         CustomButton:
             text: 'Confirm & Promote Class'
-            background_color: hex('#0d9488')
+            btn_bg: hex('#0d9488')
             on_release: root.execute_rollover()
 
         Widget:
@@ -1266,7 +1272,7 @@ class CreateExamScreen(Screen):
             self.ids.subj_in.text = "Reading, Writing & Numeracy"
             self.ids.class_in.text = "2"
             self.ids.num_q_in.text = "25"
-            self.ids.rubric_lbl.text = "Rubric Scale"
+            self.ids.rubric_lbl.text = "Rubric Levels"
             self.ids.rubric_scale_in.disabled = False
             self.ids.rubric_scale_in.text = "0,1,2,3"
         else:
@@ -1336,23 +1342,23 @@ class SchoolEvalScreen(Screen):
             btn_yes = ToggleButton(
                 text='YES', group=f"ind_{ind_id}", size_hint_x=0.14,
                 state='down' if is_yes else 'normal',
-                background_color=(0.1, 0.65, 0.2, 1) if is_yes else (0.3, 0.3, 0.3, 1)
+                background_color=(0.1, 0.65, 0.2, 1) if is_yes else (0.2, 0.25, 0.35, 1)
             )
             btn_no = ToggleButton(
                 text='NO', group=f"ind_{ind_id}", size_hint_x=0.14,
                 state='normal' if is_yes else 'down',
-                background_color=(0.7, 0.2, 0.2, 1) if not is_yes else (0.3, 0.3, 0.3, 1)
+                background_color=(0.7, 0.2, 0.2, 1) if not is_yes else (0.2, 0.25, 0.35, 1)
             )
 
             def make_callbacks(y_btn, n_btn):
                 def on_y(instance):
                     if instance.state == 'down':
                         y_btn.background_color = (0.1, 0.65, 0.2, 1)
-                        n_btn.background_color = (0.3, 0.3, 0.3, 1)
+                        n_btn.background_color = (0.2, 0.25, 0.35, 1)
                 def on_n(instance):
                     if instance.state == 'down':
                         n_btn.background_color = (0.7, 0.2, 0.2, 1)
-                        y_btn.background_color = (0.3, 0.3, 0.3, 1)
+                        y_btn.background_color = (0.2, 0.25, 0.35, 1)
                 return on_y, on_n
 
             cy, cn = make_callbacks(btn_yes, btn_no)
