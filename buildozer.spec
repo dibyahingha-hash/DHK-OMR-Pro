@@ -12,26 +12,23 @@ package.domain = org.dhk
 # (str) Source code where the main.py lives
 source.dir = .
 
-# (list) Source files to include (let empty to include all the files)
+# (list) Source files to include
 source.include_exts = py,png,jpg,kv,atlas,json,txt
 
-# (list) List of inclusions using pattern matching
-#source.include_patterns = assets/*,images/*.png
-
-# (list) Source files to exclude (let empty to not exclude anything)
+# (list) Source files to exclude
 source.exclude_exts = spec
 
-# (list) List of directory to exclude (let empty to not exclude anything)
+# (list) List of directory to exclude
 source.exclude_dirs = bin, .buildozer, tests
 
 # (str) Application versioning
 version = 1.0.0
 
 # (list) Application requirements
-# Pure Python & lightweight imaging (NO opencv/numpy to prevent fatal start-up crashes)
-requirements = python3,kivy,pillow
+# Pure Python & lightweight imaging (No heavy native C++ binaries like OpenCV)
+requirements = python3,kivy,pillow,pyjnius
 
-# (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
+# (str) Supported orientation
 orientation = portrait
 
 # (bool) Indicate if the application should be fullscreen
@@ -44,22 +41,22 @@ fullscreen = 0
 # (list) Permissions
 android.permissions = CAMERA,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
 
-# (list) Features (essential for live camera scanning & auto-focus)
+# (list) Features
 android.features = android.hardware.camera,android.hardware.camera.autofocus
 
-# (int) Target Android API level (33 or 34 recommended for modern Android devices)
+# (int) Target Android API level
 android.api = 33
 
 # (int) Minimum API supported (Android 7.0+)
 android.minapi = 24
 
-# (int) Android SDK version to use
-#android.sdk = 33
+# (str) Android SDK build tools version (Locks to stable 33 to prevent build-tools 37 unaccepted prompt)
+android.build_tools_version = 33.0.2
 
-# (str) Android NDK version to use
-#android.ndk = 25b
+# (bool) Auto accept Android SDK license
+android.accept_sdk_license = True
 
-# (bool) Use --private data storage (True) or --dir public storage (False)
+# (bool) Use private data storage
 android.private_storage = True
 
 # (str) Android logcat filters to use
@@ -68,17 +65,11 @@ android.logcat_filters = *:S python:D
 # (bool) Copy library instead of making a libpymodules.so
 android.copy_libs = 1
 
-# (list) The Android archs to build for (arm64-v8a covers all modern phones)
-android.archs = arm64-v8a, armeabi-v7a
+# (list) Android target architectures (arm64-v8a covers all modern 64-bit phones)
+android.archs = arm64-v8a
 
-# (bool) enables Android auto backup feature (Android API >=23)
+# (bool) enables Android auto backup feature
 android.allow_backup = True
-
-# (str) XML file for network security configuration
-#android.network_security_config = 
-
-# (list) Java classes to add to the android manifest
-#android.add_activities = 
 
 #
 # Buildozer options
@@ -86,14 +77,8 @@ android.allow_backup = True
 
 [buildozer]
 
-# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
+# (int) Log level (2 = debug with full command output)
 log_level = 2
 
-# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
+# (int) Display warning if buildozer is run as root
 warn_on_root = 1
-
-# (str) Path to build artifact storage
-#build_dir = ./.buildozer
-
-# (str) Path to build cache storage
-#bin_dir = ./bin
