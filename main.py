@@ -2,6 +2,8 @@ import os
 import sqlite3
 import csv
 import json
+import zipfile
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from PIL import Image
 
@@ -48,7 +50,9 @@ if platform == 'android':
                     context = PythonActivity.mActivity.getApplicationContext()
                     resolver = context.getContentResolver()
                     cache_dir = context.getCacheDir().getAbsolutePath()
-                    dest_path = os.path.join(cache_dir, "shiksha_setu_import.csv")
+                    
+                    # Determine target extension from URI or default to xlsx
+                    dest_path = os.path.join(cache_dir, "shiksha_setu_import.xlsx")
 
                     input_stream = resolver.openInputStream(uri)
                     output_stream = autoclass('java.io.FileOutputStream')(dest_path)
@@ -272,77 +276,131 @@ class DatabaseManager:
                 writer.writerow(s)
         return len(students)
 
+    def read_xlsx_rows(self, file_path):
+        """Pure-Python standard library parser for Shiksha Setu Excel spreadsheets."""
+        rows = []
+        try:
+            with zipfile.ZipFile(file_path, 'r') as z:
+                # 1. Load shared strings table
+                shared_strings = []
+                if 'xl/sharedStrings.xml' in z.namelist():
+                    tree = ET.fromstring(z.read('xl/sharedStrings.xml'))
+                    for si in tree.findall('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}si'):
+                        t_elems = si.findall('.//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t')
+                        text = "".join([t.text or "" for t in t_elems])
+                        shared_strings.append(text)
+
+                # 2. Find and parse first sheet
+                sheet_name = 'xl/worksheets/sheet1.xml'
+                if sheet_name not in z.namelist():
+                    candidates = [n for n in z.namelist() if n.startswith('xl/worksheets/sheet')]
+                    sheet_name = sorted(candidates)[0] if candidates else None
+
+                if not sheet_name:
+                    return rows
+
+                tree = ET.fromstring(z.read(sheet_name))
+                sheet_data = tree.find('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}sheetData')
+                if sheet_data is None:
+                    return rows
+
+                for row_elem in sheet_data.findall('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}row'):
+                    row_vals = []
+                    for c in row_elem.findall('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}c'):
+                        val_type = c.attrib.get('t')
+                        v = c.find('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}v')
+                        val_str = v.text if (v is not None and v.text is not None) else ""
+
+                        if val_type == 's' and val_str.isdigit():
+                            idx = int(val_str)
+                            cell_val = shared_strings[idx] if idx < len(shared_strings) else ""
+                        else:
+                            cell_val = val_str
+                        row_vals.append(cell_val.strip())
+
+                    if any(row_vals):
+                        rows.append(row_vals)
+        except Exception as e:
+            print(f"[XLSX Parse Error] {e}")
+        return rows
+
     def import_shiksha_setu(self, file_path, default_class="1", default_sec="A", default_year="2026-2027"):
         imported_count = 0
         skipped_count = 0
 
-        with open(file_path, mode='r', encoding='utf-8', errors='ignore') as f:
-            reader = csv.reader(f)
-            headers = None
+        # Auto-detect whether it is a zipped Excel spreadsheet (.xlsx) or CSV
+        if file_path.lower().endswith('.xlsx') or zipfile.is_zipfile(file_path):
+            raw_rows = self.read_xlsx_rows(file_path)
+        else:
+            raw_rows = []
+            with open(file_path, mode='r', encoding='utf-8', errors='ignore') as f:
+                reader = csv.reader(f)
+                for r in reader:
+                    raw_rows.append([cell.strip() for cell in r])
 
-            name_idx = -1
-            class_idx = -1
-            roll_idx = -1
-            sec_idx = -1
+        headers = None
+        name_idx = -1
+        class_idx = -1
+        roll_idx = -1
+        sec_idx = -1
 
-            for row in reader:
-                if not row or not any(field.strip() for field in row):
+        for clean_row in raw_rows:
+            if not clean_row or not any(clean_row):
+                continue
+
+            # Detect Shiksha Setu Header Row
+            if headers is None:
+                lower_row = [c.lower() for c in clean_row]
+                for idx, col in enumerate(lower_row):
+                    if any(term in col for term in ['student name', 'name of student', 'student_name', 'name']):
+                        name_idx = idx
+                    elif any(term in col for term in ['class', 'current class', 'class_name']):
+                        class_idx = idx
+                    elif any(term in col for term in ['roll', 'roll no', 'roll_no', 'sl no']):
+                        roll_idx = idx
+                    elif any(term in col for term in ['section', 'sec']):
+                        sec_idx = idx
+
+                if name_idx != -1:
+                    headers = lower_row
                     continue
 
-                clean_row = [c.strip() for c in row]
+            try:
+                if name_idx != -1 and name_idx < len(clean_row):
+                    name = clean_row[name_idx]
+                    raw_cls = clean_row[class_idx] if class_idx != -1 and class_idx < len(clean_row) else default_class
+                    digits = ''.join(filter(str.isdigit, raw_cls))
+                    target_class = digits if digits else default_class
 
-                if headers is None:
-                    lower_row = [c.lower() for c in clean_row]
-                    for idx, col in enumerate(lower_row):
-                        if any(term in col for term in ['student name', 'name of student', 'student_name', 'name']):
-                            name_idx = idx
-                        elif any(term in col for term in ['class', 'current class', 'class_name']):
-                            class_idx = idx
-                        elif any(term in col for term in ['roll', 'roll no', 'roll_no', 'sl no']):
-                            roll_idx = idx
-                        elif any(term in col for term in ['section', 'sec']):
-                            sec_idx = idx
+                    target_sec = clean_row[sec_idx].upper() if sec_idx != -1 and sec_idx < len(clean_row) and clean_row[sec_idx] else default_sec
 
-                    if name_idx != -1:
-                        headers = lower_row
-                        continue
-
-                try:
-                    if name_idx != -1 and name_idx < len(clean_row):
-                        name = clean_row[name_idx]
-                        raw_cls = clean_row[class_idx] if class_idx != -1 and class_idx < len(clean_row) else default_class
-                        digits = ''.join(filter(str.isdigit, raw_cls))
-                        target_class = digits if digits else default_class
-
-                        target_sec = clean_row[sec_idx].upper() if sec_idx != -1 and sec_idx < len(clean_row) and clean_row[sec_idx] else default_sec
-
-                        if roll_idx != -1 and roll_idx < len(clean_row) and clean_row[roll_idx].isdigit():
-                            target_roll = int(clean_row[roll_idx])
-                        else:
-                            existing = self.get_students(status='ACTIVE', class_name=target_class)
-                            target_roll = len(existing) + 1
+                    if roll_idx != -1 and roll_idx < len(clean_row) and clean_row[roll_idx].isdigit():
+                        target_roll = int(clean_row[roll_idx])
                     else:
-                        # Fallback for simple 2-column or 1-column rosters
-                        if len(clean_row) >= 2 and clean_row[0].isdigit():
-                            target_roll = int(clean_row[0])
-                            name = clean_row[1]
-                        elif len(clean_row) >= 2 and clean_row[1].isdigit():
-                            name = clean_row[0]
-                            target_roll = int(clean_row[1])
-                        else:
-                            name = clean_row[0]
-                            existing = self.get_students(status='ACTIVE', class_name=default_class)
-                            target_roll = len(existing) + 1
-                        target_class = default_class
-                        target_sec = default_sec
+                        existing = self.get_students(status='ACTIVE', class_name=target_class)
+                        target_roll = len(existing) + 1
+                else:
+                    # Positional fallback
+                    if len(clean_row) >= 2 and clean_row[0].isdigit():
+                        target_roll = int(clean_row[0])
+                        name = clean_row[1]
+                    elif len(clean_row) >= 2 and clean_row[1].isdigit():
+                        name = clean_row[0]
+                        target_roll = int(clean_row[1])
+                    else:
+                        name = clean_row[0]
+                        existing = self.get_students(status='ACTIVE', class_name=default_class)
+                        target_roll = len(existing) + 1
+                    target_class = default_class
+                    target_sec = default_sec
 
-                    if name:
-                        self.add_student(name, target_class, target_sec, target_roll, default_year)
-                        imported_count += 1
-                except sqlite3.IntegrityError:
-                    skipped_count += 1
-                except Exception:
-                    skipped_count += 1
+                if name:
+                    self.add_student(name, target_class, target_sec, target_roll, default_year)
+                    imported_count += 1
+            except sqlite3.IntegrityError:
+                skipped_count += 1
+            except Exception:
+                skipped_count += 1
 
         return imported_count, skipped_count
 
@@ -1136,7 +1194,7 @@ KV = '''
             height: '44dp'
             spacing: 8
             Button:
-                text: 'Search File Manager / Shiksha Setu'
+                text: 'Upload Shiksha Setu List (.xlsx / .csv)'
                 font_size: '12sp'
                 bold: True
                 background_normal: ''
@@ -1144,7 +1202,7 @@ KV = '''
                 on_release: app.trigger_shiksha_setu_picker()
             Button:
                 text: 'Quick Paste'
-                size_hint_x: 0.35
+                size_hint_x: 0.32
                 font_size: '12sp'
                 bold: True
                 background_normal: ''
@@ -1526,7 +1584,7 @@ class DHKOMRProApp(App):
         return sm
 
     def trigger_shiksha_setu_picker(self):
-        """Native system file browser invocation."""
+        """Native system file browser allowing both Excel (.xlsx) and CSV spreadsheets."""
         if platform == 'android':
             try:
                 PythonActivity = autoclass('org.kivy.android.PythonActivity')
@@ -1536,20 +1594,28 @@ class DHKOMRProApp(App):
                 intent.addCategory(Intent.CATEGORY_OPENABLE)
                 intent.setType("*/*")
 
-                extra_mime = ["text/comma-separated-values", "text/csv", "application/csv", "text/plain"]
+                # Allow Excel spreadsheet MIME types and CSV
+                extra_mime = [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "application/vnd.ms-excel",
+                    "text/comma-separated-values",
+                    "text/csv",
+                    "application/csv",
+                    "text/plain"
+                ]
                 intent.putExtra(Intent.EXTRA_MIME_TYPES, extra_mime)
 
                 PythonActivity.mActivity.startActivityForResult(intent, 1001)
             except Exception as e:
                 self.show_notification(f"File picker error: {e}")
         else:
-            # Clean fallback dialog for testing environments
+            # Fallback for testing environments
             layout = BoxLayout(orientation='vertical', padding=10, spacing=8)
             downloads_path = os.path.expanduser('~/Downloads')
             if not os.path.exists(downloads_path):
                 downloads_path = self.user_data_dir
 
-            file_chooser = FileChooserIconView(path=downloads_path, filters=['*.csv', '*.txt'])
+            file_chooser = FileChooserIconView(path=downloads_path, filters=['*.xlsx', '*.xls', '*.csv', '*.txt'])
             layout.add_widget(file_chooser)
 
             btn_bar = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
