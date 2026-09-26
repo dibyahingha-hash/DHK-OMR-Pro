@@ -1,2 +1,1 @@
-kivy
-pillow
+requirements = python3,kivy,pillow
