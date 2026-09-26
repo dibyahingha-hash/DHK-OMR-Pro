@@ -31,17 +31,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             git zip unzip autoconf libtool pkg-config zlib1g-dev \
-            libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev \
+            libncurses-dev libtinfo6 cmake libffi-dev \
             libssl-dev build-essential ccache
 
       - name: Install Buildozer and Cython
         run: |
           python -m pip install --upgrade pip
-          pip install --upgrade Cython==0.29.36 buildozer virtualenv
+          pip install --upgrade "Cython<3.0" buildozer virtualenv
 
-      - name: Build APK with Buildozer (Auto-Accept Licenses)
+      - name: Build APK with Buildozer
         run: |
-          # Piping 'yes' automatically answers (y) to SDK license terms
           yes | buildozer -v android debug
 
       - name: Upload Output APK
