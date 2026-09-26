@@ -2,12 +2,14 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
@@ -16,43 +18,35 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.10'
 
-      - name: Set up Java
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install System Dependencies
+      - name: Install System Build Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential git ffmpeg libsdl2-dev libsdl2-image-dev \
-            libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev \
-            libavformat-dev libavcodec-dev zlib1g-dev libffi-dev libssl-dev \
-            libncurses-dev libunwind-dev autoconf automake libtool pkg-config cmake zip unzip
+            git zip unzip autoconf libtool pkg-config zlib1g-dev \
+            libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev \
+            libssl-dev build-essential ccache
 
-      - name: Install Android Build Tools and AIDL
+      - name: Install Buildozer and Cython
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.2" "platforms;android-33"
+          python -m pip install --upgrade pip
+          pip install --upgrade Cython==0.29.36 buildozer virtualenv
 
-      - name: Install Pinned Packaging Tools
+      - name: Build APK with Buildozer (Auto-Accept Licenses)
         run: |
-          pip install --upgrade pip setuptools wheel
-          pip install "cython<3.0.0"
-          pip install "buildozer==1.5.0"
-          pip install "python-for-android==2024.1.21"
+          # Piping 'yes' automatically answers (y) to SDK license terms
+          yes | buildozer -v android debug
 
-      - name: Build APK with Buildozer
-        run: |
-          export PATH="$ANDROID_HOME/build-tools/33.0.2:$PATH"
-          export CFLAGS="-Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types"
-          export CXXFLAGS="-Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types"
-          buildozer --warn-on-root=0 android debug
-
-      - name: Upload APK Artifact
+      - name: Upload Output APK
         uses: actions/upload-artifact@v4
         with:
-          name: DHK-OMR-Pro-APK
+          name: DHK-OMR-Pro-Debug-APK
           path: bin/*.apk
+          retention-days: 7
