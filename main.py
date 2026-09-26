@@ -20,7 +20,7 @@ from kivy.uix.filechooser import FileChooserIconView
 from kivy.properties import StringProperty, ListProperty, BooleanProperty, NumericProperty
 from kivy.utils import platform
 
-# Native Android Integration via PyJNIus
+# --- Native Android Integration via PyJNIus ---
 ANDROID_TORCH_AVAILABLE = False
 camera_manager = None
 default_camera_id = "0"
@@ -28,16 +28,48 @@ default_camera_id = "0"
 if platform == 'android':
     try:
         from jnius import autoclass
+        from android.activity import bind as android_bind
+        
         PythonActivity = autoclass('org.kivy.android.PythonActivity')
         Context = autoclass('android.content.Context')
         CameraManager = autoclass('android.hardware.camera2.CameraManager')
+        Intent = autoclass('android.content.Intent')
+
         activity = PythonActivity.mActivity
         camera_manager = activity.getSystemService(Context.CAMERA_SERVICE)
         camera_ids = camera_manager.getCameraIdList()
         default_camera_id = camera_ids[0] if camera_ids else "0"
         ANDROID_TORCH_AVAILABLE = True
+
+        def on_activity_result(request_code, result_code, intent_data):
+            if request_code == 1001 and result_code == -1 and intent_data:
+                uri = intent_data.getData()
+                if uri:
+                    context = PythonActivity.mActivity.getApplicationContext()
+                    resolver = context.getContentResolver()
+                    cache_dir = context.getCacheDir().getAbsolutePath()
+                    dest_path = os.path.join(cache_dir, "shiksha_setu_import.csv")
+
+                    input_stream = resolver.openInputStream(uri)
+                    output_stream = autoclass('java.io.FileOutputStream')(dest_path)
+
+                    buf = bytearray(4096)
+                    while True:
+                        bytes_read = input_stream.read(buf)
+                        if bytes_read <= 0:
+                            break
+                        output_stream.write(buf, 0, bytes_read)
+
+                    input_stream.close()
+                    output_stream.close()
+
+                    app = App.get_running_app()
+                    if app:
+                        app.process_shiksha_setu_file(dest_path)
+
+        android_bind(on_activity_result=on_activity_result)
     except Exception as e:
-        print(f"[Init] Android JNI error: {e}")
+        print(f"[Init] Android integration error: {e}")
 
 
 DEFAULT_24_INDICATORS = [
@@ -240,47 +272,75 @@ class DatabaseManager:
                 writer.writerow(s)
         return len(students)
 
-    def import_students_csv(self, file_path, default_class="1", default_sec="A", default_year="2026-2027"):
+    def import_shiksha_setu(self, file_path, default_class="1", default_sec="A", default_year="2026-2027"):
         imported_count = 0
         skipped_count = 0
+
         with open(file_path, mode='r', encoding='utf-8', errors='ignore') as f:
             reader = csv.reader(f)
+            headers = None
+
+            name_idx = -1
+            class_idx = -1
+            roll_idx = -1
+            sec_idx = -1
+
             for row in reader:
                 if not row or not any(field.strip() for field in row):
                     continue
-                first_col = row[0].strip().lower()
-                if first_col in ['id', 'roll', 'roll no', 'roll_no', 'name', 'sl', 'sl no']:
-                    continue
+
+                clean_row = [c.strip() for c in row]
+
+                if headers is None:
+                    lower_row = [c.lower() for c in clean_row]
+                    for idx, col in enumerate(lower_row):
+                        if any(term in col for term in ['student name', 'name of student', 'student_name', 'name']):
+                            name_idx = idx
+                        elif any(term in col for term in ['class', 'current class', 'class_name']):
+                            class_idx = idx
+                        elif any(term in col for term in ['roll', 'roll no', 'roll_no', 'sl no']):
+                            roll_idx = idx
+                        elif any(term in col for term in ['section', 'sec']):
+                            sec_idx = idx
+
+                    if name_idx != -1:
+                        headers = lower_row
+                        continue
 
                 try:
-                    if len(row) >= 5 and row[4].strip().isdigit():
-                        name = row[1].strip()
-                        c_name = row[2].strip() or default_class
-                        sec = row[3].strip() or default_sec
-                        roll = int(row[4].strip())
-                        yr = row[5].strip() if len(row) > 5 and row[5].strip() else default_year
-                    elif len(row) >= 2 and row[0].strip().isdigit():
-                        roll = int(row[0].strip())
-                        name = row[1].strip()
-                        c_name = default_class
-                        sec = default_sec
-                        yr = default_year
-                    elif len(row) >= 2 and row[1].strip().isdigit():
-                        name = row[0].strip()
-                        roll = int(row[1].strip())
-                        c_name = default_class
-                        sec = default_sec
-                        yr = default_year
+                    if name_idx != -1 and name_idx < len(clean_row):
+                        name = clean_row[name_idx]
+                        raw_cls = clean_row[class_idx] if class_idx != -1 and class_idx < len(clean_row) else default_class
+                        digits = ''.join(filter(str.isdigit, raw_cls))
+                        target_class = digits if digits else default_class
+
+                        target_sec = clean_row[sec_idx].upper() if sec_idx != -1 and sec_idx < len(clean_row) and clean_row[sec_idx] else default_sec
+
+                        if roll_idx != -1 and roll_idx < len(clean_row) and clean_row[roll_idx].isdigit():
+                            target_roll = int(clean_row[roll_idx])
+                        else:
+                            existing = self.get_students(status='ACTIVE', class_name=target_class)
+                            target_roll = len(existing) + 1
                     else:
-                        name = row[0].strip()
-                        roll = imported_count + 1
-                        c_name = default_class
-                        sec = default_sec
-                        yr = default_year
+                        # Fallback for simple 2-column or 1-column rosters
+                        if len(clean_row) >= 2 and clean_row[0].isdigit():
+                            target_roll = int(clean_row[0])
+                            name = clean_row[1]
+                        elif len(clean_row) >= 2 and clean_row[1].isdigit():
+                            name = clean_row[0]
+                            target_roll = int(clean_row[1])
+                        else:
+                            name = clean_row[0]
+                            existing = self.get_students(status='ACTIVE', class_name=default_class)
+                            target_roll = len(existing) + 1
+                        target_class = default_class
+                        target_sec = default_sec
 
                     if name:
-                        self.add_student(name, c_name, sec, roll, yr)
+                        self.add_student(name, target_class, target_sec, target_roll, default_year)
                         imported_count += 1
+                except sqlite3.IntegrityError:
+                    skipped_count += 1
                 except Exception:
                     skipped_count += 1
 
@@ -387,7 +447,7 @@ KV = '''
 <Screen>:
     canvas.before:
         Color:
-            rgba: hex('#0f172a')
+            rgba: hex('#090d16')
         Rectangle:
             pos: self.pos
             size: self.size
@@ -400,11 +460,11 @@ KV = '''
     spacing: 8
     canvas.before:
         Color:
-            rgba: hex('#1e293b')
+            rgba: hex('#151e2e')
         RoundedRectangle:
             pos: self.pos
             size: self.size
-            radius: [8,]
+            radius: [10,]
 
 <ModernInput@TextInput>:
     multiline: False
@@ -414,15 +474,15 @@ KV = '''
     font_size: '14sp'
     background_normal: ''
     background_active: ''
-    background_color: hex('#334155')
+    background_color: hex('#1e293b')
     cursor_color: hex('#38bdf8')
     foreground_color: hex('#f8fafc')
-    hint_text_color: hex('#94a3b8')
+    hint_text_color: hex('#64748b')
 
 <CardHeader@Label>:
     size_hint_y: None
-    height: '24dp'
-    font_size: '13sp'
+    height: '22dp'
+    font_size: '12sp'
     bold: True
     halign: 'left'
     text_size: self.size
@@ -461,7 +521,7 @@ KV = '''
     is_matrix: False
     canvas.before:
         Color:
-            rgba: hex('#1e293b')
+            rgba: hex('#151e2e')
         RoundedRectangle:
             pos: self.pos
             size: self.size
@@ -528,7 +588,7 @@ KV = '''
                 text: 'Torch: ' + ('ON' if app.torch_state else 'OFF')
                 size_hint_x: 0.35
                 background_normal: ''
-                background_color: hex('#eab308') if app.torch_state else hex('#475569')
+                background_color: hex('#eab308') if app.torch_state else hex('#334155')
                 on_release: app.toggle_torch()
 
         Label:
@@ -588,7 +648,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.22
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'Exams & Tests'
@@ -623,7 +683,7 @@ KV = '''
                 text: '< Cancel'
                 size_hint_x: 0.24
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'exams_list'
             Label:
                 text: 'Configure New Test'
@@ -653,7 +713,7 @@ KV = '''
                             font_size: '12sp'
                             bold: True
                             background_normal: ''
-                            background_color: hex('#7c3aed') if self.state == 'down' else hex('#334155')
+                            background_color: hex('#7c3aed') if self.state == 'down' else hex('#1e293b')
                             on_release: root.on_type_change()
                         ToggleButton:
                             id: type_individual
@@ -662,7 +722,7 @@ KV = '''
                             font_size: '12sp'
                             bold: True
                             background_normal: ''
-                            background_color: hex('#2563eb') if self.state == 'down' else hex('#334155')
+                            background_color: hex('#2563eb') if self.state == 'down' else hex('#1e293b')
                             on_release: root.on_type_change()
 
                     Label:
@@ -805,7 +865,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.18
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
             Label:
                 id: form_count_lbl
@@ -873,7 +933,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.22
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'School Grade & Norms'
@@ -975,7 +1035,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.25
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'exams_list'
             Label:
                 id: res_title_lbl
@@ -1005,7 +1065,7 @@ KV = '''
     action_color: hex('#ef4444')
     canvas.before:
         Color:
-            rgba: hex('#1e293b')
+            rgba: hex('#151e2e')
         RoundedRectangle:
             pos: self.pos
             size: self.size
@@ -1048,40 +1108,52 @@ KV = '''
             spacing: 6
             Button:
                 text: '< Back'
-                size_hint_x: 0.18
+                size_hint_x: 0.16
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
             Label:
-                text: 'Directory'
-                font_size: '18sp'
+                text: 'Student Registry'
+                font_size: '17sp'
                 bold: True
                 color: hex('#f8fafc')
             Button:
                 id: toggle_view_btn
                 text: 'Archived' if root.showing_active else 'Active'
-                size_hint_x: 0.22
+                size_hint_x: 0.20
                 background_normal: ''
                 background_color: hex('#7c3aed')
                 on_release: root.toggle_view()
             Button:
-                text: 'Import CSV'
-                size_hint_x: 0.25
-                font_size: '12sp'
-                bold: True
-                background_normal: ''
-                background_color: hex('#0284c7')
-                on_release: app.show_csv_import_popup()
-            Button:
                 text: '+ Add'
-                size_hint_x: 0.18
+                size_hint_x: 0.16
                 background_normal: ''
                 background_color: hex('#16a34a')
                 on_release: app.show_add_student_popup()
 
         BoxLayout:
             size_hint_y: None
-            height: '36dp'
+            height: '44dp'
+            spacing: 8
+            Button:
+                text: 'Search File Manager / Shiksha Setu'
+                font_size: '12sp'
+                bold: True
+                background_normal: ''
+                background_color: hex('#0284c7')
+                on_release: app.trigger_shiksha_setu_picker()
+            Button:
+                text: 'Quick Paste'
+                size_hint_x: 0.35
+                font_size: '12sp'
+                bold: True
+                background_normal: ''
+                background_color: hex('#334155')
+                on_release: app.show_quick_paste_popup()
+
+        BoxLayout:
+            size_hint_y: None
+            height: '32dp'
             padding: [4, 0]
             Label:
                 text: 'Roll'
@@ -1125,7 +1197,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.3
                 background_normal: ''
-                background_color: hex('#475569')
+                background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'Academic Rollover'
@@ -1263,7 +1335,7 @@ class CreateExamScreen(Screen):
         pos_val = float(self.ids.pos_in.text.strip()) if self.ids.pos_in.text.strip() else 1.0
         neg_val = float(self.ids.neg_in.text.strip()) if self.ids.neg_in.text.strip() else 0.0
         subj_val = float(self.ids.subj_max_in.text.strip()) if self.ids.subj_max_in.text.strip() else 0.0
-        
+
         auto_calculated_max = (int(num_q) * pos_val) + subj_val
         master_tot = float(self.ids.master_total_in.text.strip()) if self.ids.master_total_in.text.strip() else auto_calculated_max
 
@@ -1295,7 +1367,7 @@ class SchoolEvalScreen(Screen):
         for item in self.current_indicators:
             ind_id, ind_title = item
             row = BoxLayout(size_hint_y=None, height='44dp', spacing=6)
-            
+
             lbl = Label(text=ind_title, size_hint_x=0.62, font_size='11sp', halign='left', shorten=True)
             lbl.bind(size=lbl.setter('text_size'))
 
@@ -1453,10 +1525,138 @@ class DHKOMRProApp(App):
         sm.add_widget(ResultsScreen(name='results_view'))
         return sm
 
+    def trigger_shiksha_setu_picker(self):
+        """Native system file browser invocation."""
+        if platform == 'android':
+            try:
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                Intent = autoclass('android.content.Intent')
+
+                intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+                intent.addCategory(Intent.CATEGORY_OPENABLE)
+                intent.setType("*/*")
+
+                extra_mime = ["text/comma-separated-values", "text/csv", "application/csv", "text/plain"]
+                intent.putExtra(Intent.EXTRA_MIME_TYPES, extra_mime)
+
+                PythonActivity.mActivity.startActivityForResult(intent, 1001)
+            except Exception as e:
+                self.show_notification(f"File picker error: {e}")
+        else:
+            # Clean fallback dialog for testing environments
+            layout = BoxLayout(orientation='vertical', padding=10, spacing=8)
+            downloads_path = os.path.expanduser('~/Downloads')
+            if not os.path.exists(downloads_path):
+                downloads_path = self.user_data_dir
+
+            file_chooser = FileChooserIconView(path=downloads_path, filters=['*.csv', '*.txt'])
+            layout.add_widget(file_chooser)
+
+            btn_bar = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
+            popup = Popup(title='Select Shiksha Setu File', content=layout, size_hint=(0.92, 0.88))
+
+            def do_select(instance):
+                if file_chooser.selection:
+                    sel = file_chooser.selection[0]
+                    popup.dismiss()
+                    self.process_shiksha_setu_file(sel)
+                else:
+                    self.show_notification("Please select a file.")
+
+            btn_cancel = Button(text='Cancel', size_hint_x=0.35, background_color=(0.3, 0.3, 0.3, 1))
+            btn_cancel.bind(on_release=lambda x: popup.dismiss())
+
+            btn_confirm = Button(text='Import File', size_hint_x=0.65, background_color=(0.1, 0.65, 0.2, 1), bold=True)
+            btn_confirm.bind(on_release=do_select)
+
+            btn_bar.add_widget(btn_cancel)
+            btn_bar.add_widget(btn_confirm)
+            layout.add_widget(btn_bar)
+            popup.open()
+
+    def process_shiksha_setu_file(self, file_path):
+        imported, skipped = self.db.import_shiksha_setu(file_path)
+        self.show_notification(f"Import Finished!\nImported: {imported} students\nSkipped / Duplicate: {skipped}")
+        reg_screen = self.root.get_screen('registry')
+        if reg_screen:
+            reg_screen.refresh_students()
+
+    def show_quick_paste_popup(self):
+        """Allows pasting student rosters directly from WhatsApp or Notes."""
+        layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
+
+        meta_box = BoxLayout(orientation='horizontal', size_hint_y=None, height='40dp', spacing=8)
+        cls_in = TextInput(hint_text='Class (e.g. 1)', text='1', multiline=False, size_hint_x=0.35)
+        sec_in = TextInput(hint_text='Sec (A)', text='A', multiline=False, size_hint_x=0.25)
+        yr_in = TextInput(hint_text='Year', text='2026-2027', multiline=False, size_hint_x=0.4)
+        meta_box.add_widget(cls_in)
+        meta_box.add_widget(sec_in)
+        meta_box.add_widget(yr_in)
+        layout.add_widget(meta_box)
+
+        lbl = Label(text="Paste student names below (one per line):", font_size='11sp', color=(0.2, 0.8, 1, 1), size_hint_y=None, height='20dp')
+        layout.add_widget(lbl)
+
+        paste_input = TextInput(
+            hint_text="Example:\nRahul Gogoi\nDiptika Ghatowar\nPriyajit Bokal",
+            multiline=True,
+            background_color=(0.12, 0.16, 0.22, 1),
+            foreground_color=(0.95, 0.98, 1, 1)
+        )
+        layout.add_widget(paste_input)
+
+        popup = Popup(title='Quick Paste Roster', content=layout, size_hint=(0.92, 0.80))
+
+        def do_paste_import(instance):
+            raw_text = paste_input.text.strip()
+            if not raw_text:
+                self.show_notification("Please paste names first.")
+                return
+
+            target_cls = cls_in.text.strip() or "1"
+            target_sec = sec_in.text.strip() or "A"
+            target_yr = yr_in.text.strip() or "2026-2027"
+
+            lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
+            imported = 0
+            skipped = 0
+
+            existing = self.db.get_students(status='ACTIVE', class_name=target_cls)
+            next_roll = len(existing) + 1
+
+            for line in lines:
+                clean_name = line.lstrip('0123456789.-) \t') or line
+                try:
+                    self.db.add_student(clean_name, target_cls, target_sec, next_roll, target_yr)
+                    imported += 1
+                    next_roll += 1
+                except sqlite3.IntegrityError:
+                    skipped += 1
+                except Exception:
+                    skipped += 1
+
+            popup.dismiss()
+            self.show_notification(f"Imported: {imported} students!\nSkipped / Duplicate: {skipped}")
+            reg_screen = self.root.get_screen('registry')
+            if reg_screen:
+                reg_screen.refresh_students()
+
+        btn_bar = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
+        btn_cancel = Button(text='Cancel', size_hint_x=0.35, background_color=(0.3, 0.3, 0.3, 1))
+        btn_cancel.bind(on_release=lambda x: popup.dismiss())
+
+        btn_confirm = Button(text='Import All', size_hint_x=0.65, background_color=(0.1, 0.65, 0.2, 1), bold=True)
+        btn_confirm.bind(on_release=do_paste_import)
+
+        btn_bar.add_widget(btn_cancel)
+        btn_bar.add_widget(btn_confirm)
+        layout.add_widget(btn_bar)
+        popup.open()
+
     def show_add_indicator_popup(self, parent_screen):
         layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
         ind_in = TextInput(hint_text='Indicator description (e.g., 25. Digital Lab Usage)', multiline=False, size_hint_y=None, height='44dp')
-        
+
         popup = Popup(title='Add New Indicator', content=layout, size_hint=(0.88, 0.35))
 
         def add_and_refresh(instance):
@@ -1540,7 +1740,7 @@ class DHKOMRProApp(App):
 
     def show_matrix_evaluation_dialog(self, exam, students):
         layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
-        
+
         header = Label(
             text=f"Gunotsav Matrix: Class {exam[4]} ({len(students)} Students)",
             font_size='15sp', bold=True, size_hint_y=None, height='32dp', color=(0.2, 0.8, 1, 1)
@@ -1580,7 +1780,7 @@ class DHKOMRProApp(App):
                     score = float(s_inp.text.strip()) if s_inp.text.strip() else 0.0
                 except ValueError:
                     score = 0.0
-                
+
                 max_marks = float(exam[9]) if exam[9] > 0 else 25.0
                 pct = (score / max_marks) * 100.0 if max_marks > 0 else 0.0
 
@@ -1612,7 +1812,7 @@ class DHKOMRProApp(App):
         layout = BoxLayout(orientation='vertical', padding=14, spacing=10)
         roll_in = TextInput(hint_text='Enter Roll Number (e.g. 1)', input_filter='int', multiline=False, size_hint_y=None, height='44dp')
         score_in = TextInput(hint_text='Total Marks Scored', input_filter='float', multiline=False, size_hint_y=None, height='44dp')
-        
+
         popup = Popup(title='Evaluate Individual OMR', content=layout, size_hint=(0.88, 0.45))
 
         def commit_single(instance):
@@ -1700,51 +1900,6 @@ class DHKOMRProApp(App):
         layout.add_widget(roll_in)
         layout.add_widget(year_in)
         layout.add_widget(btn)
-        popup.open()
-
-    def show_csv_import_popup(self):
-        layout = BoxLayout(orientation='vertical', padding=10, spacing=8)
-        
-        info_box = BoxLayout(orientation='horizontal', size_hint_y=None, height='40dp', spacing=6)
-        cls_in = TextInput(hint_text='Class (e.g. 1)', text='1', multiline=False, size_hint_x=0.35)
-        sec_in = TextInput(hint_text='Sec (A)', text='A', multiline=False, size_hint_x=0.25)
-        yr_in = TextInput(hint_text='Year', text='2026-2027', multiline=False, size_hint_x=0.4)
-        info_box.add_widget(cls_in)
-        info_box.add_widget(sec_in)
-        info_box.add_widget(yr_in)
-        layout.add_widget(info_box)
-
-        start_dir = '/sdcard/Download' if os.path.exists('/sdcard/Download') else self.user_data_dir
-        file_chooser = FileChooserIconView(path=start_dir, filters=['*.csv', '*.txt'])
-        layout.add_widget(file_chooser)
-
-        btn_bar = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
-        popup = Popup(title='Import Students CSV', content=layout, size_hint=(0.92, 0.88))
-
-        def do_import(instance):
-            if file_chooser.selection:
-                selected_file = file_chooser.selection[0]
-                target_cls = cls_in.text.strip() or "1"
-                target_sec = sec_in.text.strip() or "A"
-                target_yr = yr_in.text.strip() or "2026-2027"
-
-                imported, skipped = self.db.import_students_csv(selected_file, target_cls, target_sec, target_yr)
-                popup.dismiss()
-                self.show_notification(f"Imported: {imported} students!\nSkipped / Duplicate: {skipped}")
-                reg_screen = self.root.get_screen('registry')
-                reg_screen.refresh_students()
-            else:
-                self.show_notification("Please select a .csv file first.")
-
-        btn_cancel = Button(text='Cancel', size_hint_x=0.35, background_color=(0.3, 0.3, 0.3, 1))
-        btn_cancel.bind(on_release=lambda x: popup.dismiss())
-
-        btn_confirm = Button(text='Import File', size_hint_x=0.65, background_color=(0.1, 0.6, 0.2, 1), bold=True)
-        btn_confirm.bind(on_release=do_import)
-
-        btn_bar.add_widget(btn_cancel)
-        btn_bar.add_widget(btn_confirm)
-        layout.add_widget(btn_bar)
         popup.open()
 
     def toggle_student_archive(self, student_id, action_text):
