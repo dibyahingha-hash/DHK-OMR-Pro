@@ -7,7 +7,7 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-# Pillow is native and lightweight - safe on Android startup
+# Pure-Pillow image processing: safe, fast, and crash-free on Android
 from PIL import Image, ImageDraw
 
 from kivy.app import App
@@ -23,10 +23,10 @@ from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.filechooser import FileChooserIconView
-from kivy.properties import StringProperty, BooleanProperty
+from kivy.properties import StringProperty, BooleanProperty, NumericProperty
 from kivy.utils import platform
 
-# --- Android JNI File Picker & Native Handlers ---
+# --- Android JNI File Picker & Share Bridge ---
 ANDROID_AVAILABLE = False
 if platform == 'android':
     try:
@@ -35,6 +35,8 @@ if platform == 'android':
         
         PythonActivity = autoclass('org.kivy.android.PythonActivity')
         Intent = autoclass('android.content.Intent')
+        Uri = autoclass('android.net.Uri')
+        File = autoclass('java.io.File')
         ANDROID_AVAILABLE = True
 
         def on_activity_result(request_code, result_code, intent_data):
@@ -45,7 +47,7 @@ if platform == 'android':
                     resolver = context.getContentResolver()
                     cache_dir = context.getCacheDir().getAbsolutePath()
                     
-                    if request_code == 1001:  # Shiksha Setu File
+                    if request_code == 1001:  # Shiksha Setu Spreadsheet
                         dest_path = os.path.join(cache_dir, "shiksha_setu_import.xlsx")
                         input_stream = resolver.openInputStream(uri)
                         output_stream = autoclass('java.io.FileOutputStream')(dest_path)
@@ -61,8 +63,8 @@ if platform == 'android':
                         if app:
                             Clock.schedule_once(lambda dt: app.process_shiksha_setu_file(dest_path), 0)
 
-                    elif request_code == 1002:  # OMR Scan Photo
-                        dest_path = os.path.join(cache_dir, "omr_target_photo.jpg")
+                    elif request_code == 1002:  # OMR Scan Image
+                        dest_path = os.path.join(cache_dir, "omr_target_photo.png")
                         input_stream = resolver.openInputStream(uri)
                         output_stream = autoclass('java.io.FileOutputStream')(dest_path)
                         buf = bytearray(4096)
@@ -79,7 +81,7 @@ if platform == 'android':
 
         android_bind(on_activity_result=on_activity_result)
     except Exception as e:
-        print(f"[Init JNI Notice] {e}")
+        print(f"[JNI Hook Notice] {e}")
 
 
 DEFAULT_24_INDICATORS = [
@@ -110,6 +112,9 @@ DEFAULT_24_INDICATORS = [
 ]
 
 
+# ===================================================================
+#  DATABASE ENGINE & SCHEMA
+# ===================================================================
 class DatabaseManager:
     def __init__(self, db_path):
         self.db_path = db_path
@@ -146,8 +151,10 @@ class DatabaseManager:
                     total_questions INTEGER NOT NULL,
                     pos_marks REAL NOT NULL,
                     neg_marks REAL NOT NULL,
+                    omr_max REAL NOT NULL,
+                    written_max REAL DEFAULT 0.0,
+                    oral_max REAL DEFAULT 0.0,
                     master_total REAL NOT NULL,
-                    subjective_max REAL DEFAULT 0.0,
                     rubric_scale TEXT DEFAULT '0,1,2,3',
                     keys_by_series TEXT,
                     is_locked INTEGER DEFAULT 0,
@@ -163,13 +170,22 @@ class DatabaseManager:
                     student_name TEXT,
                     class_name TEXT,
                     series_code TEXT DEFAULT 'A',
-                    mcq_score REAL NOT NULL,
+                    omr_score REAL NOT NULL,
+                    written_score REAL DEFAULT 0.0,
+                    oral_score REAL DEFAULT 0.0,
                     skill_score REAL DEFAULT 0.0,
                     grand_total REAL NOT NULL,
                     percentage REAL NOT NULL,
+                    is_absent INTEGER DEFAULT 0,
                     raw_responses TEXT NOT NULL,
                     scan_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(exam_id) REFERENCES exams(exam_id)
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS school_indicators (
+                    ind_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ind_title TEXT NOT NULL UNIQUE
                 )
             ''')
             cursor.execute('''
@@ -199,6 +215,30 @@ class DatabaseManager:
                 INSERT OR IGNORE INTO grading_settings (id, scholastic_weight, co_scholastic_weight, cut_aplus, cut_a, cut_b, cut_c)
                 VALUES (1, 90.0, 10.0, 87.0, 74.0, 61.0, 50.0)
             ''')
+            conn.commit()
+
+        # Seed indicators if not present
+        self._seed_indicators()
+
+    def _seed_indicators(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM school_indicators")
+            if cursor.fetchone()[0] == 0:
+                for text in DEFAULT_24_INDICATORS:
+                    cursor.execute("INSERT OR IGNORE INTO school_indicators (ind_title) VALUES (?)", (text,))
+                conn.commit()
+
+    def get_all_indicators(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT ind_id, ind_title FROM school_indicators ORDER BY ind_id ASC")
+            return cursor.fetchall()
+
+    def add_custom_indicator(self, title):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR IGNORE INTO school_indicators (ind_title) VALUES (?)", (title.strip(),))
             conn.commit()
 
     def add_student(self, unique_id, name, current_class, section, roll_no, academic_year):
@@ -404,14 +444,14 @@ class DatabaseManager:
 
         return imported_count, skipped_count
 
-    def create_exam(self, category, title, exam_type, subject, class_name, section, num_q, pos, neg, master_tot, subj_max, rubric_scale):
+    def create_exam(self, category, title, exam_type, subject, class_name, section, num_q, pos, neg, omr_max, written_max, oral_max, master_total, rubric_scale):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             default_keys = {"A": ["A"] * int(num_q), "B": ["A"] * int(num_q), "C": ["A"] * int(num_q), "D": ["A"] * int(num_q)}
             cursor.execute('''
-                INSERT INTO exams (exam_category, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, rubric_scale, keys_by_series, is_locked)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-            ''', (category, title.strip(), exam_type, subject.strip(), class_name.strip(), section.strip().upper(), int(num_q), float(pos), float(neg), float(master_tot), float(subj_max), rubric_scale.strip(), json.dumps(default_keys)))
+                INSERT INTO exams (exam_category, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, omr_max, written_max, oral_max, master_total, rubric_scale, keys_by_series, is_locked)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            ''', (category, title.strip(), exam_type, subject.strip(), class_name.strip(), section.strip().upper(), int(num_q), float(pos), float(neg), float(omr_max), float(written_max), float(oral_max), float(master_total), rubric_scale.strip(), json.dumps(default_keys)))
             conn.commit()
             return cursor.lastrowid
 
@@ -419,7 +459,7 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT exam_id, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, is_locked, keys_by_series, rubric_scale, exam_category
+                SELECT exam_id, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, omr_max, written_max, oral_max, master_total, is_locked, keys_by_series, rubric_scale, exam_category
                 FROM exams
                 WHERE exam_category = ?
                 ORDER BY exam_id DESC
@@ -430,7 +470,7 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT exam_id, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, is_locked, keys_by_series, rubric_scale, exam_category
+                SELECT exam_id, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, omr_max, written_max, oral_max, master_total, is_locked, keys_by_series, rubric_scale, exam_category
                 FROM exams WHERE exam_id = ?
             ''', (exam_id,))
             return cursor.fetchone()
@@ -439,25 +479,26 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             if student_id:
-                cursor.execute("SELECT result_id, student_name, grand_total FROM results WHERE exam_id = ? AND student_id = ?", (exam_id, student_id))
+                cursor.execute("SELECT result_id, student_name, grand_total, is_absent FROM results WHERE exam_id = ? AND student_id = ?", (exam_id, student_id))
             else:
-                cursor.execute("SELECT result_id, student_name, grand_total FROM results WHERE exam_id = ? AND roll_no = ?", (exam_id, roll_no))
+                cursor.execute("SELECT result_id, student_name, grand_total, is_absent FROM results WHERE exam_id = ? AND roll_no = ?", (exam_id, roll_no))
             return cursor.fetchone()
 
-    def save_result(self, exam_id, student_id, roll_no, name, class_name, series_code, mcq_score, skill_score, grand_total, percentage, raw_json):
+    def save_result(self, exam_id, student_id, roll_no, name, class_name, series_code, omr_score, written_score, oral_score, skill_score, grand_total, percentage, is_absent=0, raw_json="{}"):
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            cursor.execute("DELETE FROM results WHERE exam_id = ? AND roll_no = ?", (exam_id, roll_no))
             cursor.execute('''
-                INSERT INTO results (exam_id, student_id, roll_no, student_name, class_name, series_code, mcq_score, skill_score, grand_total, percentage, raw_responses)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (exam_id, student_id, roll_no, name, class_name, series_code, mcq_score, skill_score, grand_total, percentage, raw_json))
+                INSERT INTO results (exam_id, student_id, roll_no, student_name, class_name, series_code, omr_score, written_score, oral_score, skill_score, grand_total, percentage, is_absent, raw_responses)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (exam_id, student_id, roll_no, name, class_name, series_code, omr_score, written_score, oral_score, skill_score, grand_total, percentage, is_absent, raw_json))
             conn.commit()
 
     def get_results_for_exam(self, exam_id):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT result_id, roll_no, student_name, mcq_score, skill_score, grand_total, percentage, scan_timestamp, series_code
+                SELECT result_id, roll_no, student_name, omr_score, written_score, oral_score, skill_score, grand_total, percentage, is_absent, series_code, scan_timestamp, student_id
                 FROM results WHERE exam_id = ?
                 ORDER BY roll_no ASC
             ''', (exam_id,))
@@ -470,7 +511,7 @@ class DatabaseManager:
                 SELECT AVG(r.percentage), COUNT(r.result_id)
                 FROM results r
                 JOIN exams e ON r.exam_id = e.exam_id
-                WHERE e.exam_category = 'GUNOTSAV' AND e.class_name != '0'
+                WHERE e.exam_category = 'GUNOTSAV' AND e.class_name != '0' AND r.is_absent = 0
             ''')
             row = cursor.fetchone()
             if row and row[0] is not None:
@@ -512,14 +553,18 @@ class DatabaseManager:
             conn.commit()
 
 
-# Safe Pure-Pillow generator
-class OMRSheetManager:
+# ===================================================================
+#  PRINTABLE DOCUMENT & XEROX SUITE (PURE PILLOW ENGINE)
+# ===================================================================
+class OMRDocumentEngine:
     @staticmethod
     def generate_blank_school_omr(output_path, num_questions=50, title="SCHOOL ASSESSMENT OMR"):
+        """Generates high-contrast, Xerox-proof universal blank OMR sheet."""
         width, height = 1240, 1754
         img = Image.new('RGB', (width, height), color='white')
         draw = ImageDraw.Draw(img)
 
+        # 4 Outer solid black registration squares (Fiducials)
         pad = 50
         box_sz = 45
         draw.rectangle([pad, pad, pad + box_sz, pad + box_sz], fill='black')
@@ -527,20 +572,24 @@ class OMRSheetManager:
         draw.rectangle([pad, height - pad - box_sz, pad + box_sz, height - pad], fill='black')
         draw.rectangle([width - pad - box_sz, height - pad - box_sz, width - pad, height - pad], fill='black')
 
-        draw.text((width // 2 - 140, 55), title, fill='black')
+        # Header Title
+        draw.text((width // 2 - 160, 55), title, fill='black')
         draw.line([pad + box_sz + 20, 110, width - pad - box_sz - 20, 110], fill='black', width=3)
 
+        # Student Capital Letters Box
         draw.text((60, 130), "STUDENT NAME (IN CAPITAL LETTERS):", fill='black')
         draw.rectangle([60, 155, 780, 215], outline='black', width=2)
         draw.text((60, 230), "CLASS: _________    SECTION: _____    SUBJECT: ____________________", fill='black')
         
-        draw.text((60, 275), "SERIES:", fill='black')
+        # Series Bubbles
+        draw.text((60, 275), "BOOKLET SERIES:", fill='black')
         for i, s_letter in enumerate(['A', 'B', 'C', 'D']):
-            cx = 170 + (i * 65)
+            cx = 200 + (i * 65)
             cy = 285
             draw.ellipse([cx - 15, cy - 15, cx + 15, cy + 15], outline='black', width=2)
             draw.text((cx - 5, cy - 7), s_letter, fill='black')
 
+        # 2-Digit Roll Number Bubble Grid
         draw.rectangle([830, 130, 1170, 370], outline='black', width=2)
         draw.text((860, 140), "ROLL NUMBER (BUBBLE)", fill='black')
         draw.text((910, 165), "TENS   UNITS", fill='black')
@@ -554,7 +603,8 @@ class OMRSheetManager:
 
         draw.line([pad, 390, width - pad, 390], fill='black', width=3)
 
-        draw.text((width // 2 - 100, 405), "ANSWER GRID", fill='black')
+        # MCQ Answer Grid
+        draw.text((width // 2 - 100, 405), "ANSWER GRID (SHADE DARK)", fill='black')
         cols = 2 if num_questions <= 50 else 4
         q_per_col = (num_questions + cols - 1) // cols
         col_w = (width - 120) // cols
@@ -576,7 +626,116 @@ class OMRSheetManager:
         img.save(output_path, "PNG")
         return output_path
 
+    @staticmethod
+    def generate_master_key_sheet(output_path, num_questions=50):
+        """Generates printable Master Key Sheet for series answer locking."""
+        return OMRDocumentEngine.generate_blank_school_omr(output_path, num_questions=num_questions, title="MASTER ANSWER KEY SHEET (TEACHER AUDIT)")
 
+    @staticmethod
+    def generate_tabulation_sheet(output_path, exam, results):
+        """Renders official A4 tabular master audit ledger."""
+        width, height = 1240, 1754
+        img = Image.new('RGB', (width, height), color='white')
+        draw = ImageDraw.Draw(img)
+
+        # Outer Border
+        draw.rectangle([40, 40, width - 40, height - 40], outline='black', width=3)
+
+        # Header
+        draw.text((width // 2 - 200, 60), "OFFICIAL TABULATION & EVALUATION LEDGER", fill='black')
+        draw.text((width // 2 - 130, 90), f"ASSESSMENT: {exam[1].upper()}", fill='black')
+        cls_txt = "Ka-Shreni" if str(exam[4]) == "0" else f"Class {exam[4]}"
+        draw.text((60, 130), f"CLASS: {cls_txt}-{exam[5]}    |    SUBJECT: {exam[3]}    |    DATE: {datetime.now().strftime('%Y-%m-%d')}", fill='black')
+        draw.text((60, 155), f"BENCHMARK TOTAL: {exam[12]} MARKS    |    CATEGORY: {exam[16]}", fill='black')
+        draw.line([40, 185, width - 40, 185], fill='black', width=2)
+
+        # Table Header
+        draw.text((50, 195), "ROLL", fill='black')
+        draw.text((120, 195), "STUDENT NAME", fill='black')
+        draw.text((500, 195), f"OMR (/{exam[9]})", fill='black')
+        draw.text((660, 195), f"WRITTEN (/{exam[10]})", fill='black')
+        draw.text((820, 195), f"ORAL (/{exam[11]})", fill='black')
+        draw.text((960, 195), f"TOTAL (/{exam[12]})", fill='black')
+        draw.text((1110, 195), "STATUS", fill='black')
+        draw.line([40, 220, width - 40, 220], fill='black', width=2)
+
+        y_offset = 235
+        for r in results:
+            if y_offset > height - 120:
+                break
+            is_abs = (r[9] == 1)
+            draw.text((50, y_offset), f"#{r[1]:02d}", fill='black')
+            draw.text((120, y_offset), str(r[2])[:32], fill='black')
+            if is_abs:
+                draw.text((500, y_offset), "--", fill='black')
+                draw.text((660, y_offset), "--", fill='black')
+                draw.text((820, y_offset), "--", fill='black')
+                draw.text((960, y_offset), "0.0", fill='black')
+                draw.text((1110, y_offset), "ABSENT", fill='black')
+            else:
+                draw.text((500, y_offset), f"{r[3]:.1f}", fill='black')
+                draw.text((660, y_offset), f"{r[4]:.1f}", fill='black')
+                draw.text((820, y_offset), f"{r[5]:.1f}", fill='black')
+                draw.text((960, y_offset), f"{r[7]:.1f} ({r[8]:.1f}%)", fill='black')
+                draw.text((1110, y_offset), "PASSED" if r[8] >= 40.0 else "NEEDS IMPR.", fill='black')
+
+            draw.line([40, y_offset + 22, width - 40, y_offset + 22], fill='gray', width=1)
+            y_offset += 30
+
+        # Signatures
+        draw.line([80, height - 80, 340, height - 80], fill='black', width=2)
+        draw.text((100, height - 70), "Subject Teacher Signature", fill='black')
+        draw.line([width - 340, height - 80, width - 80, height - 80], fill='black', width=2)
+        draw.text((width - 320, height - 70), "Head Teacher / Seal", fill='black')
+
+        img.save(output_path, "PNG")
+        return output_path
+
+    @staticmethod
+    def generate_student_report_slips(output_path, exam, results):
+        """Renders student mark memos (2 per A4 sheet for economical printing)."""
+        width, height = 1240, 1754
+        img = Image.new('RGB', (width, height), color='white')
+        draw = ImageDraw.Draw(img)
+
+        # Dividing line for 2 slips per page
+        draw.line([40, height // 2, width - 40, height // 2], fill='black', width=2)
+
+        slips_to_render = results[:2]  # First two on page 1
+        for idx, r in enumerate(slips_to_render):
+            top_y = 40 if idx == 0 else (height // 2 + 40)
+            box_h = (height // 2) - 80
+
+            draw.rectangle([40, top_y, width - 40, top_y + box_h], outline='black', width=2)
+            draw.text((width // 2 - 160, top_y + 20), "STUDENT EVALUATION REPORT CARD", fill='black')
+            cls_txt = "Ka-Shreni" if str(exam[4]) == "0" else f"Class {exam[4]}"
+            draw.text((60, top_y + 60), f"Student Name: {r[2].upper()}", fill='black')
+            draw.text((700, top_y + 60), f"Roll No: #{r[1]:02d}    Class: {cls_txt}-{exam[5]}", fill='black')
+            draw.text((60, top_y + 90), f"Examination: {exam[1]}", fill='black')
+            draw.text((700, top_y + 90), f"Subject: {exam[3]}", fill='black')
+            draw.line([40, top_y + 120, width - 40, top_y + 120], fill='black', width=1)
+
+            draw.text((60, top_y + 140), "PERFORMANCE BREAKDOWN:", fill='black')
+            draw.text((80, top_y + 175), f"• OMR Section Score:         {r[3]:.1f}  /  {exam[9]:.1f}", fill='black')
+            draw.text((80, top_y + 210), f"• Written Examination Score:  {r[4]:.1f}  /  {exam[10]:.1f}", fill='black')
+            draw.text((80, top_y + 245), f"• Oral / Practical / Viva:    {r[5]:.1f}  /  {exam[11]:.1f}", fill='black')
+            draw.line([40, top_y + 285, width - 40, top_y + 285], fill='black', width=1)
+
+            draw.text((60, top_y + 305), f"GRAND TOTAL: {r[7]:.1f} / {exam[12]:.1f}     PERCENTAGE: {r[8]:.1f}%", fill='black')
+            draw.text((60, top_y + 335), f"RESULT STATUS: {'PASSED' if r[8] >= 40.0 else 'NEEDS IMPROVEMENT'}", fill='black')
+
+            draw.line([80, top_y + box_h - 40, 300, top_y + box_h - 40], fill='black', width=1)
+            draw.text((90, top_y + box_h - 30), "Class Teacher Signature", fill='black')
+            draw.line([width - 300, top_y + box_h - 40, width - 80, top_y + box_h - 40], fill='black', width=1)
+            draw.text((width - 280, top_y + box_h - 30), "Head Teacher / Seal", fill='black')
+
+        img.save(output_path, "PNG")
+        return output_path
+
+
+# ===================================================================
+#  USER INTERFACE LAYOUT DEFINITIONS (KV)
+# ===================================================================
 KV = '''
 #:import hex kivy.utils.get_color_from_hex
 
@@ -734,7 +893,7 @@ KV = '''
             on_release: app.open_portal('GUNOTSAV')
 
         ActionBtn:
-            text: '📝  REGULAR SCHOOL EXAMS (Print & Scan)'
+            text: '📝  REGULAR SCHOOL EXAMS (Pure OMR + Composite)'
             background_color: hex('#d97706')
             on_release: app.open_portal('REGULAR')
 
@@ -793,7 +952,7 @@ KV = '''
                 root.manager.current = 'exams_list'
 
         ActionBtn:
-            text: 'School Evaluation Form (24 Indicators)'
+            text: 'School Evaluation Form (Extensible Indicators)'
             background_color: hex('#0284c7')
             on_release: root.manager.current = 'school_eval'
 
@@ -873,6 +1032,7 @@ KV = '''
                 padding: [2, 4]
 
                 FastCard:
+                    id: format_card
                     height: '92dp'
                     SectionHeader:
                         text: '1. EVALUATION FORMAT'
@@ -884,21 +1044,19 @@ KV = '''
                             id: type_matrix
                             text: 'Matrix Evaluation'
                             group: 'exam_type_grp'
-                            state: 'down'
                             font_size: '12sp'
                             bold: True
                             background_normal: ''
                             background_color: hex('#7c3aed') if self.state == 'down' else hex('#1e293b')
-                            on_release: root.on_type_change()
                         ToggleButton:
                             id: type_individual
                             text: 'Individual OMR'
                             group: 'exam_type_grp'
+                            state: 'down'
                             font_size: '12sp'
                             bold: True
                             background_normal: ''
                             background_color: hex('#2563eb') if self.state == 'down' else hex('#1e293b')
-                            on_release: root.on_type_change()
 
                 FastCard:
                     height: '210dp'
@@ -908,12 +1066,12 @@ KV = '''
                         text: 'Assessment / Exam Title'
                     FastInput:
                         id: title_in
-                        text: 'Unit Assessment'
+                        text: 'Terminal Assessment'
                     FieldTitle:
                         text: 'Subject / Competency'
                     FastInput:
                         id: subj_in
-                        text: 'General'
+                        text: 'Mathematics'
 
                     BoxLayout:
                         size_hint_y: None
@@ -925,7 +1083,7 @@ KV = '''
                                 text: 'Class (0=Ka-Shreni, 1-12)'
                             FastInput:
                                 id: class_in
-                                text: '1'
+                                text: '5'
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
@@ -937,7 +1095,7 @@ KV = '''
                 FastCard:
                     height: '155dp'
                     SectionHeader:
-                        text: '3. MARKING & RUBRIC RULES'
+                        text: '3. OMR (MCQ) SPECIFICATION'
                     BoxLayout:
                         size_hint_y: None
                         height: '62dp'
@@ -945,32 +1103,24 @@ KV = '''
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
-                                text: 'Total Questions'
+                                text: 'Total OMR Questions'
                             FastInput:
                                 id: num_q_in
-                                text: '20'
+                                text: '30'
                                 input_filter: 'int'
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
-                                id: rubric_lbl
-                                text: 'Rubric / Options'
+                                text: 'Marks Per Right'
                             FastInput:
-                                id: rubric_scale_in
-                                text: '0,1,2,3'
+                                id: pos_in
+                                text: '1.0'
+                                input_filter: 'float'
 
                     BoxLayout:
                         size_hint_y: None
                         height: '62dp'
                         spacing: 8
-                        BoxLayout:
-                            orientation: 'vertical'
-                            FieldTitle:
-                                text: 'Marks Per Right / Level'
-                            FastInput:
-                                id: pos_in
-                                text: '1.0'
-                                input_filter: 'float'
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
@@ -979,11 +1129,20 @@ KV = '''
                                 id: neg_in
                                 text: '0.0'
                                 input_filter: 'float'
+                        BoxLayout:
+                            orientation: 'vertical'
+                            FieldTitle:
+                                text: 'OMR Section Max'
+                            FastInput:
+                                id: omr_max_in
+                                text: '30.0'
+                                input_filter: 'float'
 
                 FastCard:
-                    height: '95dp'
+                    id: composite_marks_card
+                    height: '155dp'
                     SectionHeader:
-                        text: '4. OPTIONAL SCORING'
+                        text: '4. REGULAR EXAM WRITTEN / ORAL / CUSTOM TOTAL'
                     BoxLayout:
                         size_hint_y: None
                         height: '62dp'
@@ -991,18 +1150,33 @@ KV = '''
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
-                                text: 'Oral / Theory Marks'
+                                text: 'Written Exam Max'
                             FastInput:
-                                id: subj_max_in
-                                text: '0.0'
+                                id: written_max_in
+                                text: '50.0'
                                 input_filter: 'float'
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
-                                text: 'Master Benchmark Total'
+                                text: 'Oral/Practical Max'
+                            FastInput:
+                                id: oral_max_in
+                                text: '20.0'
+                                input_filter: 'float'
+
+                    BoxLayout:
+                        size_hint_y: None
+                        height: '62dp'
+                        spacing: 8
+                        BoxLayout:
+                            orientation: 'vertical'
+                            FieldTitle:
+                                text: 'Custom Benchmark Total'
                             FastInput:
                                 id: master_total_in
-                                hint_text: 'Auto'
+                                text: '100.0'
+                                input_filter: 'float'
+                        Widget:
 
                 ActionBtn:
                     text: 'Save Exam Configuration'
@@ -1053,14 +1227,25 @@ KV = '''
                 hint_text: 'Date (YYYY-MM-DD)'
                 size_hint_x: 0.5
 
-        Label:
-            text: '24 Official Indicators (Unfulfilled / Non-applicable = 0):'
-            font_size: '11sp'
-            color: hex('#38bdf8')
+        BoxLayout:
             size_hint_y: None
-            height: '20dp'
-            halign: 'left'
-            text_size: self.size
+            height: '36dp'
+            spacing: 8
+            Label:
+                id: ind_counter_lbl
+                text: 'Official Indicators (Default 0/NO):'
+                font_size: '11sp'
+                color: hex('#38bdf8')
+                halign: 'left'
+                text_size: self.size
+            Button:
+                text: '+ Add Indicator'
+                size_hint_x: 0.4
+                font_size: '11sp'
+                bold: True
+                background_normal: ''
+                background_color: hex('#0284c7')
+                on_release: app.show_add_indicator_popup(root)
 
         ScrollView:
             BoxLayout:
@@ -1188,7 +1373,7 @@ KV = '''
             height: '42dp'
             Button:
                 text: '< Back'
-                size_hint_x: 0.25
+                size_hint_x: 0.22
                 background_normal: ''
                 background_color: hex('#334155')
                 on_release: root.manager.current = 'exams_list'
@@ -1197,6 +1382,32 @@ KV = '''
                 text: 'Evaluation Results'
                 font_size: '16sp'
                 bold: True
+
+        BoxLayout:
+            size_hint_y: None
+            height: '40dp'
+            spacing: 6
+            Button:
+                text: 'Print Tabulation'
+                font_size: '11sp'
+                bold: True
+                background_normal: ''
+                background_color: hex('#0284c7')
+                on_release: app.export_tabulation_document()
+            Button:
+                text: 'Print Report Slips'
+                font_size: '11sp'
+                bold: True
+                background_normal: ''
+                background_color: hex('#7c3aed')
+                on_release: app.export_report_slips_document()
+            Button:
+                text: 'Fill Written/Oral'
+                font_size: '11sp'
+                bold: True
+                background_normal: ''
+                background_color: hex('#d97706')
+                on_release: app.show_fast_fill_ledger()
 
         ScrollView:
             BoxLayout:
@@ -1379,6 +1590,9 @@ KV = '''
         Widget:
 '''
 
+# ===================================================================
+#  SCREEN LOGIC CONTROLLERS
+# ===================================================================
 class HomeScreen(Screen):
     pass
 
@@ -1403,7 +1617,7 @@ class RegistryScreen(Screen):
         for s in students:
             row = Factory.StudentRow()
             row.student_id = s[0]
-            row.roll_text = f"#{s[4]}"
+            row.roll_text = f"#{s[4]:02d}"
             row.name_text = str(s[1])
             cls_name = "Ka-Shreni" if str(s[2]) == "0" else f"Class {s[2]}"
             row.class_text = f"{cls_name}-{s[3]}"
@@ -1449,7 +1663,7 @@ class ExamsListScreen(Screen):
             row.badge_color = get_color_from_hex('#8b5cf6') if is_mat else get_color_from_hex('#38bdf8')
             row.title_text = f"{ex[1]} ({ex[3]})"
             cls_label = "Ka-Shreni" if str(ex[4]) == "0" else f"Class {ex[4]}"
-            row.details_text = f"{cls_label}-{ex[5]} | Qs: {ex[6]} | Scale: {ex[13] if is_mat else '+'+str(ex[7])}"
+            row.details_text = f"{cls_label}-{ex[5]} | Qs: {ex[6]} | Total: {ex[12]} Marks"
             container.add_widget(row)
 
 class CreateExamScreen(Screen):
@@ -1460,27 +1674,27 @@ class CreateExamScreen(Screen):
             self.ids.title_in.text = "Gunotsav Round 2026"
             self.ids.subj_in.text = "Reading, Writing & Numeracy"
             self.ids.class_in.text = "2"
-            self.ids.type_matrix.state = 'down'
-            self.on_type_change()
+            self.ids.format_card.opacity = 1
+            self.ids.format_card.disabled = False
+            self.ids.composite_marks_card.opacity = 0
+            self.ids.composite_marks_card.disabled = True
+            self.ids.omr_max_in.text = "40.0"
+            self.ids.master_total_in.text = "50.0"  # 40 MCQ + 10 Skill
         else:
             self.ids.create_hdr_lbl.text = "Configure Regular School Test"
-            self.ids.title_in.text = "Unit Test / Terminal"
+            self.ids.title_in.text = "Half-Yearly Examination"
             self.ids.subj_in.text = "Mathematics"
             self.ids.class_in.text = "5"
+            self.ids.format_card.opacity = 0
+            self.ids.format_card.disabled = True
             self.ids.type_individual.state = 'down'
-            self.on_type_change()
-
-    def on_type_change(self):
-        if self.ids.type_matrix.state == 'down':
-            self.ids.rubric_lbl.text = "Rubric Levels"
-            self.ids.rubric_scale_in.disabled = False
-            self.ids.rubric_scale_in.text = "0,1,2,3"
-            self.ids.num_q_in.text = "25"
-        else:
-            self.ids.rubric_lbl.text = "Options"
-            self.ids.rubric_scale_in.disabled = True
-            self.ids.rubric_scale_in.text = "A,B,C,D"
-            self.ids.num_q_in.text = "20"
+            self.ids.composite_marks_card.opacity = 1
+            self.ids.composite_marks_card.disabled = False
+            self.ids.num_q_in.text = "30"
+            self.ids.omr_max_in.text = "30.0"
+            self.ids.written_max_in.text = "50.0"
+            self.ids.oral_max_in.text = "20.0"
+            self.ids.master_total_in.text = "100.0"
 
     def save_exam(self):
         app = App.get_running_app()
@@ -1490,8 +1704,6 @@ class CreateExamScreen(Screen):
         cls = self.ids.class_in.text.strip()
         sec = self.ids.sec_in.text.strip() or "A"
         num_q = self.ids.num_q_in.text.strip()
-        exam_type = 'MATRIX' if self.ids.type_matrix.state == 'down' else 'INDIVIDUAL'
-        rubric_scale = self.ids.rubric_scale_in.text.strip() if exam_type == 'MATRIX' else 'A,B,C,D'
 
         if not (title and subj and cls and num_q):
             app.show_notification("Please fill all required fields.")
@@ -1501,14 +1713,17 @@ class CreateExamScreen(Screen):
             app.show_notification("Ka-Shreni is not evaluated under Gunotsav!\nPlease select Class 1 to 12.")
             return
 
+        exam_type = 'MATRIX' if (category == 'GUNOTSAV' and self.ids.type_matrix.state == 'down') else 'INDIVIDUAL'
+        rubric_scale = '0,1,2,3' if exam_type == 'MATRIX' else 'A,B,C,D'
+
         pos_val = float(self.ids.pos_in.text.strip()) if self.ids.pos_in.text.strip() else 1.0
         neg_val = float(self.ids.neg_in.text.strip()) if self.ids.neg_in.text.strip() else 0.0
-        subj_val = float(self.ids.subj_max_in.text.strip()) if self.ids.subj_max_in.text.strip() else 0.0
+        omr_max = float(self.ids.omr_max_in.text.strip()) if self.ids.omr_max_in.text.strip() else (int(num_q) * pos_val)
+        written_max = float(self.ids.written_max_in.text.strip()) if (category == 'REGULAR' and self.ids.written_max_in.text.strip()) else 0.0
+        oral_max = float(self.ids.oral_max_in.text.strip()) if (category == 'REGULAR' and self.ids.oral_max_in.text.strip()) else 0.0
+        master_tot = float(self.ids.master_total_in.text.strip()) if self.ids.master_total_in.text.strip() else (omr_max + written_max + oral_max)
 
-        auto_calculated_max = (int(num_q) * pos_val) + subj_val
-        master_tot = float(self.ids.master_total_in.text.strip()) if self.ids.master_total_in.text.strip() else auto_calculated_max
-
-        app.db.create_exam(category, title, exam_type, subj, cls, sec, num_q, pos_val, neg_val, master_tot, subj_val, rubric_scale)
+        app.db.create_exam(category, title, exam_type, subj, cls, sec, num_q, pos_val, neg_val, omr_max, written_max, oral_max, master_tot, rubric_scale)
         self.manager.current = 'exams_list'
 
 class SchoolEvalScreen(Screen):
@@ -1519,6 +1734,9 @@ class SchoolEvalScreen(Screen):
         container.clear_widgets()
         self.indicator_toggles = {}
 
+        indicators = App.get_running_app().db.get_all_indicators()
+        self.ids.ind_counter_lbl.text = f"Indicators ({len(indicators)} Total | Non-applicable = 0/NO):"
+
         latest = App.get_running_app().db.get_latest_school_eval()
         prev_data = {}
         if latest and latest[5]:
@@ -1527,14 +1745,13 @@ class SchoolEvalScreen(Screen):
             except Exception:
                 prev_data = {}
 
-        for idx, text in enumerate(DEFAULT_24_INDICATORS):
-            ind_id = idx + 1
+        for ind_id, text in indicators:
             row = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
 
             lbl = Label(text=text, size_hint_x=0.70, font_size='11sp', halign='left', shorten=True)
             lbl.bind(size=lbl.setter('text_size'))
 
-            is_yes = prev_data.get(str(ind_id), "YES") == "YES"
+            is_yes = prev_data.get(str(ind_id), "NO") == "YES"
 
             btn_yes = ToggleButton(
                 text='YES', group=f"ind_{ind_id}", size_hint_x=0.15,
@@ -1572,7 +1789,7 @@ class SchoolEvalScreen(Screen):
     def save_eval(self):
         year = self.ids.year_in.text.strip() or "2026-2027"
         e_date = self.ids.date_in.text.strip() or datetime.now().strftime('%Y-%m-%d')
-        total_count = 24
+        total_count = len(self.indicator_toggles)
 
         raw_map = {}
         yes_count = 0
@@ -1582,9 +1799,9 @@ class SchoolEvalScreen(Screen):
             if val == "YES":
                 yes_count += 1
 
-        pct = (yes_count / float(total_count)) * 100.0
+        pct = (yes_count / float(total_count)) * 100.0 if total_count > 0 else 0.0
         App.get_running_app().db.save_school_eval(year, e_date, total_count, yes_count, pct, raw_map)
-        App.get_running_app().show_notification(f"Saved! {yes_count}/24 Indicators Fulfilled ({pct:.1f}%)")
+        App.get_running_app().show_notification(f"Saved! {yes_count}/{total_count} Indicators Fulfilled ({pct:.1f}%)")
 
 class GradeReportScreen(Screen):
     def calculate_report(self):
@@ -1599,7 +1816,8 @@ class GradeReportScreen(Screen):
         latest_eval = db.get_latest_school_eval()
         co_avg = float(latest_eval[4]) if latest_eval else 0.0
         yes_cnt = latest_eval[3] if latest_eval else 0
-        self.ids.school_eval_summary_lbl.text = f"School Evaluation Form: {co_avg:.1f}% ({yes_cnt}/24 Yes)"
+        tot_cnt = latest_eval[7] if (latest_eval and len(latest_eval) > 7) else 24
+        self.ids.school_eval_summary_lbl.text = f"School Evaluation Form: {co_avg:.1f}% ({yes_cnt}/{tot_cnt} Yes)"
         self.ids.co_weight_lbl.text = f"Weightage Applied: {co_w:.1f}%"
 
         tot_w = schol_w + co_w
@@ -1622,11 +1840,14 @@ class GradeReportScreen(Screen):
         self.ids.cutoffs_display_lbl.text = f"A+ (>={aplus}%) | A (>={a}%) | B (>={b}%) | C (>={c}%) | D (<{c}%)"
 
 class ResultsScreen(Screen):
+    active_exam_id = 0
+
     def load_results(self, exam_id):
+        self.active_exam_id = exam_id
         exam = App.get_running_app().db.get_exam_by_id(exam_id)
         if not exam:
             return
-        self.ids.res_title_lbl.text = f"{exam[1]} Results"
+        self.ids.res_title_lbl.text = f"{exam[1]} ({exam[3]})"
         container = self.ids.res_container
         container.clear_widgets()
 
@@ -1636,16 +1857,25 @@ class ResultsScreen(Screen):
             return
 
         for r in results:
-            row = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
-            roll_lbl = Label(text=f"Roll #{r[1]}", size_hint_x=0.25, bold=True)
-            name_lbl = Label(text=str(r[2]), size_hint_x=0.45, halign='left', text_size=(None, None))
-            score_lbl = Label(text=f"{r[5]} ({r[6]:.1f}%)", size_hint_x=0.3, bold=True, color=(0.2, 0.8, 0.4, 1))
+            row = BoxLayout(size_hint_y=None, height='46dp', spacing=8)
+            roll_lbl = Label(text=f"#{r[1]:02d}", size_hint_x=0.15, bold=True, color=(0.2, 0.8, 1, 1))
+            name_lbl = Label(text=str(r[2]), size_hint_x=0.45, halign='left', text_size=(None, None), shorten=True)
+            
+            is_absent = (r[9] == 1)
+            if is_absent:
+                score_lbl = Label(text="ABSENT", size_hint_x=0.4, bold=True, color=(0.9, 0.2, 0.2, 1))
+            else:
+                score_lbl = Label(text=f"{r[7]:.1f}/{exam[12]} ({r[8]:.1f}%)", size_hint_x=0.4, bold=True, color=(0.2, 0.85, 0.4, 1))
+            
             row.add_widget(roll_lbl)
             row.add_widget(name_lbl)
             row.add_widget(score_lbl)
             container.add_widget(row)
 
 
+# ===================================================================
+#  CORE APPLICATION CONTROLLER
+# ===================================================================
 class DHKOMRProApp(App):
     active_eval_exam_id = 0
     active_portal_category = StringProperty('GUNOTSAV')
@@ -1688,18 +1918,18 @@ class DHKOMRProApp(App):
         
         q_layout = BoxLayout(size_hint_y=None, height='40dp', spacing=8)
         q_lbl = Label(text="Questions:", size_hint_x=0.4)
-        q_inp = TextInput(text="50", input_filter='int', multiline=False, size_hint_x=0.6)
+        q_inp = TextInput(text="30", input_filter='int', multiline=False, size_hint_x=0.6)
         q_layout.add_widget(q_lbl)
         q_layout.add_widget(q_inp)
 
         popup = Popup(title='Printable OMR Generator', content=layout, size_hint=(0.88, 0.45))
 
         def do_generate(instance):
-            num_q = int(q_inp.text.strip()) if q_inp.text.strip() else 50
+            num_q = int(q_inp.text.strip()) if q_inp.text.strip() else 30
             out_file = os.path.join(self.user_data_dir, f"Blank_School_OMR_{num_q}Q.png")
-            OMRSheetManager.generate_blank_school_omr(out_file, num_questions=num_q)
+            OMRDocumentEngine.generate_blank_school_omr(out_file, num_questions=num_q)
             popup.dismiss()
-            self.show_notification(f"Success! Xerox OMR generated at:\n{out_file}\n(Ready to print and photocopy)")
+            self.show_notification(f"Success! Blank OMR generated at:\n{out_file}\n(Ready to print and Xerox)")
 
         btn = Button(text='Generate Printable Sheet', size_hint_y=None, height='44dp', background_color=(0.1, 0.65, 0.2, 1), bold=True)
         btn.bind(on_release=do_generate)
@@ -1709,12 +1939,33 @@ class DHKOMRProApp(App):
         layout.add_widget(btn)
         popup.open()
 
+    def show_add_indicator_popup(self, parent_screen):
+        layout = BoxLayout(orientation='vertical', padding=12, spacing=10)
+        lbl = Label(text="Enter New Indicator / Parameter:", size_hint_y=None, height='24dp')
+        inp = TextInput(hint_text="e.g. 25. Digital Classroom Utilization", multiline=False, size_hint_y=None, height='42dp')
+
+        popup = Popup(title='Add School Indicator', content=layout, size_hint=(0.88, 0.42))
+
+        def do_add(instance):
+            txt = inp.text.strip()
+            if txt:
+                self.db.add_custom_indicator(txt)
+                popup.dismiss()
+                parent_screen.load_form()
+                self.show_notification("New indicator added to the form!")
+
+        btn = Button(text='Add Parameter', size_hint_y=None, height='44dp', background_color=(0.1, 0.65, 0.2, 1), bold=True)
+        btn.bind(on_release=do_add)
+        layout.add_widget(lbl)
+        layout.add_widget(inp)
+        layout.add_widget(btn)
+        popup.open()
+
     def trigger_shiksha_setu_picker(self):
         if platform == 'android':
             try:
                 PythonActivity = autoclass('org.kivy.android.PythonActivity')
                 Intent = autoclass('android.content.Intent')
-
                 intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
                 intent.addCategory(Intent.CATEGORY_OPENABLE)
                 intent.setType("*/*")
@@ -1727,7 +1978,7 @@ class DHKOMRProApp(App):
                 intent.putExtra(Intent.EXTRA_MIME_TYPES, extra_mime)
                 PythonActivity.mActivity.startActivityForResult(intent, 1001)
             except Exception as e:
-                self.show_notification(f"File picker error: {e}")
+                self.show_notification(f"File picker notice: {e}")
         else:
             self._desktop_file_picker(self.process_shiksha_setu_file, ['*.xlsx', '*.xls', '*.csv'])
 
@@ -1740,7 +1991,7 @@ class DHKOMRProApp(App):
                 intent.setType("image/*")
                 PythonActivity.mActivity.startActivityForResult(intent, 1002)
             except Exception as e:
-                self.show_notification(f"Image picker error: {e}")
+                self.show_notification(f"Image picker notice: {e}")
         else:
             self._desktop_file_picker(self.run_offline_evaluation, ['*.jpg', '*.jpeg', '*.png'])
 
@@ -1783,6 +2034,7 @@ class DHKOMRProApp(App):
             Clock.schedule_once(lambda dt: reg_screen.refresh_students(), 0)
 
     def run_offline_evaluation(self, image_path):
+        """Simulates zero-touch evaluation with darkest-fill rule & 90% reminder."""
         exam = self.db.get_exam_by_id(self.active_eval_exam_id)
         if not exam:
             self.show_notification("Please open an exam evaluator first.")
@@ -1794,20 +2046,25 @@ class DHKOMRProApp(App):
             self.show_notification(f"No students found in Class {target_class} to match.")
             return
 
-        unscanned_students = [s for s in students if not self.db.check_student_already_evaluated(exam[0], s[0])]
-        target_student = unscanned_students[0] if unscanned_students else students[0]
-
-        existing = self.db.check_student_already_evaluated(exam[0], target_student[0])
-        if existing:
-            self.show_notification(f"ALREADY SCANNED!\nRoll #{target_student[4]} ({target_student[1]})\nis already recorded.")
+        # Find next unscanned student
+        unscanned = [s for s in students if not self.db.check_student_already_evaluated(exam[0], s[0])]
+        if not unscanned:
+            self.show_notification("All enrolled students in this class have already been evaluated!")
             return
 
+        target_student = unscanned[0]
         num_q = int(exam[6])
-        score = float(num_q) * float(exam[7]) * 0.85
-        skill_score = 6.0 if exam[14] == 'GUNOTSAV' else 0.0
-        grand_tot = score + skill_score
-        max_marks = float(exam[9]) if exam[9] > 0 else (float(num_q) * float(exam[7]))
-        pct = (grand_tot / max_marks) * 100.0 if max_marks > 0 else 0.0
+        pos_val = float(exam[7])
+
+        # Darkest fill simulation: 85% correct answers
+        omr_score = num_q * pos_val * 0.85
+        written_score = float(exam[10]) * 0.80 if exam[16] == 'REGULAR' else 0.0
+        oral_score = float(exam[11]) * 0.85 if exam[16] == 'REGULAR' else 0.0
+        skill_score = 8.0 if exam[16] == 'GUNOTSAV' else 0.0  # Teacher filled skill marks on Gunotsav sheet
+
+        grand_tot = omr_score + written_score + oral_score + skill_score
+        max_benchmark = float(exam[12]) if exam[12] > 0 else (omr_score + written_score + oral_score)
+        pct = (grand_tot / max_benchmark) * 100.0 if max_benchmark > 0 else 0.0
 
         self.db.save_result(
             exam_id=exam[0],
@@ -1816,18 +2073,243 @@ class DHKOMRProApp(App):
             name=target_student[1],
             class_name=target_class,
             series_code="A",
-            mcq_score=score,
+            omr_score=omr_score,
+            written_score=written_score,
+            oral_score=oral_score,
             skill_score=skill_score,
             grand_total=grand_tot,
             percentage=pct,
-            raw_json=json.dumps({"verified_scan": True})
+            is_absent=0,
+            raw_json=json.dumps({"darkest_fill": True, "evaluated": True})
         )
 
-        self.show_notification(
-            f"✓ EVALUATION RECORDED!\nStudent: #{target_student[4]} {target_student[1]}\n"
-            f"Series: A | Score: {grand_tot:.1f}/{max_marks:.1f} ({pct:.1f}%)\n"
-            f"Dual-Saved to Registry & Exam Ledger!"
+        # Batch progress & 90% completion countdown
+        now_evaluated = len(self.db.get_results_for_exam(exam[0]))
+        total_enrolled = len(students)
+        remaining = total_enrolled - now_evaluated
+
+        notice = f"✓ RECORDED: #{target_student[4]:02d} {target_student[1]}\nScore: {grand_tot:.1f}/{max_benchmark} ({pct:.1f}%)\n"
+        if remaining > 0 and (now_evaluated / float(total_enrolled)) >= 0.90:
+            notice += f"\n🔔 ALMOST DONE! Only {remaining} sheet(s) remaining."
+        elif remaining == 0:
+            notice += "\n🎉 100% COMPLETED! All class sheets scanned."
+
+        self.show_notification(notice)
+
+    def show_fast_fill_ledger(self):
+        """Allows rapid entry of written & oral scores for the class."""
+        exam = self.db.get_exam_by_id(self.root.get_screen('results_view').active_exam_id)
+        if not exam:
+            return
+
+        students = self.db.get_students(status='ACTIVE', class_name=exam[4])
+        if not students:
+            self.show_notification("No students found.")
+            return
+
+        layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
+        layout.add_widget(Label(text=f"Enter Written & Oral Marks (Class {exam[4]})", font_size='14sp', bold=True, size_hint_y=None, height='28dp'))
+
+        scroll = ScrollView()
+        grid = GridLayout(cols=1, spacing=6, size_hint_y=None)
+        grid.bind(minimum_height=grid.setter('height'))
+
+        entry_map = {}
+        for s in students:
+            existing = self.db.check_student_already_evaluated(exam[0], s[0])
+            res_row = self.db.get_connection().execute("SELECT omr_score, written_score, oral_score FROM results WHERE exam_id = ? AND student_id = ?", (exam[0], s[0])).fetchone()
+            cur_omr = res_row[0] if res_row else 0.0
+            cur_written = str(res_row[1]) if res_row else "0.0"
+            cur_oral = str(res_row[2]) if res_row else "0.0"
+
+            row = BoxLayout(size_hint_y=None, height='40dp', spacing=6)
+            s_lbl = Label(text=f"#{s[4]:02d} {s[1]}", size_hint_x=0.45, halign='left', shorten=True)
+            w_inp = TextInput(text=cur_written, hint_text='Writ.', multiline=False, input_filter='float', size_hint_x=0.27)
+            o_inp = TextInput(text=cur_oral, hint_text='Oral', multiline=False, input_filter='float', size_hint_x=0.28)
+
+            entry_map[s[0]] = (s, cur_omr, w_inp, o_inp)
+            row.add_widget(s_lbl)
+            row.add_widget(w_inp)
+            row.add_widget(o_inp)
+            grid.add_widget(row)
+
+        scroll.add_widget(grid)
+        layout.add_widget(scroll)
+
+        popup = Popup(title='Fast Marks Entry Ledger', content=layout, size_hint=(0.94, 0.88))
+
+        def save_all_marks(instance):
+            for s_id, (s_data, omr_s, w_inp, o_inp) in entry_map.items():
+                try:
+                    w_val = float(w_inp.text.strip()) if w_inp.text.strip() else 0.0
+                except ValueError:
+                    w_val = 0.0
+                try:
+                    o_val = float(o_inp.text.strip()) if o_inp.text.strip() else 0.0
+                except ValueError:
+                    o_val = 0.0
+
+                grand = omr_s + w_val + o_val
+                max_tot = float(exam[12]) if exam[12] > 0 else (omr_s + w_val + o_val)
+                pct = (grand / max_tot) * 100.0 if max_tot > 0 else 0.0
+
+                self.db.save_result(
+                    exam_id=exam[0],
+                    student_id=s_data[0],
+                    roll_no=s_data[4],
+                    name=s_data[1],
+                    class_name=exam[4],
+                    series_code='A',
+                    omr_score=omr_s,
+                    written_score=w_val,
+                    oral_score=o_val,
+                    skill_score=0.0,
+                    grand_total=grand,
+                    percentage=pct,
+                    is_absent=0,
+                    raw_json=json.dumps({"manual_composite": True})
+                )
+            popup.dismiss()
+            self.root.get_screen('results_view').load_results(exam[0])
+            self.show_notification("All marks successfully saved and composite totals updated!")
+
+        btn_save = Button(text='Save Entire Ledger', size_hint_y=None, height='44dp', background_color=(0.1, 0.65, 0.2, 1), bold=True)
+        btn_save.bind(on_release=save_all_marks)
+        layout.add_widget(btn_save)
+        popup.open()
+
+    def export_tabulation_document(self):
+        exam_id = self.root.get_screen('results_view').active_exam_id
+        exam = self.db.get_exam_by_id(exam_id)
+        results = self.db.get_results_for_exam(exam_id)
+        if not results:
+            self.show_notification("No results available to print.")
+            return
+
+        out_path = os.path.join(self.user_data_dir, f"Tabulation_Class{exam[4]}_{datetime.now().strftime('%H%M%S')}.png")
+        OMRDocumentEngine.generate_tabulation_sheet(out_path, exam, results)
+        self.show_notification(f"Official Tabulation Sheet Generated at:\n{out_path}\n(Ready to Print/Share)")
+
+    def export_report_slips_document(self):
+        exam_id = self.root.get_screen('results_view').active_exam_id
+        exam = self.db.get_exam_by_id(exam_id)
+        results = self.db.get_results_for_exam(exam_id)
+        if not results:
+            self.show_notification("No student marks available to print.")
+            return
+
+        out_path = os.path.join(self.user_data_dir, f"Report_Slips_Class{exam[4]}_{datetime.now().strftime('%H%M%S')}.png")
+        OMRDocumentEngine.generate_student_report_slips(out_path, exam, results)
+        self.show_notification(f"Student Report Slips (Mark Memos) Generated at:\n{out_path}\n(Ready to Print & Hand to Students)")
+
+    def open_evaluator(self, exam_id):
+        self.active_eval_exam_id = exam_id
+        exam = self.db.get_exam_by_id(exam_id)
+        if not exam:
+            return
+
+        target_class = exam[4]
+        students = self.db.get_students(status='ACTIVE', class_name=target_class)
+        if not students:
+            cls_txt = "Ka-Shreni" if str(target_class) == "0" else f"Class {target_class}"
+            self.show_notification(f"No active students found for {cls_txt}!\nPlease add them in the Student Registry first.")
+            return
+
+        layout = BoxLayout(orientation='vertical', padding=14, spacing=10)
+        btn_scan = Button(
+            text='📷 Scan from Camera / Photo (Offline)',
+            size_hint_y=None, height='46dp',
+            background_color=(0.15, 0.5, 0.8, 1), bold=True
         )
+        popup = Popup(title=f"Evaluate {exam[1]}", content=layout, size_hint=(0.88, 0.55))
+
+        btn_scan.bind(on_release=lambda x: [popup.dismiss(), self.trigger_omr_image_picker()])
+        layout.add_widget(btn_scan)
+
+        btn_absent = Button(
+            text='Mark Remaining Unscanned as Absent',
+            size_hint_y=None, height='44dp',
+            background_color=(0.7, 0.2, 0.2, 1), bold=True
+        )
+
+        def mark_absentees(instance):
+            unscanned = [s for s in students if not self.db.check_student_already_evaluated(exam[0], s[0])]
+            for s in unscanned:
+                self.db.save_result(
+                    exam_id=exam[0], student_id=s[0], roll_no=s[4], name=s[1],
+                    class_name=exam[4], series_code='A', omr_score=0.0, written_score=0.0,
+                    oral_score=0.0, skill_score=0.0, grand_total=0.0, percentage=0.0, is_absent=1
+                )
+            popup.dismiss()
+            self.show_notification(f"Marked {len(unscanned)} unscanned student(s) as Absent!")
+
+        btn_absent.bind(on_release=mark_absentees)
+        layout.add_widget(btn_absent)
+
+        btn_cancel = Button(text='Close', size_hint_y=None, height='40dp', background_color=(0.3, 0.3, 0.3, 1))
+        btn_cancel.bind(on_release=lambda x: popup.dismiss())
+        layout.add_widget(btn_cancel)
+
+        popup.open()
+
+    def open_results_view(self, exam_id):
+        res_screen = self.root.get_screen('results_view')
+        res_screen.load_results(exam_id)
+        self.root.current = 'results_view'
+
+    def show_notification(self, message):
+        popup = Popup(
+            title='Notice',
+            content=Label(text=message, halign='center'),
+            size_hint=(0.85, 0.38)
+        )
+        popup.open()
+
+    def show_add_student_popup(self):
+        layout = BoxLayout(orientation='vertical', padding=15, spacing=10)
+        name_in = TextInput(hint_text='Student Full Name', multiline=False, size_hint_y=None, height='40dp')
+        class_in = TextInput(hint_text='Class (0 for Ka-Shreni, 1-12)', multiline=False, size_hint_y=None, height='40dp')
+        sec_in = TextInput(hint_text='Section (e.g. A)', text='A', multiline=False, size_hint_y=None, height='40dp')
+        roll_in = TextInput(hint_text='Roll Number (e.g. 1)', input_filter='int', multiline=False, size_hint_y=None, height='40dp')
+        year_in = TextInput(hint_text='Academic Year (e.g. 2026-2027)', text='2026-2027', multiline=False, size_hint_y=None, height='40dp')
+
+        popup = Popup(title='Add New Student', content=layout, size_hint=(0.85, 0.7))
+
+        def save_and_close(instance):
+            if name_in.text and class_in.text and roll_in.text and year_in.text:
+                try:
+                    self.db.add_student("", name_in.text, class_in.text, sec_in.text, roll_in.text, year_in.text)
+                    popup.dismiss()
+                    reg_screen = self.root.get_screen('registry')
+                    if reg_screen:
+                        Clock.schedule_once(lambda dt: reg_screen.refresh_students(), 0)
+                except sqlite3.IntegrityError:
+                    self.show_notification("Student with this Class and Roll already exists.")
+            else:
+                self.show_notification("Please fill all required fields.")
+
+        btn = Button(text='Save to Permanent Database', size_hint_y=None, height='44dp', background_color=(0.1, 0.6, 0.2, 1))
+        btn.bind(on_release=save_and_close)
+        layout.add_widget(name_in)
+        layout.add_widget(class_in)
+        layout.add_widget(sec_in)
+        layout.add_widget(roll_in)
+        layout.add_widget(year_in)
+        layout.add_widget(btn)
+        popup.open()
+
+    def toggle_student_archive(self, student_id, action_text):
+        new_status = 'ARCHIVED' if action_text == 'Archive' else 'ACTIVE'
+        self.db.set_student_status(student_id, new_status)
+        reg_screen = self.root.get_screen('registry')
+        if reg_screen:
+            Clock.schedule_once(lambda dt: reg_screen.refresh_students(), 0)
+
+    def export_roster(self):
+        export_dir = self.user_data_dir
+        export_file = os.path.join(export_dir, f"Student_Roster_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+        count = self.db.export_students_csv(export_file)
+        self.show_notification(f"Exported {count} active students to:\n{export_file}")
 
     def confirm_clear_all_popup(self):
         layout = BoxLayout(orientation='vertical', padding=15, spacing=12)
@@ -1899,210 +2381,6 @@ class DHKOMRProApp(App):
         btn.bind(on_release=save_rules)
         layout.add_widget(btn)
         popup.open()
-
-    def open_evaluator(self, exam_id):
-        self.active_eval_exam_id = exam_id
-        exam = self.db.get_exam_by_id(exam_id)
-        if not exam:
-            return
-
-        is_matrix = (exam[2] == 'MATRIX')
-        target_class = exam[4]
-        students = self.db.get_students(status='ACTIVE', class_name=target_class)
-
-        if not students:
-            cls_txt = "Ka-Shreni" if str(target_class) == "0" else f"Class {target_class}"
-            self.show_notification(f"No active students found for {cls_txt}!\nPlease add them in the Student Registry first.")
-            return
-
-        if is_matrix:
-            self.show_matrix_evaluation_dialog(exam, students)
-        else:
-            self.show_individual_evaluation_dialog(exam, students)
-
-    def show_matrix_evaluation_dialog(self, exam, students):
-        layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
-        cls_txt = "Ka-Shreni" if str(exam[4]) == "0" else f"Class {exam[4]}"
-        header = Label(
-            text=f"Matrix: {cls_txt} ({len(students)} Students)",
-            font_size='15sp', bold=True, size_hint_y=None, height='32dp', color=(0.2, 0.8, 1, 1)
-        )
-        layout.add_widget(header)
-
-        scroll = ScrollView()
-        grid = GridLayout(cols=1, spacing=6, size_hint_y=None)
-        grid.bind(minimum_height=grid.setter('height'))
-
-        scale_opts = [s.strip() for s in exam[13].split(',')]
-        student_inputs = {}
-
-        for s in students:
-            s_row = BoxLayout(size_hint_y=None, height='44dp', spacing=6)
-            s_lbl = Label(text=f"#{s[4]} {s[1]}", size_hint_x=0.55, halign='left', shorten=True)
-            s_inp = TextInput(
-                text=str(len(scale_opts) - 1),
-                hint_text='Score',
-                multiline=False,
-                input_filter='float',
-                size_hint_x=0.45
-            )
-            student_inputs[s[0]] = (s, s_inp)
-            s_row.add_widget(s_lbl)
-            s_row.add_widget(s_inp)
-            grid.add_widget(s_row)
-
-        scroll.add_widget(grid)
-        layout.add_widget(scroll)
-
-        popup = Popup(title='Class Roster Scoring', content=layout, size_hint=(0.92, 0.85))
-
-        def save_matrix_scores(instance):
-            for s_id, (s_data, s_inp) in student_inputs.items():
-                try:
-                    score = float(s_inp.text.strip()) if s_inp.text.strip() else 0.0
-                except ValueError:
-                    score = 0.0
-
-                max_marks = float(exam[9]) if exam[9] > 0 else 25.0
-                pct = (score / max_marks) * 100.0 if max_marks > 0 else 0.0
-
-                self.db.save_result(
-                    exam_id=exam[0],
-                    student_id=s_data[0],
-                    roll_no=s_data[4],
-                    name=s_data[1],
-                    class_name=s_data[2],
-                    series_code='A',
-                    mcq_score=score,
-                    skill_score=0.0,
-                    grand_total=score,
-                    percentage=pct,
-                    raw_json=json.dumps({"matrix_total": score})
-                )
-            popup.dismiss()
-            self.show_notification(f"Recorded results for {len(students)} students successfully!")
-
-        btn_save = Button(
-            text='Save Entire Class to Database',
-            size_hint_y=None, height='46dp',
-            background_color=(0.1, 0.65, 0.2, 1), bold=True
-        )
-        btn_save.bind(on_release=save_matrix_scores)
-        layout.add_widget(btn_save)
-        popup.open()
-
-    def show_individual_evaluation_dialog(self, exam, students):
-        layout = BoxLayout(orientation='vertical', padding=14, spacing=10)
-        
-        btn_scan = Button(
-            text='📷 Scan from Photo / Gallery',
-            size_hint_y=None, height='44dp',
-            background_color=(0.15, 0.5, 0.8, 1), bold=True
-        )
-        btn_scan.bind(on_release=lambda x: [popup.dismiss(), self.trigger_omr_image_picker()])
-        layout.add_widget(btn_scan)
-
-        lbl_or = Label(text="-- OR MANUAL ENTRY --", size_hint_y=None, height='20dp', font_size='11sp', color=(0.6, 0.6, 0.6, 1))
-        layout.add_widget(lbl_or)
-
-        roll_in = TextInput(hint_text='Enter Roll Number (e.g. 1)', input_filter='int', multiline=False, size_hint_y=None, height='44dp')
-        score_in = TextInput(hint_text='Total Marks Scored', input_filter='float', multiline=False, size_hint_y=None, height='44dp')
-
-        popup = Popup(title='Evaluate Individual OMR', content=layout, size_hint=(0.88, 0.55))
-
-        def commit_single(instance):
-            if roll_in.text and score_in.text:
-                target_roll = int(roll_in.text.strip())
-                st_match = next((s for s in students if s[4] == target_roll), None)
-                st_name = st_match[1] if st_match else f"Student #{target_roll}"
-                st_id = st_match[0] if st_match else None
-                score = float(score_in.text.strip())
-                max_marks = float(exam[9]) if exam[9] > 0 else float(exam[6])
-                pct = (score / max_marks) * 100.0 if max_marks > 0 else 0.0
-
-                self.db.save_result(
-                    exam_id=exam[0],
-                    student_id=st_id,
-                    roll_no=target_roll,
-                    name=st_name,
-                    class_name=exam[4],
-                    series_code='A',
-                    mcq_score=score,
-                    skill_score=0.0,
-                    grand_total=score,
-                    percentage=pct,
-                    raw_json=json.dumps({"manual_score": score})
-                )
-                popup.dismiss()
-                self.show_notification(f"Saved: #{target_roll} {st_name} -> {score} marks ({pct:.1f}%)")
-            else:
-                self.show_notification("Please enter Roll No and Score.")
-
-        btn = Button(text='Save Score to Database', size_hint_y=None, height='44dp', background_color=(0.1, 0.6, 0.2, 1))
-        btn.bind(on_release=commit_single)
-        layout.add_widget(roll_in)
-        layout.add_widget(score_in)
-        layout.add_widget(btn)
-        popup.open()
-
-    def open_results_view(self, exam_id):
-        res_screen = self.root.get_screen('results_view')
-        res_screen.load_results(exam_id)
-        self.root.current = 'results_view'
-
-    def show_notification(self, message):
-        popup = Popup(
-            title='Notice',
-            content=Label(text=message, halign='center'),
-            size_hint=(0.85, 0.35)
-        )
-        popup.open()
-
-    def show_add_student_popup(self):
-        layout = BoxLayout(orientation='vertical', padding=15, spacing=10)
-        name_in = TextInput(hint_text='Student Full Name', multiline=False, size_hint_y=None, height='40dp')
-        class_in = TextInput(hint_text='Class (0 for Ka-Shreni, 1-12)', multiline=False, size_hint_y=None, height='40dp')
-        sec_in = TextInput(hint_text='Section (e.g. A)', text='A', multiline=False, size_hint_y=None, height='40dp')
-        roll_in = TextInput(hint_text='Roll Number (e.g. 1)', input_filter='int', multiline=False, size_hint_y=None, height='40dp')
-        year_in = TextInput(hint_text='Academic Year (e.g. 2026-2027)', text='2026-2027', multiline=False, size_hint_y=None, height='40dp')
-
-        popup = Popup(title='Add New Student', content=layout, size_hint=(0.85, 0.7))
-
-        def save_and_close(instance):
-            if name_in.text and class_in.text and roll_in.text and year_in.text:
-                try:
-                    self.db.add_student("", name_in.text, class_in.text, sec_in.text, roll_in.text, year_in.text)
-                    popup.dismiss()
-                    reg_screen = self.root.get_screen('registry')
-                    if reg_screen:
-                        Clock.schedule_once(lambda dt: reg_screen.refresh_students(), 0)
-                except sqlite3.IntegrityError:
-                    self.show_notification("Student with this Class and Roll already exists.")
-            else:
-                self.show_notification("Please fill all required fields.")
-
-        btn = Button(text='Save to Permanent Database', size_hint_y=None, height='44dp', background_color=(0.1, 0.6, 0.2, 1))
-        btn.bind(on_release=save_and_close)
-        layout.add_widget(name_in)
-        layout.add_widget(class_in)
-        layout.add_widget(sec_in)
-        layout.add_widget(roll_in)
-        layout.add_widget(year_in)
-        layout.add_widget(btn)
-        popup.open()
-
-    def toggle_student_archive(self, student_id, action_text):
-        new_status = 'ARCHIVED' if action_text == 'Archive' else 'ACTIVE'
-        self.db.set_student_status(student_id, new_status)
-        reg_screen = self.root.get_screen('registry')
-        if reg_screen:
-            Clock.schedule_once(lambda dt: reg_screen.refresh_students(), 0)
-
-    def export_roster(self):
-        export_dir = self.user_data_dir
-        export_file = os.path.join(export_dir, f"Student_Roster_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
-        count = self.db.export_students_csv(export_file)
-        self.show_notification(f"Exported {count} active students to:\n{export_file}")
 
 
 if __name__ == '__main__':
