@@ -387,12 +387,10 @@ KV = '''
 <Screen>:
     canvas.before:
         Color:
-            rgba: hex('#090d16')
+            rgba: hex('#0f172a')
         Rectangle:
             pos: self.pos
             size: self.size
-
-# --- Reusable Premium UI Components ---
 
 <ModernCard@BoxLayout>:
     orientation: 'vertical'
@@ -402,46 +400,29 @@ KV = '''
     spacing: 8
     canvas.before:
         Color:
-            rgba: hex('#151e2e')
-        RoundedRectangle:
-            pos: self.pos
-            size: self.size
-            radius: [10,]
-        Color:
-            rgba: hex('#223147')
-        Line:
-            rounded_rectangle: (self.x, self.y, self.width, self.height, 10)
-            width: 1
-
-<ModernInput@TextInput>:
-    multiline: False
-    size_hint_y: None
-    height: '44dp'
-    padding: [12, 11]
-    font_size: '14sp'
-    background_normal: ''
-    background_active: ''
-    background_color: [0, 0, 0, 0]
-    cursor_color: hex('#38bdf8')
-    foreground_color: hex('#f8fafc')
-    hint_text_color: hex('#64748b')
-    canvas.before:
-        Color:
             rgba: hex('#1e293b')
         RoundedRectangle:
             pos: self.pos
             size: self.size
             radius: [8,]
-        Color:
-            rgba: hex('#334155') if not self.focus else hex('#38bdf8')
-        Line:
-            rounded_rectangle: (self.x, self.y, self.width, self.height, 8)
-            width: 1.2 if not self.focus else 1.8
+
+<ModernInput@TextInput>:
+    multiline: False
+    size_hint_y: None
+    height: '44dp'
+    padding: [10, 10]
+    font_size: '14sp'
+    background_normal: ''
+    background_active: ''
+    background_color: hex('#334155')
+    cursor_color: hex('#38bdf8')
+    foreground_color: hex('#f8fafc')
+    hint_text_color: hex('#94a3b8')
 
 <CardHeader@Label>:
     size_hint_y: None
-    height: '22dp'
-    font_size: '12sp'
+    height: '24dp'
+    font_size: '13sp'
     bold: True
     halign: 'left'
     text_size: self.size
@@ -460,24 +441,16 @@ KV = '''
     font_size: '14sp'
     bold: True
     background_normal: ''
-    background_color: [0, 0, 0, 0]
+    background_color: hex('#2563eb')
     color: hex('#ffffff')
     size_hint_y: None
     height: '46dp'
-    btn_bg: hex('#2563eb')
-    canvas.before:
-        Color:
-            rgba: self.btn_bg
-        RoundedRectangle:
-            pos: self.pos
-            size: self.size
-            radius: [8,]
 
 <ExamRow@BoxLayout>:
     orientation: 'horizontal'
     size_hint_y: None
     height: '68dp'
-    padding: [12, 6]
+    padding: [10, 6]
     spacing: 8
     exam_id: 0
     title_text: ''
@@ -488,16 +461,11 @@ KV = '''
     is_matrix: False
     canvas.before:
         Color:
-            rgba: hex('#151e2e')
+            rgba: hex('#1e293b')
         RoundedRectangle:
             pos: self.pos
             size: self.size
             radius: [8,]
-        Color:
-            rgba: hex('#223147')
-        Line:
-            rounded_rectangle: (self.x, self.y, self.width, self.height, 8)
-            width: 1
 
     BoxLayout:
         orientation: 'vertical'
@@ -542,8 +510,6 @@ KV = '''
         background_color: hex('#059669')
         on_release: app.open_results_view(root.exam_id)
 
-# --- App Screens ---
-
 <HomeScreen>:
     BoxLayout:
         orientation: 'vertical'
@@ -562,7 +528,7 @@ KV = '''
                 text: 'Torch: ' + ('ON' if app.torch_state else 'OFF')
                 size_hint_x: 0.35
                 background_normal: ''
-                background_color: hex('#eab308') if app.torch_state else hex('#334155')
+                background_color: hex('#eab308') if app.torch_state else hex('#475569')
                 on_release: app.toggle_torch()
 
         Label:
@@ -577,32 +543,32 @@ KV = '''
 
         CustomButton:
             text: 'Exams & Evaluate Sheets'
-            btn_bg: hex('#d97706')
+            background_color: hex('#d97706')
             on_release: root.manager.current = 'exams_list'
 
         CustomButton:
             text: 'School Evaluation Form'
-            btn_bg: hex('#7c3aed')
+            background_color: hex('#7c3aed')
             on_release: root.manager.current = 'school_eval'
 
         CustomButton:
             text: 'School Grade & Norms Calculator'
-            btn_bg: hex('#059669')
+            background_color: hex('#059669')
             on_release: root.manager.current = 'grade_report'
 
         CustomButton:
             text: 'Student Registry (Classes & Rolls)'
-            btn_bg: hex('#2563eb')
+            background_color: hex('#2563eb')
             on_release: root.manager.current = 'registry'
 
         CustomButton:
             text: 'Class Promotion / Rollover'
-            btn_bg: hex('#0d9488')
+            background_color: hex('#0d9488')
             on_release: root.manager.current = 'rollover'
 
         CustomButton:
             text: 'Export Roster Backup (CSV)'
-            btn_bg: hex('#4f46e5')
+            background_color: hex('#4f46e5')
             on_release: app.export_roster()
 
         Widget:
@@ -622,7 +588,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.22
                 background_normal: ''
-                background_color: hex('#334155')
+                background_color: hex('#475569')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'Exams & Tests'
@@ -657,7 +623,7 @@ KV = '''
                 text: '< Cancel'
                 size_hint_x: 0.24
                 background_normal: ''
-                background_color: hex('#334155')
+                background_color: hex('#475569')
                 on_release: root.manager.current = 'exams_list'
             Label:
                 text: 'Configure New Test'
@@ -672,7 +638,6 @@ KV = '''
                 spacing: 12
                 padding: [2, 4]
 
-                # Step 1 Card: Format Selection
                 ModernCard:
                     CardHeader:
                         text: '1. EVALUATION FORMAT'
@@ -688,7 +653,7 @@ KV = '''
                             font_size: '12sp'
                             bold: True
                             background_normal: ''
-                            background_color: hex('#7c3aed') if self.state == 'down' else hex('#1e293b')
+                            background_color: hex('#7c3aed') if self.state == 'down' else hex('#334155')
                             on_release: root.on_type_change()
                         ToggleButton:
                             id: type_individual
@@ -697,7 +662,7 @@ KV = '''
                             font_size: '12sp'
                             bold: True
                             background_normal: ''
-                            background_color: hex('#2563eb') if self.state == 'down' else hex('#1e293b')
+                            background_color: hex('#2563eb') if self.state == 'down' else hex('#334155')
                             on_release: root.on_type_change()
 
                     Label:
@@ -710,7 +675,6 @@ KV = '''
                         halign: 'left'
                         text_size: self.size
 
-                # Step 2 Card: Basic Details
                 ModernCard:
                     CardHeader:
                         text: '2. BASIC INFORMATION'
@@ -748,7 +712,6 @@ KV = '''
                                 text: 'A'
                                 hint_text: 'e.g. A'
 
-                # Step 3 Card: Question Setup & Rubric
                 ModernCard:
                     CardHeader:
                         text: '3. MARKING & RUBRIC RULES'
@@ -798,7 +761,6 @@ KV = '''
                                 hint_text: '0.0'
                                 input_filter: 'float'
 
-                # Step 4 Card: Optional Custom Scoring
                 ModernCard:
                     CardHeader:
                         text: '4. OPTIONAL SCORING CUSTOMIZATION'
@@ -825,7 +787,7 @@ KV = '''
 
                 CustomButton:
                     text: 'Save Exam Configuration'
-                    btn_bg: hex('#16a34a')
+                    background_color: hex('#16a34a')
                     on_release: root.save_exam()
 
 <SchoolEvalScreen>:
@@ -843,7 +805,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.18
                 background_normal: ''
-                background_color: hex('#334155')
+                background_color: hex('#475569')
                 on_release: root.manager.current = 'home'
             Label:
                 id: form_count_lbl
@@ -911,7 +873,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.22
                 background_normal: ''
-                background_color: hex('#334155')
+                background_color: hex('#475569')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'School Grade & Norms'
@@ -997,7 +959,7 @@ KV = '''
 
                 CustomButton:
                     text: 'Refresh Calculation'
-                    btn_bg: hex('#2563eb')
+                    background_color: hex('#2563eb')
                     on_release: root.calculate_report()
 
 <ResultsScreen>:
@@ -1013,7 +975,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.25
                 background_normal: ''
-                background_color: hex('#334155')
+                background_color: hex('#475569')
                 on_release: root.manager.current = 'exams_list'
             Label:
                 id: res_title_lbl
@@ -1043,7 +1005,7 @@ KV = '''
     action_color: hex('#ef4444')
     canvas.before:
         Color:
-            rgba: hex('#151e2e')
+            rgba: hex('#1e293b')
         RoundedRectangle:
             pos: self.pos
             size: self.size
@@ -1088,7 +1050,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.18
                 background_normal: ''
-                background_color: hex('#334155')
+                background_color: hex('#475569')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'Directory'
@@ -1163,7 +1125,7 @@ KV = '''
                 text: '< Back'
                 size_hint_x: 0.3
                 background_normal: ''
-                background_color: hex('#334155')
+                background_color: hex('#475569')
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'Academic Rollover'
@@ -1192,7 +1154,7 @@ KV = '''
 
         CustomButton:
             text: 'Confirm & Promote Class'
-            btn_bg: hex('#0d9488')
+            background_color: hex('#0d9488')
             on_release: root.execute_rollover()
 
         Widget:
