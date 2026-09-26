@@ -3,6 +3,7 @@ import sqlite3
 import csv
 import json
 import zipfile
+import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from PIL import Image
@@ -50,8 +51,6 @@ if platform == 'android':
                     context = PythonActivity.mActivity.getApplicationContext()
                     resolver = context.getContentResolver()
                     cache_dir = context.getCacheDir().getAbsolutePath()
-                    
-                    # Determine target extension from URI or default to xlsx
                     dest_path = os.path.join(cache_dir, "shiksha_setu_import.xlsx")
 
                     input_stream = resolver.openInputStream(uri)
@@ -232,6 +231,18 @@ class DatabaseManager:
             ''', (name.strip(), current_class.strip(), section.strip().upper(), int(roll_no), academic_year.strip()))
             conn.commit()
 
+    def clear_all_students(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM students")
+            conn.commit()
+
+    def clear_class_students(self, class_name):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM students WHERE current_class = ?", (class_name.strip(),))
+            conn.commit()
+
     def get_students(self, status='ACTIVE', class_name=None):
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -277,11 +288,9 @@ class DatabaseManager:
         return len(students)
 
     def read_xlsx_rows(self, file_path):
-        """Pure-Python standard library parser for Shiksha Setu Excel spreadsheets."""
         rows = []
         try:
             with zipfile.ZipFile(file_path, 'r') as z:
-                # 1. Load shared strings table
                 shared_strings = []
                 if 'xl/sharedStrings.xml' in z.namelist():
                     tree = ET.fromstring(z.read('xl/sharedStrings.xml'))
@@ -290,7 +299,6 @@ class DatabaseManager:
                         text = "".join([t.text or "" for t in t_elems])
                         shared_strings.append(text)
 
-                # 2. Find and parse first sheet
                 sheet_name = 'xl/worksheets/sheet1.xml'
                 if sheet_name not in z.namelist():
                     candidates = [n for n in z.namelist() if n.startswith('xl/worksheets/sheet')]
@@ -324,11 +332,38 @@ class DatabaseManager:
             print(f"[XLSX Parse Error] {e}")
         return rows
 
-    def import_shiksha_setu(self, file_path, default_class="1", default_sec="A", default_year="2026-2027"):
+    def parse_class_and_sec(self, raw_str):
+        """Converts Shiksha Setu 'Class-V', 'Class-III Section A', 'Ka-Shreni' into clean (class, section)."""
+        s = raw_str.strip()
+        sec = "A"
+        # Check if section is specified
+        sec_match = re.search(r'section\s*([a-zA-Z])', s, re.IGNORECASE)
+        if sec_match:
+            sec = sec_match.group(1).upper()
+
+        lower_s = s.lower()
+        if 'ka-shreni' in lower_s or 'balbatika' in lower_s or 'balvatika' in lower_s:
+            cls = "0"
+        elif re.search(r'\b(v|5)\b', lower_s) or '-v' in lower_s:
+            cls = "5"
+        elif re.search(r'\b(iv|4)\b', lower_s) or '-iv' in lower_s:
+            cls = "4"
+        elif re.search(r'\b(iii|3)\b', lower_s) or '-iii' in lower_s:
+            cls = "3"
+        elif re.search(r'\b(ii|2)\b', lower_s) or '-ii' in lower_s:
+            cls = "2"
+        elif re.search(r'\b(i|1)\b', lower_s) or '-i' in lower_s:
+            cls = "1"
+        else:
+            digits = ''.join(filter(str.isdigit, s))
+            cls = digits if digits else "1"
+
+        return cls, sec
+
+    def import_shiksha_setu(self, file_path, default_year="2026-2027"):
         imported_count = 0
         skipped_count = 0
 
-        # Auto-detect whether it is a zipped Excel spreadsheet (.xlsx) or CSV
         if file_path.lower().endswith('.xlsx') or zipfile.is_zipfile(file_path):
             raw_rows = self.read_xlsx_rows(file_path)
         else:
@@ -338,65 +373,47 @@ class DatabaseManager:
                 for r in reader:
                     raw_rows.append([cell.strip() for cell in r])
 
-        headers = None
         name_idx = -1
-        class_idx = -1
-        roll_idx = -1
-        sec_idx = -1
+        class_sec_idx = -1
+        header_found = False
 
         for clean_row in raw_rows:
             if not clean_row or not any(clean_row):
                 continue
 
-            # Detect Shiksha Setu Header Row
-            if headers is None:
+            # Identify headers
+            if not header_found:
                 lower_row = [c.lower() for c in clean_row]
                 for idx, col in enumerate(lower_row):
-                    if any(term in col for term in ['student name', 'name of student', 'student_name', 'name']):
+                    # Strictly prioritize student name and explicitly disregard father/guardian names
+                    if 'student name' in col or 'name of student' in col:
                         name_idx = idx
-                    elif any(term in col for term in ['class', 'current class', 'class_name']):
-                        class_idx = idx
-                    elif any(term in col for term in ['roll', 'roll no', 'roll_no', 'sl no']):
-                        roll_idx = idx
-                    elif any(term in col for term in ['section', 'sec']):
-                        sec_idx = idx
+                    elif 'name' in col and name_idx == -1 and not any(term in col for term in ['father', 'mother', 'parent', 'guardian']):
+                        name_idx = idx
+                    elif 'class' in col:
+                        class_sec_idx = idx
 
                 if name_idx != -1:
-                    headers = lower_row
+                    header_found = True
                     continue
 
+            # Ingest rows
             try:
-                if name_idx != -1 and name_idx < len(clean_row):
-                    name = clean_row[name_idx]
-                    raw_cls = clean_row[class_idx] if class_idx != -1 and class_idx < len(clean_row) else default_class
-                    digits = ''.join(filter(str.isdigit, raw_cls))
-                    target_class = digits if digits else default_class
+                name = clean_row[name_idx] if (name_idx != -1 and name_idx < len(clean_row)) else ""
+                raw_cls = clean_row[class_sec_idx] if (class_sec_idx != -1 and class_sec_idx < len(clean_row)) else "1"
 
-                    target_sec = clean_row[sec_idx].upper() if sec_idx != -1 and sec_idx < len(clean_row) and clean_row[sec_idx] else default_sec
+                # Reject header duplicates or non-names
+                if not name or any(term in name.lower() for term in ['student name', 'father name', 'name of student']):
+                    continue
 
-                    if roll_idx != -1 and roll_idx < len(clean_row) and clean_row[roll_idx].isdigit():
-                        target_roll = int(clean_row[roll_idx])
-                    else:
-                        existing = self.get_students(status='ACTIVE', class_name=target_class)
-                        target_roll = len(existing) + 1
-                else:
-                    # Positional fallback
-                    if len(clean_row) >= 2 and clean_row[0].isdigit():
-                        target_roll = int(clean_row[0])
-                        name = clean_row[1]
-                    elif len(clean_row) >= 2 and clean_row[1].isdigit():
-                        name = clean_row[0]
-                        target_roll = int(clean_row[1])
-                    else:
-                        name = clean_row[0]
-                        existing = self.get_students(status='ACTIVE', class_name=default_class)
-                        target_roll = len(existing) + 1
-                    target_class = default_class
-                    target_sec = default_sec
+                target_cls, target_sec = self.parse_class_and_sec(raw_cls)
 
-                if name:
-                    self.add_student(name, target_class, target_sec, target_roll, default_year)
-                    imported_count += 1
+                # Assign roll number relative to that specific class cohort
+                existing = self.get_students(status='ACTIVE', class_name=target_cls)
+                target_roll = len(existing) + 1
+
+                self.add_student(name, target_cls, target_sec, target_roll, default_year)
+                imported_count += 1
             except sqlite3.IntegrityError:
                 skipped_count += 1
             except Exception:
@@ -1194,20 +1211,20 @@ KV = '''
             height: '44dp'
             spacing: 8
             Button:
-                text: 'Upload Shiksha Setu List (.xlsx / .csv)'
-                font_size: '12sp'
+                text: 'Upload Shiksha Setu (.xlsx)'
+                font_size: '11sp'
                 bold: True
                 background_normal: ''
                 background_color: hex('#0284c7')
                 on_release: app.trigger_shiksha_setu_picker()
             Button:
-                text: 'Quick Paste'
+                text: 'Reset / Clear All'
                 size_hint_x: 0.32
-                font_size: '12sp'
+                font_size: '11sp'
                 bold: True
                 background_normal: ''
-                background_color: hex('#334155')
-                on_release: app.show_quick_paste_popup()
+                background_color: hex('#dc2626')
+                on_release: app.confirm_clear_all_popup()
 
         BoxLayout:
             size_hint_y: None
@@ -1313,7 +1330,8 @@ class RegistryScreen(Screen):
             row.student_id = s[0]
             row.roll_text = f"#{s[4]}"
             row.name_text = str(s[1])
-            row.class_text = f"{s[2]}-{s[3]}"
+            cls_name = "Balvatika" if s[2] == "0" else f"Class {s[2]}"
+            row.class_text = f"{cls_name}-{s[3]}"
             if self.showing_active:
                 row.action_text = 'Archive'
                 row.action_color = get_color_from_hex('#ef4444')
@@ -1352,7 +1370,8 @@ class ExamsListScreen(Screen):
             row.badge_text = '[MATRIX]' if is_mat else '[OMR]'
             row.badge_color = get_color_from_hex('#8b5cf6') if is_mat else get_color_from_hex('#38bdf8')
             row.title_text = f"{ex[1]} ({ex[3]})"
-            row.details_text = f"Class {ex[4]}-{ex[5]} | Qs: {ex[6]} | Scale: {ex[13] if is_mat else '+'+str(ex[7])}"
+            cls_label = "Balvatika" if ex[4] == "0" else f"Class {ex[4]}"
+            row.details_text = f"{cls_label}-{ex[5]} | Qs: {ex[6]} | Scale: {ex[13] if is_mat else '+'+str(ex[7])}"
             row.is_locked = bool(ex[11])
             container.add_widget(row)
 
@@ -1584,7 +1603,7 @@ class DHKOMRProApp(App):
         return sm
 
     def trigger_shiksha_setu_picker(self):
-        """Native system file browser allowing both Excel (.xlsx) and CSV spreadsheets."""
+        """Native system file browser allowing Excel spreadsheets."""
         if platform == 'android':
             try:
                 PythonActivity = autoclass('org.kivy.android.PythonActivity')
@@ -1594,14 +1613,11 @@ class DHKOMRProApp(App):
                 intent.addCategory(Intent.CATEGORY_OPENABLE)
                 intent.setType("*/*")
 
-                # Allow Excel spreadsheet MIME types and CSV
                 extra_mime = [
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     "application/vnd.ms-excel",
                     "text/comma-separated-values",
-                    "text/csv",
-                    "application/csv",
-                    "text/plain"
+                    "text/csv"
                 ]
                 intent.putExtra(Intent.EXTRA_MIME_TYPES, extra_mime)
 
@@ -1609,13 +1625,12 @@ class DHKOMRProApp(App):
             except Exception as e:
                 self.show_notification(f"File picker error: {e}")
         else:
-            # Fallback for testing environments
             layout = BoxLayout(orientation='vertical', padding=10, spacing=8)
             downloads_path = os.path.expanduser('~/Downloads')
             if not os.path.exists(downloads_path):
                 downloads_path = self.user_data_dir
 
-            file_chooser = FileChooserIconView(path=downloads_path, filters=['*.xlsx', '*.xls', '*.csv', '*.txt'])
+            file_chooser = FileChooserIconView(path=downloads_path, filters=['*.xlsx', '*.xls', '*.csv'])
             layout.add_widget(file_chooser)
 
             btn_bar = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
@@ -1647,75 +1662,30 @@ class DHKOMRProApp(App):
         if reg_screen:
             reg_screen.refresh_students()
 
-    def show_quick_paste_popup(self):
-        """Allows pasting student rosters directly from WhatsApp or Notes."""
-        layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
+    def confirm_clear_all_popup(self):
+        """Allows wiping the table with 1 tap to restart a clean ingestion."""
+        layout = BoxLayout(orientation='vertical', padding=15, spacing=12)
+        lbl = Label(text="Are you sure you want to clear all students from the database?", halign='center')
+        popup = Popup(title='Confirm Reset', content=layout, size_hint=(0.85, 0.35))
 
-        meta_box = BoxLayout(orientation='horizontal', size_hint_y=None, height='40dp', spacing=8)
-        cls_in = TextInput(hint_text='Class (e.g. 1)', text='1', multiline=False, size_hint_x=0.35)
-        sec_in = TextInput(hint_text='Sec (A)', text='A', multiline=False, size_hint_x=0.25)
-        yr_in = TextInput(hint_text='Year', text='2026-2027', multiline=False, size_hint_x=0.4)
-        meta_box.add_widget(cls_in)
-        meta_box.add_widget(sec_in)
-        meta_box.add_widget(yr_in)
-        layout.add_widget(meta_box)
+        btn_bar = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
+        btn_cancel = Button(text='Cancel', background_color=(0.3, 0.3, 0.3, 1))
+        btn_cancel.bind(on_release=lambda x: popup.dismiss())
 
-        lbl = Label(text="Paste student names below (one per line):", font_size='11sp', color=(0.2, 0.8, 1, 1), size_hint_y=None, height='20dp')
-        layout.add_widget(lbl)
-
-        paste_input = TextInput(
-            hint_text="Example:\nRahul Gogoi\nDiptika Ghatowar\nPriyajit Bokal",
-            multiline=True,
-            background_color=(0.12, 0.16, 0.22, 1),
-            foreground_color=(0.95, 0.98, 1, 1)
-        )
-        layout.add_widget(paste_input)
-
-        popup = Popup(title='Quick Paste Roster', content=layout, size_hint=(0.92, 0.80))
-
-        def do_paste_import(instance):
-            raw_text = paste_input.text.strip()
-            if not raw_text:
-                self.show_notification("Please paste names first.")
-                return
-
-            target_cls = cls_in.text.strip() or "1"
-            target_sec = sec_in.text.strip() or "A"
-            target_yr = yr_in.text.strip() or "2026-2027"
-
-            lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
-            imported = 0
-            skipped = 0
-
-            existing = self.db.get_students(status='ACTIVE', class_name=target_cls)
-            next_roll = len(existing) + 1
-
-            for line in lines:
-                clean_name = line.lstrip('0123456789.-) \t') or line
-                try:
-                    self.db.add_student(clean_name, target_cls, target_sec, next_roll, target_yr)
-                    imported += 1
-                    next_roll += 1
-                except sqlite3.IntegrityError:
-                    skipped += 1
-                except Exception:
-                    skipped += 1
-
+        def do_wipe(instance):
+            self.db.clear_all_students()
             popup.dismiss()
-            self.show_notification(f"Imported: {imported} students!\nSkipped / Duplicate: {skipped}")
+            self.show_notification("Student database cleared.")
             reg_screen = self.root.get_screen('registry')
             if reg_screen:
                 reg_screen.refresh_students()
 
-        btn_bar = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
-        btn_cancel = Button(text='Cancel', size_hint_x=0.35, background_color=(0.3, 0.3, 0.3, 1))
-        btn_cancel.bind(on_release=lambda x: popup.dismiss())
-
-        btn_confirm = Button(text='Import All', size_hint_x=0.65, background_color=(0.1, 0.65, 0.2, 1), bold=True)
-        btn_confirm.bind(on_release=do_paste_import)
+        btn_confirm = Button(text='Yes, Clear All', background_color=(0.8, 0.1, 0.1, 1), bold=True)
+        btn_confirm.bind(on_release=do_wipe)
 
         btn_bar.add_widget(btn_cancel)
         btn_bar.add_widget(btn_confirm)
+        layout.add_widget(lbl)
         layout.add_widget(btn_bar)
         popup.open()
 
