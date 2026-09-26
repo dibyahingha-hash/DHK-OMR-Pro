@@ -23,7 +23,7 @@ from kivy.uix.filechooser import FileChooserIconView
 from kivy.properties import StringProperty, ListProperty, BooleanProperty, NumericProperty
 from kivy.utils import platform
 
-# --- Native Android Integration via PyJNIus ---
+# Native Android Integration via PyJNIus
 ANDROID_TORCH_AVAILABLE = False
 camera_manager = None
 default_camera_id = "0"
@@ -237,12 +237,6 @@ class DatabaseManager:
             cursor.execute("DELETE FROM students")
             conn.commit()
 
-    def clear_class_students(self, class_name):
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM students WHERE current_class = ?", (class_name.strip(),))
-            conn.commit()
-
     def get_students(self, status='ACTIVE', class_name=None):
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -333,10 +327,8 @@ class DatabaseManager:
         return rows
 
     def parse_class_and_sec(self, raw_str):
-        """Converts Shiksha Setu 'Class-V', 'Class-III Section A', 'Ka-Shreni' into clean (class, section)."""
         s = raw_str.strip()
         sec = "A"
-        # Check if section is specified
         sec_match = re.search(r'section\s*([a-zA-Z])', s, re.IGNORECASE)
         if sec_match:
             sec = sec_match.group(1).upper()
@@ -381,11 +373,9 @@ class DatabaseManager:
             if not clean_row or not any(clean_row):
                 continue
 
-            # Identify headers
             if not header_found:
                 lower_row = [c.lower() for c in clean_row]
                 for idx, col in enumerate(lower_row):
-                    # Strictly prioritize student name and explicitly disregard father/guardian names
                     if 'student name' in col or 'name of student' in col:
                         name_idx = idx
                     elif 'name' in col and name_idx == -1 and not any(term in col for term in ['father', 'mother', 'parent', 'guardian']):
@@ -397,18 +387,14 @@ class DatabaseManager:
                     header_found = True
                     continue
 
-            # Ingest rows
             try:
                 name = clean_row[name_idx] if (name_idx != -1 and name_idx < len(clean_row)) else ""
                 raw_cls = clean_row[class_sec_idx] if (class_sec_idx != -1 and class_sec_idx < len(clean_row)) else "1"
 
-                # Reject header duplicates or non-names
                 if not name or any(term in name.lower() for term in ['student name', 'father name', 'name of student']):
                     continue
 
                 target_cls, target_sec = self.parse_class_and_sec(raw_cls)
-
-                # Assign roll number relative to that specific class cohort
                 existing = self.get_students(status='ACTIVE', class_name=target_cls)
                 target_roll = len(existing) + 1
 
@@ -516,37 +502,37 @@ class DatabaseManager:
             conn.commit()
 
 
+# Highly optimized UI styling avoiding heavy recursive canvas evaluations
 KV = '''
 #:import hex kivy.utils.get_color_from_hex
 
 <Screen>:
     canvas.before:
         Color:
-            rgba: hex('#090d16')
+            rgba: hex('#0a0e17')
         Rectangle:
             pos: self.pos
             size: self.size
 
-<ModernCard@BoxLayout>:
+<FastCard@BoxLayout>:
     orientation: 'vertical'
     size_hint_y: None
-    height: self.minimum_height
-    padding: [14, 12]
-    spacing: 8
+    padding: [12, 10]
+    spacing: 6
     canvas.before:
         Color:
-            rgba: hex('#151e2e')
+            rgba: hex('#131c2a')
         RoundedRectangle:
             pos: self.pos
             size: self.size
-            radius: [10,]
+            radius: [6,]
 
-<ModernInput@TextInput>:
+<FastInput@TextInput>:
     multiline: False
     size_hint_y: None
-    height: '44dp'
+    height: '42dp'
     padding: [10, 10]
-    font_size: '14sp'
+    font_size: '13sp'
     background_normal: ''
     background_active: ''
     background_color: hex('#1e293b')
@@ -554,25 +540,25 @@ KV = '''
     foreground_color: hex('#f8fafc')
     hint_text_color: hex('#64748b')
 
-<CardHeader@Label>:
-    size_hint_y: None
-    height: '22dp'
-    font_size: '12sp'
-    bold: True
-    halign: 'left'
-    text_size: self.size
-    color: hex('#38bdf8')
-
-<FieldLabel@Label>:
+<SectionHeader@Label>:
     size_hint_y: None
     height: '20dp'
     font_size: '11sp'
     bold: True
     halign: 'left'
     text_size: self.size
+    color: hex('#38bdf8')
+
+<FieldTitle@Label>:
+    size_hint_y: None
+    height: '18dp'
+    font_size: '11sp'
+    bold: True
+    halign: 'left'
+    text_size: self.size
     color: hex('#94a3b8')
 
-<CustomButton@Button>:
+<ActionBtn@Button>:
     font_size: '14sp'
     bold: True
     background_normal: ''
@@ -584,7 +570,7 @@ KV = '''
 <ExamRow@BoxLayout>:
     orientation: 'horizontal'
     size_hint_y: None
-    height: '68dp'
+    height: '66dp'
     padding: [10, 6]
     spacing: 8
     exam_id: 0
@@ -596,11 +582,11 @@ KV = '''
     is_matrix: False
     canvas.before:
         Color:
-            rgba: hex('#151e2e')
+            rgba: hex('#131c2a')
         RoundedRectangle:
             pos: self.pos
             size: self.size
-            radius: [8,]
+            radius: [6,]
 
     BoxLayout:
         orientation: 'vertical'
@@ -617,7 +603,7 @@ KV = '''
             Label:
                 text: root.title_text
                 bold: True
-                font_size: '14sp'
+                font_size: '13sp'
                 halign: 'left'
                 text_size: self.size
                 shorten: True
@@ -648,12 +634,12 @@ KV = '''
 <HomeScreen>:
     BoxLayout:
         orientation: 'vertical'
-        padding: 20
+        padding: 18
         spacing: 12
 
         BoxLayout:
             size_hint_y: None
-            height: '48dp'
+            height: '46dp'
             Label:
                 text: 'DHK OMR PRO'
                 font_size: '22sp'
@@ -668,40 +654,40 @@ KV = '''
 
         Label:
             text: 'Assam Gunotsav & Assessment Suite'
-            font_size: '13sp'
+            font_size: '12sp'
             color: hex('#94a3b8')
             size_hint_y: None
-            height: '20dp'
+            height: '18dp'
 
         Widget:
             size_hint_y: 0.02
 
-        CustomButton:
+        ActionBtn:
             text: 'Exams & Evaluate Sheets'
             background_color: hex('#d97706')
             on_release: root.manager.current = 'exams_list'
 
-        CustomButton:
+        ActionBtn:
             text: 'School Evaluation Form'
             background_color: hex('#7c3aed')
             on_release: root.manager.current = 'school_eval'
 
-        CustomButton:
+        ActionBtn:
             text: 'School Grade & Norms Calculator'
             background_color: hex('#059669')
             on_release: root.manager.current = 'grade_report'
 
-        CustomButton:
+        ActionBtn:
             text: 'Student Registry (Classes & Rolls)'
             background_color: hex('#2563eb')
             on_release: root.manager.current = 'registry'
 
-        CustomButton:
+        ActionBtn:
             text: 'Class Promotion / Rollover'
             background_color: hex('#0d9488')
             on_release: root.manager.current = 'rollover'
 
-        CustomButton:
+        ActionBtn:
             text: 'Export Roster Backup (CSV)'
             background_color: hex('#4f46e5')
             on_release: app.export_roster()
@@ -713,8 +699,8 @@ KV = '''
     on_pre_enter: root.refresh_exams()
     BoxLayout:
         orientation: 'vertical'
-        padding: 16
-        spacing: 10
+        padding: 14
+        spacing: 8
 
         BoxLayout:
             size_hint_y: None
@@ -727,7 +713,7 @@ KV = '''
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'Exams & Tests'
-                font_size: '18sp'
+                font_size: '17sp'
                 bold: True
                 color: hex('#f8fafc')
             Button:
@@ -748,8 +734,8 @@ KV = '''
 <CreateExamScreen>:
     BoxLayout:
         orientation: 'vertical'
-        padding: 16
-        spacing: 10
+        padding: 14
+        spacing: 8
 
         BoxLayout:
             size_hint_y: None
@@ -762,23 +748,26 @@ KV = '''
                 on_release: root.manager.current = 'exams_list'
             Label:
                 text: 'Configure New Test'
-                font_size: '18sp'
+                font_size: '17sp'
                 bold: True
 
         ScrollView:
+            do_scroll_x: False
             BoxLayout:
                 orientation: 'vertical'
                 size_hint_y: None
                 height: self.minimum_height
-                spacing: 12
+                spacing: 10
                 padding: [2, 4]
 
-                ModernCard:
-                    CardHeader:
+                # Step 1: Format
+                FastCard:
+                    height: '92dp'
+                    SectionHeader:
                         text: '1. EVALUATION FORMAT'
                     BoxLayout:
                         size_hint_y: None
-                        height: '42dp'
+                        height: '40dp'
                         spacing: 8
                         ToggleButton:
                             id: type_matrix
@@ -800,127 +789,114 @@ KV = '''
                             background_color: hex('#2563eb') if self.state == 'down' else hex('#1e293b')
                             on_release: root.on_type_change()
 
-                    Label:
-                        id: type_desc_lbl
-                        text: 'Evaluates entire class on 1 sheet across Reading, Writing & Numeracy.'
-                        font_size: '11sp'
-                        color: hex('#94a3b8')
-                        size_hint_y: None
-                        height: '20dp'
-                        halign: 'left'
-                        text_size: self.size
-
-                ModernCard:
-                    CardHeader:
+                # Step 2: Basic Info
+                FastCard:
+                    height: '210dp'
+                    SectionHeader:
                         text: '2. BASIC INFORMATION'
-                    FieldLabel:
+                    FieldTitle:
                         text: 'Assessment / Exam Title'
-                    ModernInput:
+                    FastInput:
                         id: title_in
-                        hint_text: 'e.g., Gunotsav Assessment 2026'
                         text: 'Gunotsav Assessment'
-                    FieldLabel:
+                    FieldTitle:
                         text: 'Subject / Competency'
-                    ModernInput:
+                    FastInput:
                         id: subj_in
-                        hint_text: 'e.g., Reading, Writing & Numeracy'
                         text: 'Reading, Writing & Numeracy'
 
                     BoxLayout:
                         size_hint_y: None
-                        height: '66dp'
-                        spacing: 10
+                        height: '62dp'
+                        spacing: 8
                         BoxLayout:
                             orientation: 'vertical'
-                            FieldLabel:
+                            FieldTitle:
                                 text: 'Target Class'
-                            ModernInput:
+                            FastInput:
                                 id: class_in
                                 text: '2'
-                                hint_text: 'e.g. 2'
                         BoxLayout:
                             orientation: 'vertical'
-                            FieldLabel:
+                            FieldTitle:
                                 text: 'Section'
-                            ModernInput:
+                            FastInput:
                                 id: sec_in
                                 text: 'A'
-                                hint_text: 'e.g. A'
 
-                ModernCard:
-                    CardHeader:
+                # Step 3: Marking Rules
+                FastCard:
+                    height: '155dp'
+                    SectionHeader:
                         text: '3. MARKING & RUBRIC RULES'
                     BoxLayout:
                         size_hint_y: None
-                        height: '66dp'
-                        spacing: 10
+                        height: '62dp'
+                        spacing: 8
                         BoxLayout:
                             orientation: 'vertical'
-                            FieldLabel:
+                            FieldTitle:
                                 text: 'Total Questions'
-                            ModernInput:
+                            FastInput:
                                 id: num_q_in
                                 text: '25'
-                                hint_text: '25'
                                 input_filter: 'int'
                         BoxLayout:
                             orientation: 'vertical'
-                            FieldLabel:
+                            FieldTitle:
                                 id: rubric_lbl
                                 text: 'Rubric Levels / Options'
-                            ModernInput:
+                            FastInput:
                                 id: rubric_scale_in
                                 text: '0,1,2,3'
-                                hint_text: '0,1,2,3'
 
                     BoxLayout:
                         size_hint_y: None
-                        height: '66dp'
-                        spacing: 10
+                        height: '62dp'
+                        spacing: 8
                         BoxLayout:
                             orientation: 'vertical'
-                            FieldLabel:
+                            FieldTitle:
                                 text: 'Marks Per Right / Level'
-                            ModernInput:
+                            FastInput:
                                 id: pos_in
                                 text: '1.0'
-                                hint_text: '1.0'
                                 input_filter: 'float'
                         BoxLayout:
                             orientation: 'vertical'
-                            FieldLabel:
+                            FieldTitle:
                                 text: 'Wrong Penalty (-N)'
-                            ModernInput:
+                            FastInput:
                                 id: neg_in
                                 text: '0.0'
-                                hint_text: '0.0'
                                 input_filter: 'float'
 
-                ModernCard:
-                    CardHeader:
-                        text: '4. OPTIONAL SCORING CUSTOMIZATION'
+                # Step 4: Optional Customization
+                FastCard:
+                    height: '95dp'
+                    SectionHeader:
+                        text: '4. OPTIONAL SCORING'
                     BoxLayout:
                         size_hint_y: None
-                        height: '66dp'
-                        spacing: 10
+                        height: '62dp'
+                        spacing: 8
                         BoxLayout:
                             orientation: 'vertical'
-                            FieldLabel:
-                                text: 'Non-MCQ / Oral Marks'
-                            ModernInput:
+                            FieldTitle:
+                                text: 'Oral / Non-MCQ Marks'
+                            FastInput:
                                 id: subj_max_in
                                 text: '0.0'
-                                hint_text: '0.0'
                                 input_filter: 'float'
                         BoxLayout:
                             orientation: 'vertical'
-                            FieldLabel:
+                            FieldTitle:
                                 text: 'Total Benchmark for %'
-                            ModernInput:
+                            FastInput:
                                 id: master_total_in
-                                hint_text: 'Auto (Qs x Mark)'
+                                hint_text: 'Auto'
 
-                CustomButton:
+                ActionBtn:
                     text: 'Save Exam Configuration'
                     background_color: hex('#16a34a')
                     on_release: root.save_exam()
@@ -966,25 +942,16 @@ KV = '''
             size_hint_y: None
             height: '42dp'
             spacing: 8
-            ModernInput:
+            FastInput:
                 id: year_in
                 text: '2026-2027'
                 hint_text: 'Academic Year'
                 size_hint_x: 0.5
-            ModernInput:
+            FastInput:
                 id: date_in
                 text: '2026-09-26'
                 hint_text: 'Date (YYYY-MM-DD)'
                 size_hint_x: 0.5
-
-        Label:
-            text: 'Indicators Checklist (Mark YES if fulfilled, NO if deficient. Tap red X to delete):'
-            font_size: '11sp'
-            color: hex('#38bdf8')
-            size_hint_y: None
-            height: '22dp'
-            halign: 'left'
-            text_size: self.size
 
         ScrollView:
             BoxLayout:
@@ -998,8 +965,8 @@ KV = '''
     on_pre_enter: root.calculate_report()
     BoxLayout:
         orientation: 'vertical'
-        padding: 16
-        spacing: 10
+        padding: 14
+        spacing: 8
 
         BoxLayout:
             size_hint_y: None
@@ -1012,7 +979,7 @@ KV = '''
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'School Grade & Norms'
-                font_size: '18sp'
+                font_size: '17sp'
                 bold: True
             Button:
                 text: 'Rules'
@@ -1026,27 +993,29 @@ KV = '''
                 orientation: 'vertical'
                 size_hint_y: None
                 height: self.minimum_height
-                spacing: 10
+                spacing: 8
 
-                ModernCard:
+                FastCard:
+                    height: '100dp'
                     Label:
                         text: 'Overall School Final Grade'
-                        font_size: '13sp'
+                        font_size: '12sp'
                         color: hex('#94a3b8')
                     Label:
                         id: final_grade_lbl
                         text: 'GRADE --'
-                        font_size: '34sp'
+                        font_size: '32sp'
                         bold: True
                         color: hex('#eab308')
                     Label:
                         id: final_score_lbl
                         text: 'Composite Score: 0.0%'
-                        font_size: '15sp'
+                        font_size: '14sp'
                         bold: True
                         color: hex('#38bdf8')
 
-                ModernCard:
+                FastCard:
+                    height: '70dp'
                     Label:
                         id: schol_summary_lbl
                         text: 'Scholastic (Academic Learning): 0.0%'
@@ -1056,12 +1025,13 @@ KV = '''
                     Label:
                         id: schol_weight_lbl
                         text: 'Weightage Applied: 90%'
-                        font_size: '12sp'
+                        font_size: '11sp'
                         color: hex('#94a3b8')
                         halign: 'left'
                         text_size: self.size
 
-                ModernCard:
+                FastCard:
+                    height: '70dp'
                     Label:
                         id: school_eval_summary_lbl
                         text: 'School Evaluation Form: 0.0%'
@@ -1071,15 +1041,16 @@ KV = '''
                     Label:
                         id: co_weight_lbl
                         text: 'Weightage Applied: 10%'
-                        font_size: '12sp'
+                        font_size: '11sp'
                         color: hex('#94a3b8')
                         halign: 'left'
                         text_size: self.size
 
-                ModernCard:
+                FastCard:
+                    height: '60dp'
                     Label:
                         text: 'Active Cut-off Thresholds:'
-                        font_size: '12sp'
+                        font_size: '11sp'
                         bold: True
                         color: hex('#38bdf8')
                         halign: 'left'
@@ -1087,12 +1058,12 @@ KV = '''
                     Label:
                         id: cutoffs_display_lbl
                         text: 'A+ (>=87%) | A (>=74%) | B (>=61%) | C (>=50%) | D (<50%)'
-                        font_size: '12sp'
+                        font_size: '11sp'
                         color: hex('#f8fafc')
                         halign: 'left'
                         text_size: self.size
 
-                CustomButton:
+                ActionBtn:
                     text: 'Refresh Calculation'
                     background_color: hex('#2563eb')
                     on_release: root.calculate_report()
@@ -1100,8 +1071,8 @@ KV = '''
 <ResultsScreen>:
     BoxLayout:
         orientation: 'vertical'
-        padding: 16
-        spacing: 10
+        padding: 14
+        spacing: 8
 
         BoxLayout:
             size_hint_y: None
@@ -1129,9 +1100,9 @@ KV = '''
 <StudentRow@BoxLayout>:
     orientation: 'horizontal'
     size_hint_y: None
-    height: '48dp'
+    height: '46dp'
     padding: [10, 4]
-    spacing: 10
+    spacing: 8
     student_id: 0
     name_text: ''
     class_text: ''
@@ -1140,7 +1111,7 @@ KV = '''
     action_color: hex('#ef4444')
     canvas.before:
         Color:
-            rgba: hex('#151e2e')
+            rgba: hex('#131c2a')
         RoundedRectangle:
             pos: self.pos
             size: self.size
@@ -1174,8 +1145,8 @@ KV = '''
     on_pre_enter: root.refresh_students()
     BoxLayout:
         orientation: 'vertical'
-        padding: 16
-        spacing: 10
+        padding: 14
+        spacing: 8
 
         BoxLayout:
             size_hint_y: None
@@ -1208,7 +1179,7 @@ KV = '''
 
         BoxLayout:
             size_hint_y: None
-            height: '44dp'
+            height: '42dp'
             spacing: 8
             Button:
                 text: 'Upload Shiksha Setu (.xlsx)'
@@ -1218,8 +1189,8 @@ KV = '''
                 background_color: hex('#0284c7')
                 on_release: app.trigger_shiksha_setu_picker()
             Button:
-                text: 'Reset / Clear All'
-                size_hint_x: 0.32
+                text: 'Reset All'
+                size_hint_x: 0.30
                 font_size: '11sp'
                 bold: True
                 background_normal: ''
@@ -1228,7 +1199,7 @@ KV = '''
 
         BoxLayout:
             size_hint_y: None
-            height: '32dp'
+            height: '28dp'
             padding: [4, 0]
             Label:
                 text: 'Roll'
@@ -1262,8 +1233,8 @@ KV = '''
 <RolloverScreen>:
     BoxLayout:
         orientation: 'vertical'
-        padding: 20
-        spacing: 12
+        padding: 16
+        spacing: 10
 
         BoxLayout:
             size_hint_y: None
@@ -1276,30 +1247,22 @@ KV = '''
                 on_release: root.manager.current = 'home'
             Label:
                 text: 'Academic Rollover'
-                font_size: '18sp'
+                font_size: '17sp'
                 bold: True
 
-        Label:
-            text: 'Promote an entire cohort to the next class.\\nNames and past records are preserved permanently.'
-            halign: 'center'
-            font_size: '13sp'
-            color: hex('#94a3b8')
-            size_hint_y: None
-            height: '45dp'
-
-        ModernInput:
+        FastInput:
             id: old_class_input
             hint_text: 'Current Class (e.g., 1)'
 
-        ModernInput:
+        FastInput:
             id: new_class_input
             hint_text: 'Promote To Class (e.g., 2)'
 
-        ModernInput:
+        FastInput:
             id: new_year_input
             hint_text: 'New Academic Year (e.g., 2027-2028)'
 
-        CustomButton:
+        ActionBtn:
             text: 'Confirm & Promote Class'
             background_color: hex('#0d9488')
             on_release: root.execute_rollover()
@@ -1378,7 +1341,6 @@ class ExamsListScreen(Screen):
 class CreateExamScreen(Screen):
     def on_type_change(self):
         if self.ids.type_matrix.state == 'down':
-            self.ids.type_desc_lbl.text = "Evaluates entire class on 1 sheet across Reading, Writing & Numeracy."
             self.ids.title_in.text = "Gunotsav Assessment"
             self.ids.subj_in.text = "Reading, Writing & Numeracy"
             self.ids.class_in.text = "2"
@@ -1387,7 +1349,6 @@ class CreateExamScreen(Screen):
             self.ids.rubric_scale_in.disabled = False
             self.ids.rubric_scale_in.text = "0,1,2,3"
         else:
-            self.ids.type_desc_lbl.text = "Standard Multiple-Choice OMR (1 Sheet per Student)."
             self.ids.title_in.text = "Class Assessment"
             self.ids.subj_in.text = "General Science"
             self.ids.class_in.text = "5"
@@ -1603,7 +1564,6 @@ class DHKOMRProApp(App):
         return sm
 
     def trigger_shiksha_setu_picker(self):
-        """Native system file browser allowing Excel spreadsheets."""
         if platform == 'android':
             try:
                 PythonActivity = autoclass('org.kivy.android.PythonActivity')
@@ -1663,9 +1623,8 @@ class DHKOMRProApp(App):
             reg_screen.refresh_students()
 
     def confirm_clear_all_popup(self):
-        """Allows wiping the table with 1 tap to restart a clean ingestion."""
         layout = BoxLayout(orientation='vertical', padding=15, spacing=12)
-        lbl = Label(text="Are you sure you want to clear all students from the database?", halign='center')
+        lbl = Label(text="Clear all students to re-import freshly from Shiksha Setu?", halign='center')
         popup = Popup(title='Confirm Reset', content=layout, size_hint=(0.85, 0.35))
 
         btn_bar = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
@@ -1675,12 +1634,12 @@ class DHKOMRProApp(App):
         def do_wipe(instance):
             self.db.clear_all_students()
             popup.dismiss()
-            self.show_notification("Student database cleared.")
+            self.show_notification("Student registry cleared.")
             reg_screen = self.root.get_screen('registry')
             if reg_screen:
                 reg_screen.refresh_students()
 
-        btn_confirm = Button(text='Yes, Clear All', background_color=(0.8, 0.1, 0.1, 1), bold=True)
+        btn_confirm = Button(text='Yes, Reset All', background_color=(0.8, 0.1, 0.1, 1), bold=True)
         btn_confirm.bind(on_release=do_wipe)
 
         btn_bar.add_widget(btn_cancel)
@@ -1691,7 +1650,7 @@ class DHKOMRProApp(App):
 
     def show_add_indicator_popup(self, parent_screen):
         layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
-        ind_in = TextInput(hint_text='Indicator description (e.g., 25. Digital Lab Usage)', multiline=False, size_hint_y=None, height='44dp')
+        ind_in = TextInput(hint_text='Indicator description', multiline=False, size_hint_y=None, height='44dp')
 
         popup = Popup(title='Add New Indicator', content=layout, size_hint=(0.88, 0.35))
 
@@ -1776,7 +1735,7 @@ class DHKOMRProApp(App):
 
     def show_matrix_evaluation_dialog(self, exam, students):
         layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
-
+        
         header = Label(
             text=f"Gunotsav Matrix: Class {exam[4]} ({len(students)} Students)",
             font_size='15sp', bold=True, size_hint_y=None, height='32dp', color=(0.2, 0.8, 1, 1)
@@ -1816,7 +1775,7 @@ class DHKOMRProApp(App):
                     score = float(s_inp.text.strip()) if s_inp.text.strip() else 0.0
                 except ValueError:
                     score = 0.0
-
+                
                 max_marks = float(exam[9]) if exam[9] > 0 else 25.0
                 pct = (score / max_marks) * 100.0 if max_marks > 0 else 0.0
 
