@@ -40,6 +40,34 @@ if platform == 'android':
         print(f"[Init] Android JNI error: {e}")
 
 
+DEFAULT_24_INDICATORS = [
+    "01. Morning Assembly (As per Observation)",
+    "02. Singing of Jatiya Sangeet (Class/School end)",
+    "03. Record Keeping (Observation & Interaction)",
+    "04. Learning Outcome (Observation & Interaction)",
+    "05. Sports/Music/Art/Physical Education Activities",
+    "06. Resource Mobilisation (Overall functioning)",
+    "07. Student Parliament / Cabinet functioning",
+    "08. Availability & use of Teaching Learning Materials",
+    "09. Innovative practices (Observation & Interaction)",
+    "10. Personal & Social Skills of children",
+    "11. Toilets Facilities (Cleanliness/Separate)",
+    "12. Safe Drinking Water facility",
+    "13. Class Rooms (Adequacy, lighting & desks)",
+    "14. School premise safety, security & hygiene",
+    "15. Electricity, Computer, ICT / Smart classes",
+    "16. Preparedness for Disaster Management",
+    "17. Mid-Day Meal (MDM) implementation & hygiene",
+    "18. Participation of SMC / SMDC in activities",
+    "19. SMC / SMDC constitution & regular meetings",
+    "20. Monitoring of school functioning by SMC",
+    "21. Social Audit execution and records",
+    "22. Swachh Vidyalaya initiative implementation",
+    "23. Community Contribution (Cash / Kind / Labour)",
+    "24. Teaching - Learning Process & Teacher preparedness"
+]
+
+
 class DatabaseManager:
     def __init__(self, db_path):
         self.db_path = db_path
@@ -99,6 +127,65 @@ class DatabaseManager:
                     FOREIGN KEY(exam_id) REFERENCES exams(exam_id)
                 )
             ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS school_indicators (
+                    ind_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ind_title TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS school_eval (
+                    eval_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    academic_year TEXT NOT NULL,
+                    eval_date TEXT NOT NULL,
+                    total_indicators INTEGER NOT NULL,
+                    yes_count INTEGER NOT NULL,
+                    eval_percentage REAL NOT NULL,
+                    raw_indicators TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS grading_settings (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    scholastic_weight REAL DEFAULT 90.0,
+                    co_scholastic_weight REAL DEFAULT 10.0,
+                    cut_aplus REAL DEFAULT 87.0,
+                    cut_a REAL DEFAULT 74.0,
+                    cut_b REAL DEFAULT 61.0,
+                    cut_c REAL DEFAULT 50.0
+                )
+            ''')
+            cursor.execute('''
+                INSERT OR IGNORE INTO grading_settings (id, scholastic_weight, co_scholastic_weight, cut_aplus, cut_a, cut_b, cut_c)
+                VALUES (1, 90.0, 10.0, 87.0, 74.0, 61.0, 50.0)
+            ''')
+
+            # Populate default indicators if table is empty
+            cursor.execute("SELECT COUNT(*) FROM school_indicators")
+            if cursor.fetchone()[0] == 0:
+                for ind in DEFAULT_24_INDICATORS:
+                    cursor.execute("INSERT INTO school_indicators (ind_title, is_active) VALUES (?, 1)", (ind,))
+
+            conn.commit()
+
+    def get_indicators(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT ind_id, ind_title FROM school_indicators WHERE is_active = 1 ORDER BY ind_id ASC")
+            return cursor.fetchall()
+
+    def add_indicator(self, title):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO school_indicators (ind_title, is_active) VALUES (?, 1)", (title.strip(),))
+            conn.commit()
+
+    def delete_indicator(self, ind_id):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE school_indicators SET is_active = 0 WHERE ind_id = ?", (ind_id,))
             conn.commit()
 
     def add_student(self, name, current_class, section, roll_no, academic_year):
@@ -186,9 +273,8 @@ class DatabaseManager:
                         sec = default_sec
                         yr = default_year
                     else:
-                        imported_count += 1
                         name = row[0].strip()
-                        roll = imported_count
+                        roll = imported_count + 1
                         c_name = default_class
                         sec = default_sec
                         yr = default_year
@@ -251,6 +337,49 @@ class DatabaseManager:
                 ORDER BY roll_no ASC
             ''', (exam_id,))
             return cursor.fetchall()
+
+    def get_overall_academic_average(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT AVG(percentage), COUNT(result_id) FROM results")
+            row = cursor.fetchone()
+            if row and row[0] is not None:
+                return float(row[0]), int(row[1])
+            return 0.0, 0
+
+    def save_school_eval(self, year, eval_date, total_count, yes_count, percentage, raw_indicators):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO school_eval (academic_year, eval_date, total_indicators, yes_count, eval_percentage, raw_indicators)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (year, eval_date, total_count, yes_count, percentage, json.dumps(raw_indicators)))
+            conn.commit()
+
+    def get_latest_school_eval(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT eval_id, academic_year, eval_date, yes_count, eval_percentage, raw_indicators, timestamp, total_indicators
+                FROM school_eval ORDER BY eval_id DESC LIMIT 1
+            ''')
+            return cursor.fetchone()
+
+    def get_grading_settings(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT scholastic_weight, co_scholastic_weight, cut_aplus, cut_a, cut_b, cut_c FROM grading_settings WHERE id = 1")
+            return cursor.fetchone()
+
+    def update_grading_settings(self, schol_w, co_w, aplus, a, b, c):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE grading_settings
+                SET scholastic_weight = ?, co_scholastic_weight = ?, cut_aplus = ?, cut_a = ?, cut_b = ?, cut_c = ?
+                WHERE id = 1
+            ''', (schol_w, co_w, aplus, a, b, c))
+            conn.commit()
 
 
 KV = '''
@@ -350,11 +479,11 @@ KV = '''
     BoxLayout:
         orientation: 'vertical'
         padding: 20
-        spacing: 14
+        spacing: 12
 
         BoxLayout:
             size_hint_y: None
-            height: '50dp'
+            height: '48dp'
             Label:
                 text: 'DHK OMR PRO'
                 font_size: '22sp'
@@ -368,19 +497,29 @@ KV = '''
                 on_release: app.toggle_torch()
 
         Label:
-            text: 'Individual & Gunotsav Matrix Evaluation'
+            text: 'Assam Gunotsav & Assessment Suite'
             font_size: '13sp'
             color: hex('#94a3b8')
             size_hint_y: None
-            height: '24dp'
+            height: '20dp'
 
         Widget:
-            size_hint_y: 0.05
+            size_hint_y: 0.02
 
         CustomButton:
             text: 'Exams & Evaluate Sheets'
             background_color: hex('#d97706')
             on_release: root.manager.current = 'exams_list'
+
+        CustomButton:
+            text: 'School Evaluation Form (Configurable)'
+            background_color: hex('#9333ea')
+            on_release: root.manager.current = 'school_eval'
+
+        CustomButton:
+            text: 'School Grade & Norms Calculator'
+            background_color: hex('#059669')
+            on_release: root.manager.current = 'grade_report'
 
         CustomButton:
             text: 'Student Registry (Classes & Rolls)'
@@ -398,7 +537,7 @@ KV = '''
             on_release: app.export_roster()
 
         Widget:
-            size_hint_y: 0.2
+            size_hint_y: 0.1
 
 <ExamsListScreen>:
     on_pre_enter: root.refresh_exams()
@@ -508,7 +647,7 @@ KV = '''
 
                 TextInput:
                     id: subj_in
-                    hint_text: 'Subject / Competency (e.g. Lang-I, Lang-II & Maths)'
+                    hint_text: 'Subject / Competency'
                     text: 'Reading, Writing & Numeracy'
                     multiline: False
                     size_hint_y: None
@@ -593,7 +732,7 @@ KV = '''
                             multiline: False
 
                 FormLabel:
-                    text: 'Step 4: Optional Scoring Customization'
+                    text: 'Step 4: Optional Customization'
                     color: hex('#94a3b8')
 
                 BoxLayout:
@@ -603,7 +742,7 @@ KV = '''
                     BoxLayout:
                         orientation: 'vertical'
                         FormLabel:
-                            text: 'Non-MCQ / Theory (Optional)'
+                            text: 'Non-MCQ Marks (Optional)'
                         TextInput:
                             id: subj_max_in
                             hint_text: '0.0'
@@ -616,7 +755,7 @@ KV = '''
                             text: 'Total Marks for % (Optional)'
                         TextInput:
                             id: master_total_in
-                            hint_text: 'Auto (Questions x Mark)'
+                            hint_text: 'Auto'
                             multiline: False
 
                 Widget:
@@ -627,6 +766,224 @@ KV = '''
                     text: 'Save & Create Exam'
                     background_color: hex('#16a34a')
                     on_release: root.save_exam()
+
+<SchoolEvalScreen>:
+    on_pre_enter: root.load_form()
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 14
+        spacing: 8
+
+        BoxLayout:
+            size_hint_y: None
+            height: '42dp'
+            spacing: 6
+            Button:
+                text: '< Back'
+                size_hint_x: 0.18
+                background_normal: ''
+                background_color: hex('#475569')
+                on_release: root.manager.current = 'home'
+            Label:
+                id: form_count_lbl
+                text: 'School Evaluation Form'
+                font_size: '15sp'
+                bold: True
+            Button:
+                text: '+ Add'
+                size_hint_x: 0.18
+                bold: True
+                background_normal: ''
+                background_color: hex('#0284c7')
+                on_release: app.show_add_indicator_popup(root)
+            Button:
+                text: 'Save'
+                size_hint_x: 0.2
+                bold: True
+                background_normal: ''
+                background_color: hex('#16a34a')
+                on_release: root.save_eval()
+
+        BoxLayout:
+            size_hint_y: None
+            height: '36dp'
+            spacing: 8
+            TextInput:
+                id: year_in
+                text: '2026-2027'
+                hint_text: 'Academic Year'
+                multiline: False
+                size_hint_x: 0.5
+            TextInput:
+                id: date_in
+                text: '2026-09-26'
+                hint_text: 'Date (YYYY-MM-DD)'
+                multiline: False
+                size_hint_x: 0.5
+
+        Label:
+            text: 'Indicators Checklist (Mark YES if fulfilled, NO if deficient. Tap red X to delete):'
+            font_size: '11sp'
+            color: hex('#38bdf8')
+            size_hint_y: None
+            height: '22dp'
+            halign: 'left'
+            text_size: self.size
+
+        ScrollView:
+            BoxLayout:
+                id: indicators_container
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: 6
+
+<GradeReportScreen>:
+    on_pre_enter: root.calculate_report()
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 16
+        spacing: 10
+
+        BoxLayout:
+            size_hint_y: None
+            height: '42dp'
+            Button:
+                text: '< Back'
+                size_hint_x: 0.22
+                background_normal: ''
+                background_color: hex('#475569')
+                on_release: root.manager.current = 'home'
+            Label:
+                text: 'School Grade & Norms'
+                font_size: '18sp'
+                bold: True
+            Button:
+                text: 'Rules'
+                size_hint_x: 0.22
+                background_normal: ''
+                background_color: hex('#8b5cf6')
+                on_release: app.show_weightage_settings_popup(root)
+
+        ScrollView:
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: 10
+
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: '110dp'
+                    padding: 10
+                    canvas.before:
+                        Color:
+                            rgba: hex('#1e293b')
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [8,]
+                    Label:
+                        text: 'Overall School Final Grade'
+                        font_size: '13sp'
+                        color: hex('#94a3b8')
+                    Label:
+                        id: final_grade_lbl
+                        text: 'GRADE --'
+                        font_size: '32sp'
+                        bold: True
+                        color: hex('#eab308')
+                    Label:
+                        id: final_score_lbl
+                        text: 'Composite Score: 0.0%'
+                        font_size: '14sp'
+                        bold: True
+                        color: hex('#38bdf8')
+
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: '80dp'
+                    padding: 8
+                    canvas.before:
+                        Color:
+                            rgba: hex('#1e293b')
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [8,]
+                    Label:
+                        id: schol_summary_lbl
+                        text: 'Scholastic (Academic Learning): 0.0%'
+                        bold: True
+                        halign: 'left'
+                        text_size: self.size
+                    Label:
+                        id: schol_weight_lbl
+                        text: 'Weightage Applied: 90%'
+                        font_size: '12sp'
+                        color: hex('#94a3b8')
+                        halign: 'left'
+                        text_size: self.size
+
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: '80dp'
+                    padding: 8
+                    canvas.before:
+                        Color:
+                            rgba: hex('#1e293b')
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [8,]
+                    Label:
+                        id: school_eval_summary_lbl
+                        text: 'School Evaluation Form: 0.0%'
+                        bold: True
+                        halign: 'left'
+                        text_size: self.size
+                    Label:
+                        id: co_weight_lbl
+                        text: 'Weightage Applied: 10%'
+                        font_size: '12sp'
+                        color: hex('#94a3b8')
+                        halign: 'left'
+                        text_size: self.size
+
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: '110dp'
+                    padding: 10
+                    canvas.before:
+                        Color:
+                            rgba: hex('#1e293b')
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [8,]
+                    Label:
+                        text: 'Active Cut-off Thresholds:'
+                        font_size: '12sp'
+                        bold: True
+                        color: hex('#38bdf8')
+                        halign: 'left'
+                        text_size: self.size
+                    Label:
+                        id: cutoffs_display_lbl
+                        text: 'A+ (>=87%) | A (>=74%) | B (>=61%) | C (>=50%) | D (<50%)'
+                        font_size: '12sp'
+                        color: hex('#f8fafc')
+                        halign: 'left'
+                        text_size: self.size
+
+                CustomButton:
+                    text: 'Refresh Calculation'
+                    background_color: hex('#2563eb')
+                    on_release: root.calculate_report()
 
 <ResultsScreen>:
     BoxLayout:
@@ -947,6 +1304,140 @@ class CreateExamScreen(Screen):
         )
         self.manager.current = 'exams_list'
 
+class SchoolEvalScreen(Screen):
+    indicator_toggles = {}
+    current_indicators = []
+
+    def load_form(self):
+        container = self.ids.indicators_container
+        container.clear_widgets()
+        self.indicator_toggles = {}
+
+        self.current_indicators = App.get_running_app().db.get_indicators()
+        self.ids.form_count_lbl.text = f"School Evaluation ({len(self.current_indicators)} Indicators)"
+
+        latest = App.get_running_app().db.get_latest_school_eval()
+        prev_data = {}
+        if latest and latest[5]:
+            try:
+                prev_data = json.loads(latest[5])
+            except Exception:
+                prev_data = {}
+
+        for item in self.current_indicators:
+            ind_id, ind_title = item
+            row = BoxLayout(size_hint_y=None, height='44dp', spacing=6)
+            
+            lbl = Label(text=ind_title, size_hint_x=0.62, font_size='11sp', halign='left', shorten=True)
+            lbl.bind(size=lbl.setter('text_size'))
+
+            is_yes = prev_data.get(str(ind_id), "YES") == "YES"
+
+            btn_yes = ToggleButton(
+                text='YES', group=f"ind_{ind_id}", size_hint_x=0.14,
+                state='down' if is_yes else 'normal',
+                background_color=(0.1, 0.65, 0.2, 1) if is_yes else (0.3, 0.3, 0.3, 1)
+            )
+            btn_no = ToggleButton(
+                text='NO', group=f"ind_{ind_id}", size_hint_x=0.14,
+                state='normal' if is_yes else 'down',
+                background_color=(0.7, 0.2, 0.2, 1) if not is_yes else (0.3, 0.3, 0.3, 1)
+            )
+
+            def make_callbacks(y_btn, n_btn):
+                def on_y(instance):
+                    if instance.state == 'down':
+                        y_btn.background_color = (0.1, 0.65, 0.2, 1)
+                        n_btn.background_color = (0.3, 0.3, 0.3, 1)
+                def on_n(instance):
+                    if instance.state == 'down':
+                        n_btn.background_color = (0.7, 0.2, 0.2, 1)
+                        y_btn.background_color = (0.3, 0.3, 0.3, 1)
+                return on_y, on_n
+
+            cy, cn = make_callbacks(btn_yes, btn_no)
+            btn_yes.bind(on_release=cy)
+            btn_no.bind(on_release=cn)
+
+            btn_del = Button(
+                text='✕', size_hint_x=0.10,
+                background_normal='', background_color=(0.5, 0.1, 0.1, 1),
+                bold=True
+            )
+            btn_del.bind(on_release=lambda inst, i_id=ind_id: self.delete_ind(i_id))
+
+            self.indicator_toggles[ind_id] = btn_yes
+
+            row.add_widget(lbl)
+            row.add_widget(btn_yes)
+            row.add_widget(btn_no)
+            row.add_widget(btn_del)
+            container.add_widget(row)
+
+    def delete_ind(self, ind_id):
+        App.get_running_app().db.delete_indicator(ind_id)
+        self.load_form()
+
+    def save_eval(self):
+        year = self.ids.year_in.text.strip() or "2026-2027"
+        e_date = self.ids.date_in.text.strip() or datetime.now().strftime('%Y-%m-%d')
+        total_count = len(self.current_indicators)
+
+        if total_count == 0:
+            App.get_running_app().show_notification("No indicators active to save.")
+            return
+
+        raw_map = {}
+        yes_count = 0
+        for ind_id, btn in self.indicator_toggles.items():
+            val = "YES" if btn.state == 'down' else "NO"
+            raw_map[str(ind_id)] = val
+            if val == "YES":
+                yes_count += 1
+
+        pct = (yes_count / float(total_count)) * 100.0
+        App.get_running_app().db.save_school_eval(year, e_date, total_count, yes_count, pct, raw_map)
+        App.get_running_app().show_notification(f"Saved! {yes_count}/{total_count} Indicators Fulfilled ({pct:.1f}%)")
+
+class GradeReportScreen(Screen):
+    def calculate_report(self):
+        db = App.get_running_app().db
+        settings = db.get_grading_settings()
+        schol_w, co_w, aplus, a, b, c = settings
+
+        schol_avg, total_scans = db.get_overall_academic_average()
+        self.ids.schol_summary_lbl.text = f"Academic (All Classes Avg): {schol_avg:.1f}% ({total_scans} evaluations)"
+        self.ids.schol_weight_lbl.text = f"Weightage: {schol_w:.1f}%"
+
+        latest_eval = db.get_latest_school_eval()
+        co_avg = float(latest_eval[4]) if latest_eval else 0.0
+        yes_cnt = latest_eval[3] if latest_eval else 0
+        tot_cnt = latest_eval[7] if latest_eval and len(latest_eval) > 7 else 24
+        self.ids.school_eval_summary_lbl.text = f"School Evaluation Form: {co_avg:.1f}% ({yes_cnt}/{tot_cnt} Yes)"
+        self.ids.co_weight_lbl.text = f"Weightage: {co_w:.1f}%"
+
+        tot_w = schol_w + co_w
+        if tot_w > 0:
+            composite = ((schol_avg * schol_w) + (co_avg * co_w)) / tot_w
+        else:
+            composite = schol_avg
+
+        self.ids.final_score_lbl.text = f"Composite Final Score: {composite:.2f}%"
+
+        if composite >= aplus:
+            grade = "A+"
+        elif composite >= a:
+            grade = "A"
+        elif composite >= b:
+            grade = "B"
+        elif composite >= c:
+            grade = "C"
+        else:
+            grade = "D"
+
+        self.ids.final_grade_lbl.text = f"GRADE {grade}"
+        self.ids.cutoffs_display_lbl.text = f"A+ (>={aplus}%) | A (>={a}%) | B (>={b}%) | C (>={c}%) | D (<{c}%)"
+
 class ResultsScreen(Screen):
     def load_results(self, exam_id):
         exam = App.get_running_app().db.get_exam_by_id(exam_id)
@@ -989,8 +1480,76 @@ class DHKOMRProApp(App):
         sm.add_widget(RolloverScreen(name='rollover'))
         sm.add_widget(ExamsListScreen(name='exams_list'))
         sm.add_widget(CreateExamScreen(name='create_exam'))
+        sm.add_widget(SchoolEvalScreen(name='school_eval'))
+        sm.add_widget(GradeReportScreen(name='grade_report'))
         sm.add_widget(ResultsScreen(name='results_view'))
         return sm
+
+    def show_add_indicator_popup(self, parent_screen):
+        layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
+        ind_in = TextInput(hint_text='Indicator description (e.g., 25. Digital Lab Usage)', multiline=False, size_hint_y=None, height='44dp')
+        
+        popup = Popup(title='Add New Indicator', content=layout, size_hint=(0.88, 0.35))
+
+        def add_and_refresh(instance):
+            txt = ind_in.text.strip()
+            if txt:
+                self.db.add_indicator(txt)
+                popup.dismiss()
+                parent_screen.load_form()
+            else:
+                self.show_notification("Please enter an indicator title.")
+
+        btn = Button(text='Add to Checklist', size_hint_y=None, height='42dp', background_color=(0.1, 0.65, 0.2, 1), bold=True)
+        btn.bind(on_release=add_and_refresh)
+        layout.add_widget(ind_in)
+        layout.add_widget(btn)
+        popup.open()
+
+    def show_weightage_settings_popup(self, parent_screen):
+        settings = self.db.get_grading_settings()
+        schol_w, co_w, aplus, a, b, c = settings
+
+        layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
+
+        def make_field(label_txt, current_val):
+            box = BoxLayout(size_hint_y=None, height='38dp', spacing=6)
+            lbl = Label(text=label_txt, size_hint_x=0.65, font_size='12sp', halign='left')
+            lbl.bind(size=lbl.setter('text_size'))
+            inp = TextInput(text=str(current_val), input_filter='float', multiline=False, size_hint_x=0.35)
+            box.add_widget(lbl)
+            box.add_widget(inp)
+            return box, inp
+
+        b1, in_schol = make_field("Academic % Weightage:", schol_w)
+        b2, in_co = make_field("School Form % Weightage:", co_w)
+        b3, in_aplus = make_field("A+ Cutoff (%):", aplus)
+        b4, in_a = make_field("A Cutoff (%):", a)
+        b5, in_b = make_field("B Cutoff (%):", b)
+        b6, in_c = make_field("C Cutoff (%):", c)
+
+        for b in [b1, b2, b3, b4, b5, b6]:
+            layout.add_widget(b)
+
+        popup = Popup(title='Edit Government Norms & Cutoffs', content=layout, size_hint=(0.92, 0.72))
+
+        def save_rules(instance):
+            try:
+                self.db.update_grading_settings(
+                    float(in_schol.text), float(in_co.text),
+                    float(in_aplus.text), float(in_a.text),
+                    float(in_b.text), float(in_c.text)
+                )
+                popup.dismiss()
+                parent_screen.calculate_report()
+                self.show_notification("Grading rules and cutoffs updated successfully!")
+            except ValueError:
+                self.show_notification("Please enter valid decimal numbers for all fields.")
+
+        btn = Button(text='Save & Apply Norms', size_hint_y=None, height='44dp', background_color=(0.1, 0.65, 0.2, 1), bold=True)
+        btn.bind(on_release=save_rules)
+        layout.add_widget(btn)
+        popup.open()
 
     def open_evaluator(self, exam_id):
         self.active_eval_exam_id = exam_id
@@ -1032,7 +1591,7 @@ class DHKOMRProApp(App):
             s_lbl = Label(text=f"#{s[4]} {s[1]}", size_hint_x=0.55, halign='left', shorten=True)
             s_inp = TextInput(
                 text=str(len(scale_opts) - 1),
-                hint_text='Score (0-25)',
+                hint_text='Score',
                 multiline=False,
                 input_filter='float',
                 size_hint_x=0.45
