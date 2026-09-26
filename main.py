@@ -45,7 +45,6 @@ class DatabaseManager:
     def _init_db(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            # Permanent student registry
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS students (
                     student_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,7 +57,6 @@ class DatabaseManager:
                     UNIQUE(current_class, section, roll_no, academic_year)
                 )
             ''')
-            # Exams definition
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS exams (
                     exam_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +74,6 @@ class DatabaseManager:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            # Scanned exam marks
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS results (
                     result_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,29 +103,21 @@ class DatabaseManager:
             ''', (name.strip(), current_class.strip(), section.strip().upper(), int(roll_no), academic_year.strip()))
             conn.commit()
 
-    def get_all_active_students(self, class_filter=None):
+    def get_students(self, status='ACTIVE'):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            if class_filter and class_filter != "ALL":
-                cursor.execute('''
-                    SELECT student_id, student_name, current_class, section, roll_no, academic_year
-                    FROM students
-                    WHERE status = 'ACTIVE' AND current_class = ?
-                    ORDER BY roll_no ASC
-                ''', (class_filter,))
-            else:
-                cursor.execute('''
-                    SELECT student_id, student_name, current_class, section, roll_no, academic_year
-                    FROM students
-                    WHERE status = 'ACTIVE'
-                    ORDER BY current_class ASC, section ASC, roll_no ASC
-                ''')
+            cursor.execute('''
+                SELECT student_id, student_name, current_class, section, roll_no, academic_year, status
+                FROM students
+                WHERE status = ?
+                ORDER BY current_class ASC, section ASC, roll_no ASC
+            ''', (status,))
             return cursor.fetchall()
 
-    def archive_student(self, student_id):
+    def set_student_status(self, student_id, new_status):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("UPDATE students SET status = 'ARCHIVED' WHERE student_id = ?", (student_id,))
+            cursor.execute("UPDATE students SET status = ? WHERE student_id = ?", (new_status, student_id))
             conn.commit()
 
     def rollover_class(self, old_class, new_class, new_year):
@@ -142,10 +131,10 @@ class DatabaseManager:
             conn.commit()
 
     def export_students_csv(self, file_path):
-        students = self.get_all_active_students()
+        students = self.get_students(status='ACTIVE')
         with open(file_path, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['ID', 'Name', 'Class', 'Section', 'Roll No', 'Academic Year'])
+            writer.writerow(['ID', 'Name', 'Class', 'Section', 'Roll No', 'Academic Year', 'Status'])
             for s in students:
                 writer.writerow(s)
         return len(students)
@@ -181,6 +170,8 @@ KV = '''
     name_text: ''
     class_text: ''
     roll_text: ''
+    action_text: 'Archive'
+    action_color: hex('#ef4444')
     canvas.before:
         Color:
             rgba: hex('#1e293b')
@@ -206,12 +197,12 @@ KV = '''
         size_hint_x: 0.15
         color: hex('#94a3b8')
     Button:
-        text: 'Archive'
+        text: root.action_text
         size_hint_x: 0.15
-        font_size: '12sp'
+        font_size: '11sp'
         background_normal: ''
-        background_color: hex('#ef4444')
-        on_release: app.archive_student_action(root.student_id)
+        background_color: root.action_color
+        on_release: app.toggle_student_archive(root.student_id, root.action_text)
 
 <HomeScreen>:
     BoxLayout:
@@ -274,18 +265,25 @@ KV = '''
             height: '42dp'
             Button:
                 text: '< Back'
-                size_hint_x: 0.25
+                size_hint_x: 0.22
                 background_normal: ''
                 background_color: hex('#475569')
                 on_release: root.manager.current = 'home'
             Label:
-                text: 'Student Directory'
+                text: 'Directory'
                 font_size: '18sp'
                 bold: True
                 color: hex('#f8fafc')
             Button:
+                id: toggle_view_btn
+                text: 'Archived' if root.showing_active else 'Active'
+                size_hint_x: 0.28
+                background_normal: ''
+                background_color: hex('#8b5cf6')
+                on_release: root.toggle_view()
+            Button:
                 text: '+ Add'
-                size_hint_x: 0.25
+                size_hint_x: 0.22
                 background_normal: ''
                 background_color: hex('#16a34a')
                 on_release: app.show_add_student_popup()
@@ -353,21 +351,21 @@ KV = '''
 
         TextInput:
             id: old_class_input
-            hint_text: 'Current Class (e.g., Class 9-A)'
+            hint_text: 'Current Class (e.g., 9)'
             multiline: False
             size_hint_y: None
             height: '44dp'
 
         TextInput:
             id: new_class_input
-            hint_text: 'Promote To Class (e.g., Class 10-A)'
+            hint_text: 'Promote To Class (e.g., 10)'
             multiline: False
             size_hint_y: None
             height: '44dp'
 
         TextInput:
             id: new_year_input
-            hint_text: 'New Academic Year (e.g., 2026-2027)'
+            hint_text: 'New Academic Year (e.g., 2027-2028)'
             multiline: False
             size_hint_y: None
             height: '44dp'
@@ -384,17 +382,33 @@ class HomeScreen(Screen):
     pass
 
 class RegistryScreen(Screen):
+    showing_active = BooleanProperty(True)
+
+    def toggle_view(self):
+        self.showing_active = not self.showing_active
+        self.refresh_students()
+
     def refresh_students(self):
         container = self.ids.students_list
         container.clear_widgets()
-        students = App.get_running_app().db.get_all_active_students()
+        status_to_fetch = 'ACTIVE' if self.showing_active else 'ARCHIVED'
+        students = App.get_running_app().db.get_students(status=status_to_fetch)
+        
         from kivy.factory import Factory
+        from kivy.utils import get_color_from_hex
+
         for s in students:
             row = Factory.StudentRow()
             row.student_id = s[0]
             row.roll_text = f"#{s[4]}"
             row.name_text = str(s[1])
             row.class_text = f"{s[2]}-{s[3]}"
+            if self.showing_active:
+                row.action_text = 'Archive'
+                row.action_color = get_color_from_hex('#ef4444')  # Red
+            else:
+                row.action_text = 'Restore'
+                row.action_color = get_color_from_hex('#16a34a')  # Green
             container.add_widget(row)
 
 class RolloverScreen(Screen):
@@ -408,7 +422,7 @@ class RolloverScreen(Screen):
             return
 
         App.get_running_app().db.rollover_class(old_cls, new_cls, new_yr)
-        App.get_running_app().show_notification(f"Promoted {old_cls} to {new_cls} successfully!")
+        App.get_running_app().show_notification(f"Promoted Class {old_cls} to Class {new_cls} successfully!")
         self.manager.current = 'registry'
 
 
@@ -416,7 +430,6 @@ class DHKOMRProApp(App):
     torch_state = BooleanProperty(False)
 
     def build(self):
-        # Setup persistent database in internal application directory
         data_dir = self.user_data_dir
         os.makedirs(data_dir, exist_ok=True)
         db_path = os.path.join(data_dir, "dhkomr_permanent.db")
@@ -430,7 +443,6 @@ class DHKOMRProApp(App):
         return sm
 
     def toggle_torch(self):
-        """Hardware flashlight toggle via Android CameraManager."""
         self.torch_state = not self.torch_state
         if platform == 'android' and ANDROID_TORCH_AVAILABLE:
             try:
@@ -478,8 +490,9 @@ class DHKOMRProApp(App):
         layout.add_widget(btn)
         popup.open()
 
-    def archive_student_action(self, student_id):
-        self.db.archive_student(student_id)
+    def toggle_student_archive(self, student_id, action_text):
+        new_status = 'ARCHIVED' if action_text == 'Archive' else 'ACTIVE'
+        self.db.set_student_status(student_id, new_status)
         reg_screen = self.root.get_screen('registry')
         reg_screen.refresh_students()
 
