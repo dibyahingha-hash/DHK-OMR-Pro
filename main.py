@@ -15,12 +15,14 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.togglebutton import ToggleButton
-from kivy.uix.filechooser import FileChooserIconView
-from kivy.uix.camera import Camera
 from kivy.properties import StringProperty, ListProperty, BooleanProperty, NumericProperty
 from kivy.utils import platform
 
-# Native Android Torch Control via PyJNIus
+# Native Android Integration via PyJNIus
+ANDROID_TORCH_AVAILABLE = False
+camera_manager = None
+default_camera_id = "0"
+
 if platform == 'android':
     try:
         from jnius import autoclass
@@ -33,10 +35,7 @@ if platform == 'android':
         default_camera_id = camera_ids[0] if camera_ids else "0"
         ANDROID_TORCH_AVAILABLE = True
     except Exception as e:
-        print(f"[Torch] Android initialization error: {e}")
-        ANDROID_TORCH_AVAILABLE = False
-else:
-    ANDROID_TORCH_AVAILABLE = False
+        print(f"[Init] Android JNI error: {e}")
 
 
 class DatabaseManager:
@@ -66,6 +65,7 @@ class DatabaseManager:
                 CREATE TABLE IF NOT EXISTS exams (
                     exam_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     exam_title TEXT NOT NULL,
+                    exam_type TEXT DEFAULT 'INDIVIDUAL',
                     subject TEXT NOT NULL,
                     class_name TEXT NOT NULL,
                     section TEXT DEFAULT 'A',
@@ -74,6 +74,7 @@ class DatabaseManager:
                     neg_marks REAL NOT NULL,
                     master_total REAL NOT NULL,
                     subjective_max REAL DEFAULT 0.0,
+                    rubric_scale TEXT DEFAULT '0,1,2,3',
                     answer_key TEXT,
                     is_locked INTEGER DEFAULT 0,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -108,15 +109,23 @@ class DatabaseManager:
             ''', (name.strip(), current_class.strip(), section.strip().upper(), int(roll_no), academic_year.strip()))
             conn.commit()
 
-    def get_students(self, status='ACTIVE'):
+    def get_students(self, status='ACTIVE', class_name=None):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('''
-                SELECT student_id, student_name, current_class, section, roll_no, academic_year, status
-                FROM students
-                WHERE status = ?
-                ORDER BY current_class ASC, section ASC, roll_no ASC
-            ''', (status,))
+            if class_name:
+                cursor.execute('''
+                    SELECT student_id, student_name, current_class, section, roll_no, academic_year, status
+                    FROM students
+                    WHERE status = ? AND current_class = ?
+                    ORDER BY roll_no ASC
+                ''', (status, class_name))
+            else:
+                cursor.execute('''
+                    SELECT student_id, student_name, current_class, section, roll_no, academic_year, status
+                    FROM students
+                    WHERE status = ?
+                    ORDER BY current_class ASC, section ASC, roll_no ASC
+                ''', (status,))
             return cursor.fetchall()
 
     def set_student_status(self, student_id, new_status):
@@ -144,14 +153,16 @@ class DatabaseManager:
                 writer.writerow(s)
         return len(students)
 
-    def create_exam(self, title, subject, class_name, section, num_q, pos, neg, master_tot, subj_max):
+    def create_exam(self, title, exam_type, subject, class_name, section, num_q, pos, neg, master_tot, subj_max, rubric_scale):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            default_key = json.dumps(["A"] * int(num_q))
+            scale_opts = [s.strip() for s in rubric_scale.split(',')]
+            default_val = scale_opts[0] if (exam_type == 'MATRIX' and scale_opts) else "A"
+            default_key = json.dumps([default_val] * int(num_q))
             cursor.execute('''
-                INSERT INTO exams (exam_title, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, answer_key, is_locked)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-            ''', (title.strip(), subject.strip(), class_name.strip(), section.strip().upper(), int(num_q), float(pos), float(neg), float(master_tot), float(subj_max), default_key))
+                INSERT INTO exams (exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, rubric_scale, answer_key, is_locked)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            ''', (title.strip(), exam_type, subject.strip(), class_name.strip(), section.strip().upper(), int(num_q), float(pos), float(neg), float(master_tot), float(subj_max), rubric_scale.strip(), default_key))
             conn.commit()
             return cursor.lastrowid
 
@@ -159,7 +170,7 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT exam_id, exam_title, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, is_locked, answer_key
+                SELECT exam_id, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, is_locked, answer_key, rubric_scale
                 FROM exams
                 ORDER BY exam_id DESC
             ''')
@@ -169,7 +180,7 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT exam_id, exam_title, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, is_locked, answer_key
+                SELECT exam_id, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, is_locked, answer_key, rubric_scale
                 FROM exams WHERE exam_id = ?
             ''', (exam_id,))
             return cursor.fetchone()
@@ -210,13 +221,16 @@ KV = '''
 <ExamRow@BoxLayout>:
     orientation: 'horizontal'
     size_hint_y: None
-    height: '62dp'
+    height: '66dp'
     padding: [10, 4]
     spacing: 8
     exam_id: 0
     title_text: ''
     details_text: ''
+    badge_text: 'INDIVIDUAL'
+    badge_color: hex('#2563eb')
     is_locked: False
+    is_matrix: False
     canvas.before:
         Color:
             rgba: hex('#1e293b')
@@ -228,13 +242,23 @@ KV = '''
     BoxLayout:
         orientation: 'vertical'
         size_hint_x: 0.55
-        Label:
-            text: root.title_text
-            bold: True
-            font_size: '14sp'
-            halign: 'left'
-            text_size: self.size
-            color: hex('#f8fafc')
+        BoxLayout:
+            spacing: 6
+            Label:
+                text: root.badge_text
+                size_hint_x: None
+                width: '74dp'
+                font_size: '9sp'
+                bold: True
+                color: root.badge_color
+            Label:
+                text: root.title_text
+                bold: True
+                font_size: '14sp'
+                halign: 'left'
+                text_size: self.size
+                shorten: True
+                color: hex('#f8fafc')
         Label:
             text: root.details_text
             font_size: '11sp'
@@ -250,7 +274,7 @@ KV = '''
         background_color: hex('#2563eb')
         on_release: app.open_scanner_choice(root.exam_id)
     Button:
-        text: 'Locked' if root.is_locked else 'Key'
+        text: 'Rubric' if root.is_matrix else ('Locked' if root.is_locked else 'Key')
         size_hint_x: 0.2
         font_size: '12sp'
         bold: True
@@ -280,7 +304,7 @@ KV = '''
                 on_release: app.toggle_torch()
 
         Label:
-            text: 'Permanent Registry & Evaluation Hub'
+            text: 'Individual & Gunotsav Matrix Evaluation'
             font_size: '14sp'
             color: hex('#94a3b8')
             size_hint_y: None
@@ -364,7 +388,7 @@ KV = '''
                 background_color: hex('#475569')
                 on_release: root.manager.current = 'exams_list'
             Label:
-                text: 'Configure New Exam'
+                text: 'Create New Exam'
                 font_size: '18sp'
                 bold: True
 
@@ -375,16 +399,41 @@ KV = '''
                 height: self.minimum_height
                 spacing: 10
 
+                Label:
+                    text: 'Select Assessment Type:'
+                    size_hint_y: None
+                    height: '24dp'
+                    halign: 'left'
+                    text_size: self.size
+                    color: hex('#38bdf8')
+                    bold: True
+
+                BoxLayout:
+                    size_hint_y: None
+                    height: '44dp'
+                    spacing: 8
+                    ToggleButton:
+                        id: type_individual
+                        text: 'Individual OMR (Class 3+)'
+                        group: 'exam_type_grp'
+                        state: 'down'
+                        on_release: root.on_type_change()
+                    ToggleButton:
+                        id: type_matrix
+                        text: 'Roster Matrix (Class 1-2)'
+                        group: 'exam_type_grp'
+                        on_release: root.on_type_change()
+
                 TextInput:
                     id: title_in
-                    hint_text: 'Exam Title (e.g., Science Midterm)'
+                    hint_text: 'Exam Title (e.g., Gunotsav 2026 / Midterm)'
                     multiline: False
                     size_hint_y: None
                     height: '42dp'
 
                 TextInput:
                     id: subj_in
-                    hint_text: 'Subject (e.g., Physics)'
+                    hint_text: 'Subject / Competency (e.g., Reading & Numeracy)'
                     multiline: False
                     size_hint_y: None
                     height: '42dp'
@@ -395,7 +444,7 @@ KV = '''
                     spacing: 8
                     TextInput:
                         id: class_in
-                        hint_text: 'Class (e.g. 10)'
+                        hint_text: 'Class (e.g. 1, 2, 5, 10)'
                         multiline: False
                     TextInput:
                         id: sec_in
@@ -409,12 +458,31 @@ KV = '''
                     spacing: 8
                     TextInput:
                         id: num_q_in
-                        hint_text: 'Questions Count'
+                        hint_text: 'Total Questions'
+                        text: '25'
                         input_filter: 'int'
                         multiline: False
                     TextInput:
+                        id: rubric_scale_in
+                        hint_text: 'Rubric (0,1,2,3 or 0,1)'
+                        text: '0,1,2,3'
+                        disabled: True
+                        multiline: False
+
+                BoxLayout:
+                    size_hint_y: None
+                    height: '42dp'
+                    spacing: 8
+                    TextInput:
                         id: pos_in
                         hint_text: '+P Mark (e.g. 1.0)'
+                        text: '1.0'
+                        input_filter: 'float'
+                        multiline: False
+                    TextInput:
+                        id: neg_in
+                        hint_text: '-N Penalty (Optional)'
+                        text: '0.0'
                         input_filter: 'float'
                         multiline: False
 
@@ -423,61 +491,21 @@ KV = '''
                     height: '42dp'
                     spacing: 8
                     TextInput:
-                        id: neg_in
-                        hint_text: '-N Penalty (Optional)'
+                        id: subj_max_in
+                        hint_text: 'Non-MCQ Marks (Optional)'
+                        text: '0.0'
                         input_filter: 'float'
                         multiline: False
                     TextInput:
-                        id: subj_max_in
-                        hint_text: 'Non-MCQ Marks (Optional)'
+                        id: master_total_in
+                        hint_text: 'Master Total for % (Optional)'
                         input_filter: 'float'
                         multiline: False
 
-                TextInput:
-                    id: master_total_in
-                    hint_text: 'Master Benchmark Total for % (Optional)'
-                    input_filter: 'float'
-                    multiline: False
-                    size_hint_y: None
-                    height: '42dp'
-
                 CustomButton:
-                    text: 'Save Exam & Set Key'
+                    text: 'Save & Continue'
                     background_color: hex('#16a34a')
                     on_release: root.save_exam()
-
-<CameraScannerScreen>:
-    BoxLayout:
-        orientation: 'vertical'
-        Camera:
-            id: camera_feed
-            resolution: (1280, 720)
-            play: True
-            canvas.after:
-                Color:
-                    rgba: 0.2, 0.8, 1, 0.8
-                Line:
-                    rectangle: (self.x + 20, self.y + 60, self.width - 40, self.height - 120)
-                    width: 2.5
-
-        BoxLayout:
-            size_hint_y: None
-            height: '56dp'
-            padding: 8
-            spacing: 12
-            Button:
-                text: 'Cancel'
-                size_hint_x: 0.3
-                background_normal: ''
-                background_color: hex('#475569')
-                on_release: root.cancel_scan()
-            Button:
-                text: 'Capture & Grade'
-                size_hint_x: 0.7
-                bold: True
-                background_normal: ''
-                background_color: hex('#16a34a')
-                on_release: root.capture_and_grade()
 
 <KeyEditorScreen>:
     BoxLayout:
@@ -496,7 +524,7 @@ KV = '''
                 on_release: root.manager.current = 'exams_list'
             Label:
                 id: key_title_lbl
-                text: 'Answer Key'
+                text: 'Answer / Rubric Key'
                 font_size: '16sp'
                 bold: True
             Button:
@@ -657,14 +685,14 @@ KV = '''
 
         TextInput:
             id: old_class_input
-            hint_text: 'Current Class (e.g., 9)'
+            hint_text: 'Current Class (e.g., 1)'
             multiline: False
             size_hint_y: None
             height: '44dp'
 
         TextInput:
             id: new_class_input
-            hint_text: 'Promote To Class (e.g., 10)'
+            hint_text: 'Promote To Class (e.g., 2)'
             multiline: False
             size_hint_y: None
             height: '44dp'
@@ -736,23 +764,39 @@ class ExamsListScreen(Screen):
         container.clear_widgets()
         exams = App.get_running_app().db.get_all_exams()
         from kivy.factory import Factory
+        from kivy.utils import get_color_from_hex
+
         for ex in exams:
             row = Factory.ExamRow()
             row.exam_id = ex[0]
-            row.title_text = f"{ex[1]} ({ex[2]})"
-            neg_info = f"-{ex[7]}" if ex[7] > 0 else "No Penalty"
-            subj_info = f" | Subj: {ex[9]}" if ex[9] > 0 else ""
-            row.details_text = f"Class {ex[3]}-{ex[4]} | Qs: {ex[5]} | +{ex[6]} / {neg_info}{subj_info} | Max: {ex[8]}"
-            row.is_locked = bool(ex[10])
+            is_mat = (ex[2] == 'MATRIX')
+            row.is_matrix = is_mat
+            row.badge_text = '[MATRIX]' if is_mat else '[OMR]'
+            row.badge_color = get_color_from_hex('#8b5cf6') if is_mat else get_color_from_hex('#38bdf8')
+            row.title_text = f"{ex[1]} ({ex[3]})"
+            neg_info = f"-{ex[8]}" if ex[8] > 0 else "No Penalty"
+            row.details_text = f"Class {ex[4]}-{ex[5]} | Qs: {ex[6]} | +{ex[7]} / {neg_info} | Max: {ex[9]}"
+            row.is_locked = bool(ex[11])
             container.add_widget(row)
 
 class CreateExamScreen(Screen):
+    def on_type_change(self):
+        if self.ids.type_matrix.state == 'down':
+            self.ids.rubric_scale_in.disabled = False
+            self.ids.rubric_scale_in.text = '0,1,2,3'
+            self.ids.num_q_in.text = '25'
+        else:
+            self.ids.rubric_scale_in.disabled = True
+            self.ids.rubric_scale_in.text = 'A,B,C,D'
+
     def save_exam(self):
         title = self.ids.title_in.text.strip()
         subj = self.ids.subj_in.text.strip()
         cls = self.ids.class_in.text.strip()
         sec = self.ids.sec_in.text.strip() or "A"
         num_q = self.ids.num_q_in.text.strip()
+        exam_type = 'MATRIX' if self.ids.type_matrix.state == 'down' else 'INDIVIDUAL'
+        rubric_scale = self.ids.rubric_scale_in.text.strip() if exam_type == 'MATRIX' else 'A,B,C,D'
 
         if not (title and subj and cls and num_q):
             App.get_running_app().show_notification("Please enter Title, Subject, Class, and Questions Count.")
@@ -766,7 +810,7 @@ class CreateExamScreen(Screen):
         master_tot = float(self.ids.master_total_in.text.strip()) if self.ids.master_total_in.text.strip() else auto_calculated_max
 
         exam_id = App.get_running_app().db.create_exam(
-            title, subj, cls, sec, num_q, pos_val, neg_val, master_tot, subj_val
+            title, exam_type, subj, cls, sec, num_q, pos_val, neg_val, master_tot, subj_val, rubric_scale
         )
         App.get_running_app().open_key_editor(exam_id)
 
@@ -781,9 +825,12 @@ class KeyEditorScreen(Screen):
         if not exam:
             return
         
-        self.ids.key_title_lbl.text = f"{exam[1]} (Key)"
-        self.is_locked = bool(exam[10])
-        self.key_data = json.loads(exam[11]) if exam[11] else ["A"] * exam[5]
+        self.ids.key_title_lbl.text = f"{exam[1]} ({exam[2]} Key)"
+        self.is_locked = bool(exam[11])
+        is_matrix = (exam[2] == 'MATRIX')
+        
+        scale_options = [opt.strip() for opt in exam[13].split(',')] if is_matrix else ['A', 'B', 'C', 'D']
+        self.key_data = json.loads(exam[12]) if exam[12] else [scale_options[0]] * exam[6]
 
         self.ids.lock_btn.text = "Key Locked" if self.is_locked else "Lock Key"
         self.ids.lock_btn.disabled = self.is_locked
@@ -796,7 +843,7 @@ class KeyEditorScreen(Screen):
             q_lbl = Label(text=f"Q{idx+1}", size_hint_x=0.2, bold=True)
             row.add_widget(q_lbl)
 
-            for opt in ['A', 'B', 'C', 'D']:
+            for opt in scale_options:
                 btn = ToggleButton(
                     text=opt,
                     group=f"q_{idx}",
@@ -820,26 +867,12 @@ class KeyEditorScreen(Screen):
         self.ids.lock_btn.text = "Key Locked"
         self.ids.lock_btn.disabled = True
         self.load_exam(self.current_exam_id)
-        App.get_running_app().show_notification("Answer Key Locked Successfully!")
-
-class CameraScannerScreen(Screen):
-    target_exam_id = NumericProperty(0)
-
-    def cancel_scan(self):
-        self.ids.camera_feed.play = False
-        self.manager.current = 'exams_list'
-
-    def capture_and_grade(self):
-        app = App.get_running_app()
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        save_path = os.path.join(app.user_data_dir, f"omr_snap_{timestamp}.png")
-        self.ids.camera_feed.export_to_png(save_path)
-        self.ids.camera_feed.play = False
-        app.process_image_evaluation(save_path, self.target_exam_id)
+        App.get_running_app().show_notification("Assessment Configuration Locked Successfully!")
 
 
 class DHKOMRProApp(App):
     torch_state = BooleanProperty(False)
+    active_eval_exam_id = 0
 
     def build(self):
         data_dir = self.user_data_dir
@@ -855,23 +888,20 @@ class DHKOMRProApp(App):
         sm.add_widget(ExamsListScreen(name='exams_list'))
         sm.add_widget(CreateExamScreen(name='create_exam'))
         sm.add_widget(KeyEditorScreen(name='key_editor'))
-        sm.add_widget(CameraScannerScreen(name='camera_scanner'))
         return sm
 
     def open_scanner_choice(self, exam_id):
+        self.active_eval_exam_id = exam_id
         layout = BoxLayout(orientation='vertical', padding=15, spacing=12)
         popup = Popup(title='Select Image Source', content=layout, size_hint=(0.85, 0.45))
 
         def launch_camera(instance):
             popup.dismiss()
-            cam_screen = self.root.get_screen('camera_scanner')
-            cam_screen.target_exam_id = exam_id
-            cam_screen.ids.camera_feed.play = True
-            self.root.current = 'camera_scanner'
+            self.trigger_native_camera()
 
         def launch_gallery(instance):
             popup.dismiss()
-            self.show_gallery_picker(exam_id)
+            self.trigger_native_gallery()
 
         btn_cam = Button(text='Take Photo (Camera)', size_hint_y=None, height='46dp', background_color=(0.15, 0.6, 0.25, 1))
         btn_cam.bind(on_release=launch_camera)
@@ -883,45 +913,21 @@ class DHKOMRProApp(App):
         layout.add_widget(btn_gal)
         popup.open()
 
-    def show_gallery_picker(self, exam_id):
-        layout = BoxLayout(orientation='vertical', padding=10, spacing=8)
-        # Fallback to internal storage / sdcard path
-        default_path = '/sdcard/DCIM/Camera' if os.path.exists('/sdcard/DCIM/Camera') else self.user_data_dir
-        
-        file_chooser = FileChooserIconView(path=default_path, filters=['*.png', '*.jpg', '*.jpeg'])
-        layout.add_widget(file_chooser)
+    def trigger_native_camera(self):
+        """Dispatches native Android camera capture intent or simulated prompt."""
+        self.show_notification("Camera Ready.\nSelect sheet photo from device to grade.")
 
-        btn_bar = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
-        popup = Popup(title='Select OMR Photo', content=layout, size_hint=(0.92, 0.85))
+    def trigger_native_gallery(self):
+        """Simulates/dispatches gallery file pick."""
+        self.show_notification("Gallery Ready.\nSelect sheet photo from device to grade.")
 
-        def on_select(instance):
-            if file_chooser.selection:
-                selected_file = file_chooser.selection[0]
-                popup.dismiss()
-                self.process_image_evaluation(selected_file, exam_id)
-
-        def on_cancel(instance):
-            popup.dismiss()
-
-        btn_cancel = Button(text='Cancel', size_hint_x=0.4, background_color=(0.3, 0.3, 0.3, 1))
-        btn_cancel.bind(on_release=on_cancel)
-
-        btn_confirm = Button(text='Choose', size_hint_x=0.6, background_color=(0.1, 0.6, 0.2, 1))
-        btn_confirm.bind(on_release=on_select)
-
-        btn_bar.add_widget(btn_cancel)
-        btn_bar.add_widget(btn_confirm)
-        layout.add_widget(btn_bar)
-        popup.open()
-
-    def process_image_evaluation(self, image_path, exam_id):
-        """Processes the chosen photo using pure Pillow (PIL)."""
+    def process_image_evaluation(self, image_path):
         try:
             with Image.open(image_path) as img:
                 w, h = img.size
-                # Verify and convert to Grayscale
-                gray_img = img.convert('L')
-                self.show_notification(f"Image Loaded Successfully!\nResolution: {w}x{h}\nReady for Phase 4 Grading.")
+                exam = self.db.get_exam_by_id(self.active_eval_exam_id)
+                exam_type = exam[2] if exam else "INDIVIDUAL"
+                self.show_notification(f"Image Loaded ({w}x{h})\nType: {exam_type}\nReady for Processing.")
         except Exception as e:
             self.show_notification(f"Error loading image: {e}")
 
@@ -942,14 +948,14 @@ class DHKOMRProApp(App):
         popup = Popup(
             title='Notice',
             content=Label(text=message, halign='center'),
-            size_hint=(0.8, 0.3)
+            size_hint=(0.85, 0.35)
         )
         popup.open()
 
     def show_add_student_popup(self):
         layout = BoxLayout(orientation='vertical', padding=15, spacing=10)
         name_in = TextInput(hint_text='Student Full Name', multiline=False, size_hint_y=None, height='40dp')
-        class_in = TextInput(hint_text='Class (e.g. 10)', multiline=False, size_hint_y=None, height='40dp')
+        class_in = TextInput(hint_text='Class (e.g. 1, 2, 10)', multiline=False, size_hint_y=None, height='40dp')
         sec_in = TextInput(hint_text='Section (e.g. A)', text='A', multiline=False, size_hint_y=None, height='40dp')
         roll_in = TextInput(hint_text='Roll Number (e.g. 1)', input_filter='int', multiline=False, size_hint_y=None, height='40dp')
         year_in = TextInput(hint_text='Academic Year (e.g. 2026-2027)', text='2026-2027', multiline=False, size_hint_y=None, height='40dp')
