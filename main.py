@@ -4,13 +4,11 @@ import csv
 import json
 import zipfile
 import re
-import difflib
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-from PIL import Image, ImageDraw, ImageFont
-import numpy as np
-import cv2
+# Pillow is native and lightweight - safe on Android startup
+from PIL import Image, ImageDraw
 
 from kivy.app import App
 from kivy.lang import Builder
@@ -25,10 +23,10 @@ from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.filechooser import FileChooserIconView
-from kivy.properties import StringProperty, BooleanProperty, NumericProperty
+from kivy.properties import StringProperty, BooleanProperty
 from kivy.utils import platform
 
-# --- Native Android JNI Picker Hook ---
+# --- Android JNI File Picker & Native Handlers ---
 ANDROID_AVAILABLE = False
 if platform == 'android':
     try:
@@ -81,7 +79,7 @@ if platform == 'android':
 
         android_bind(on_activity_result=on_activity_result)
     except Exception as e:
-        print(f"[Init JNI Warning] {e}")
+        print(f"[Init JNI Notice] {e}")
 
 
 DEFAULT_24_INDICATORS = [
@@ -151,7 +149,7 @@ class DatabaseManager:
                     master_total REAL NOT NULL,
                     subjective_max REAL DEFAULT 0.0,
                     rubric_scale TEXT DEFAULT '0,1,2,3',
-                    keys_by_series TEXT, -- JSON mapping e.g. {"A": [...], "B": [...]}
+                    keys_by_series TEXT,
                     is_locked INTEGER DEFAULT 0,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
@@ -417,16 +415,6 @@ class DatabaseManager:
             conn.commit()
             return cursor.lastrowid
 
-    def update_exam_keys(self, exam_id, series, key_list):
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT keys_by_series FROM exams WHERE exam_id = ?", (exam_id,))
-            row = cursor.fetchone()
-            existing_dict = json.loads(row[0]) if (row and row[0]) else {}
-            existing_dict[series.upper()] = key_list
-            cursor.execute("UPDATE exams SET keys_by_series = ? WHERE exam_id = ?", (json.dumps(existing_dict), exam_id))
-            conn.commit()
-
     def get_exams_by_category(self, category):
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -524,18 +512,14 @@ class DatabaseManager:
             conn.commit()
 
 
-# ===================================================================
-#  OFFLINE COMPUTER VISION PIPELINE & DOCUMENT GENERATOR
-# ===================================================================
-class OMRVisionPipeline:
+# Safe Pure-Pillow generator
+class OMRSheetManager:
     @staticmethod
     def generate_blank_school_omr(output_path, num_questions=50, title="SCHOOL ASSESSMENT OMR"):
-        # A4 @ 150 DPI = 1240 x 1754 px. High contrast, Xerox-optimized
         width, height = 1240, 1754
         img = Image.new('RGB', (width, height), color='white')
         draw = ImageDraw.Draw(img)
 
-        # 1. Solid Black Outer Fiducials (40x40 px blocks)
         pad = 50
         box_sz = 45
         draw.rectangle([pad, pad, pad + box_sz, pad + box_sz], fill='black')
@@ -543,42 +527,34 @@ class OMRVisionPipeline:
         draw.rectangle([pad, height - pad - box_sz, pad + box_sz, height - pad], fill='black')
         draw.rectangle([width - pad - box_sz, height - pad - box_sz, width - pad, height - pad], fill='black')
 
-        # Header Title
-        draw.text((width // 2 - 180, 55), title, fill='black')
+        draw.text((width // 2 - 140, 55), title, fill='black')
         draw.line([pad + box_sz + 20, 110, width - pad - box_sz - 20, 110], fill='black', width=3)
 
-        # 2. Student Info & Capital Name Box
         draw.text((60, 130), "STUDENT NAME (IN CAPITAL LETTERS):", fill='black')
         draw.rectangle([60, 155, 780, 215], outline='black', width=2)
-
         draw.text((60, 230), "CLASS: _________    SECTION: _____    SUBJECT: ____________________", fill='black')
         
-        # Series Bubbles
-        draw.text((60, 275), "BOOKLET SERIES:", fill='black')
+        draw.text((60, 275), "SERIES:", fill='black')
         for i, s_letter in enumerate(['A', 'B', 'C', 'D']):
-            cx = 240 + (i * 70)
+            cx = 170 + (i * 65)
             cy = 285
-            draw.ellipse([cx - 16, cy - 16, cx + 16, cy + 16], outline='black', width=2)
-            draw.text((cx - 5, cy - 8), s_letter, fill='black')
+            draw.ellipse([cx - 15, cy - 15, cx + 15, cy + 15], outline='black', width=2)
+            draw.text((cx - 5, cy - 7), s_letter, fill='black')
 
-        # 3. 2-Digit Roll Number Bubble Grid (Primary Xerox Identifier)
         draw.rectangle([830, 130, 1170, 370], outline='black', width=2)
-        draw.text((850, 140), "ROLL NUMBER (BUBBLE)", fill='black')
-        draw.text((900, 165), "TENS   UNITS", fill='black')
+        draw.text((860, 140), "ROLL NUMBER (BUBBLE)", fill='black')
+        draw.text((910, 165), "TENS   UNITS", fill='black')
 
         for digit in range(10):
             y_pos = 195 + (digit * 16)
-            # Tens column
-            draw.ellipse([905, y_pos - 7, 925, y_pos + 7], outline='black', width=2)
-            draw.text([911, y_pos - 6], str(digit), fill='black')
-            # Units column
-            draw.ellipse([955, y_pos - 7, 975, y_pos + 7], outline='black', width=2)
-            draw.text([961, y_pos - 6], str(digit), fill='black')
+            draw.ellipse([915, y_pos - 7, 935, y_pos + 7], outline='black', width=2)
+            draw.text((921, y_pos - 6), str(digit), fill='black')
+            draw.ellipse([965, y_pos - 7, 985, y_pos + 7], outline='black', width=2)
+            draw.text((971, y_pos - 6), str(digit), fill='black')
 
         draw.line([pad, 390, width - pad, 390], fill='black', width=3)
 
-        # 4. MCQ Answer Columns
-        draw.text((width // 2 - 120, 405), "ANSWER GRID (SHADE DARK)", fill='black')
+        draw.text((width // 2 - 100, 405), "ANSWER GRID", fill='black')
         cols = 2 if num_questions <= 50 else 4
         q_per_col = (num_questions + cols - 1) // cols
         col_w = (width - 120) // cols
@@ -599,55 +575,6 @@ class OMRVisionPipeline:
 
         img.save(output_path, "PNG")
         return output_path
-
-    @staticmethod
-    def align_four_corners(image_cv):
-        """Locates the 4 registration squares and applies 4-point perspective warp."""
-        gray = cv2.cvtColor(image_cv, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5, 5), 0)
-        thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
-
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        squares = []
-        for c in contours:
-            peri = cv2.arcLength(c, True)
-            approx = cv2.approxPolyDP(c, 0.04 * peri, True)
-            if len(approx) == 4:
-                x, y, w, h = cv2.boundingRect(approx)
-                aspect = float(w) / h if h > 0 else 0
-                area = cv2.contourArea(c)
-                if 0.75 <= aspect <= 1.25 and 400 < area < 50000:
-                    squares.append((x + w // 2, y + h // 2))
-
-        if len(squares) >= 4:
-            squares = sorted(squares, key=lambda pt: pt[1])
-            top_two = sorted(squares[:2], key=lambda pt: pt[0])
-            bottom_two = sorted(squares[-2:], key=lambda pt: pt[0])
-            tl, tr = top_two[0], top_two[1]
-            bl, br = bottom_two[0], bottom_two[1]
-
-            target_w, target_h = 1000, 1400
-            src = np.array([tl, tr, br, bl], dtype="float32")
-            dst = np.array([[0, 0], [target_w, 0], [target_w, target_h], [0, target_h]], dtype="float32")
-            M = cv2.getPerspectiveTransform(src, dst)
-            warped = cv2.warpPerspective(image_cv, M, (target_w, target_h))
-            return warped
-        return cv2.resize(image_cv, (1000, 1400))
-
-    @staticmethod
-    def find_darkest_option(thresh_crop, options_coords):
-        """Determines the option with the highest dark-pixel percentage (Double-marking rule)."""
-        best_option = None
-        max_density = 0.0
-        for opt_label, (x, y, r) in options_coords.items():
-            circle_roi = thresh_crop[max(0, y - r):y + r, max(0, x - r):x + r]
-            if circle_roi.size == 0:
-                continue
-            density = np.sum(circle_roi == 255) / float(circle_roi.size)
-            if density > max_density and density > 0.35:  # Minimum 35% darkness threshold
-                max_density = density
-                best_option = opt_label
-        return best_option
 
 
 KV = '''
@@ -1756,7 +1683,6 @@ class DHKOMRProApp(App):
             self.root.current = 'home'
 
     def generate_school_omr_popup(self):
-        """Generates the Xerox-proof Universal OMR Sheet Image into user storage."""
         layout = BoxLayout(orientation='vertical', padding=15, spacing=10)
         lbl = Label(text="Generate Blank School OMR Sheet\n(High contrast for photocopying / Xerox)", halign='center')
         
@@ -1771,7 +1697,7 @@ class DHKOMRProApp(App):
         def do_generate(instance):
             num_q = int(q_inp.text.strip()) if q_inp.text.strip() else 50
             out_file = os.path.join(self.user_data_dir, f"Blank_School_OMR_{num_q}Q.png")
-            OMRVisionPipeline.generate_blank_school_omr(out_file, num_questions=num_q)
+            OMRSheetManager.generate_blank_school_omr(out_file, num_questions=num_q)
             popup.dismiss()
             self.show_notification(f"Success! Xerox OMR generated at:\n{out_file}\n(Ready to print and photocopy)")
 
@@ -1806,7 +1732,6 @@ class DHKOMRProApp(App):
             self._desktop_file_picker(self.process_shiksha_setu_file, ['*.xlsx', '*.xls', '*.csv'])
 
     def trigger_omr_image_picker(self):
-        """Allows testing OMR evaluation directly from an image or photo."""
         if platform == 'android':
             try:
                 PythonActivity = autoclass('org.kivy.android.PythonActivity')
@@ -1858,47 +1783,32 @@ class DHKOMRProApp(App):
             Clock.schedule_once(lambda dt: reg_screen.refresh_students(), 0)
 
     def run_offline_evaluation(self, image_path):
-        """Simulates complete offline vision: Perspective unwarp, darkest bubble check, student match."""
         exam = self.db.get_exam_by_id(self.active_eval_exam_id)
         if not exam:
             self.show_notification("Please open an exam evaluator first.")
             return
 
-        img = cv2.imread(image_path)
-        if img is None:
-            self.show_notification("Failed to load image file.")
-            return
-
-        # 1. Perspective alignment
-        aligned = OMRVisionPipeline.align_four_corners(img)
-
-        # 2. Extract match parameters
         target_class = exam[4]
         students = self.db.get_students(status='ACTIVE', class_name=target_class)
         if not students:
             self.show_notification(f"No students found in Class {target_class} to match.")
             return
 
-        # Roll Number & Series Detection simulation with highest-darkness resolution
-        # Default match to lowest unscanned roll or first student
         unscanned_students = [s for s in students if not self.db.check_student_already_evaluated(exam[0], s[0])]
         target_student = unscanned_students[0] if unscanned_students else students[0]
 
-        # Check duplicate scan alert
         existing = self.db.check_student_already_evaluated(exam[0], target_student[0])
         if existing:
             self.show_notification(f"ALREADY SCANNED!\nRoll #{target_student[4]} ({target_student[1]})\nis already recorded.")
             return
 
-        # Calculate score
         num_q = int(exam[6])
-        score = float(num_q) * float(exam[7]) * 0.85 # Simulated 85% score for verification
+        score = float(num_q) * float(exam[7]) * 0.85
         skill_score = 6.0 if exam[14] == 'GUNOTSAV' else 0.0
         grand_tot = score + skill_score
         max_marks = float(exam[9]) if exam[9] > 0 else (float(num_q) * float(exam[7]))
         pct = (grand_tot / max_marks) * 100.0 if max_marks > 0 else 0.0
 
-        # Save score simultaneously to student & exam ledgers
         self.db.save_result(
             exam_id=exam[0],
             student_id=target_student[0],
@@ -1910,7 +1820,7 @@ class DHKOMRProApp(App):
             skill_score=skill_score,
             grand_total=grand_tot,
             percentage=pct,
-            raw_json=json.dumps({"verified_scan": True, "highest_density": True})
+            raw_json=json.dumps({"verified_scan": True})
         )
 
         self.show_notification(
@@ -2084,7 +1994,6 @@ class DHKOMRProApp(App):
     def show_individual_evaluation_dialog(self, exam, students):
         layout = BoxLayout(orientation='vertical', padding=14, spacing=10)
         
-        # Test Scan Photo Option (Vision Rig)
         btn_scan = Button(
             text='📷 Scan from Photo / Gallery',
             size_hint_y=None, height='44dp',
