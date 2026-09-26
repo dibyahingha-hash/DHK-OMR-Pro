@@ -3,7 +3,7 @@ import sqlite3
 import csv
 import json
 from datetime import datetime
-from PIL import Image, ImageOps
+from PIL import Image
 
 from kivy.app import App
 from kivy.lang import Builder
@@ -16,6 +16,7 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.togglebutton import ToggleButton
+from kivy.uix.filechooser import FileChooserIconView
 from kivy.properties import StringProperty, ListProperty, BooleanProperty, NumericProperty
 from kivy.utils import platform
 
@@ -153,6 +154,53 @@ class DatabaseManager:
                 writer.writerow(s)
         return len(students)
 
+    def import_students_csv(self, file_path, default_class="1", default_sec="A", default_year="2026-2027"):
+        imported_count = 0
+        skipped_count = 0
+        with open(file_path, mode='r', encoding='utf-8', errors='ignore') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if not row or not any(field.strip() for field in row):
+                    continue
+                first_col = row[0].strip().lower()
+                if first_col in ['id', 'roll', 'roll no', 'roll_no', 'name', 'sl', 'sl no']:
+                    continue
+
+                try:
+                    if len(row) >= 5 and row[4].strip().isdigit():
+                        name = row[1].strip()
+                        c_name = row[2].strip() or default_class
+                        sec = row[3].strip() or default_sec
+                        roll = int(row[4].strip())
+                        yr = row[5].strip() if len(row) > 5 and row[5].strip() else default_year
+                    elif len(row) >= 2 and row[0].strip().isdigit():
+                        roll = int(row[0].strip())
+                        name = row[1].strip()
+                        c_name = default_class
+                        sec = default_sec
+                        yr = default_year
+                    elif len(row) >= 2 and row[1].strip().isdigit():
+                        name = row[0].strip()
+                        roll = int(row[1].strip())
+                        c_name = default_class
+                        sec = default_sec
+                        yr = default_year
+                    else:
+                        imported_count += 1
+                        name = row[0].strip()
+                        roll = imported_count
+                        c_name = default_class
+                        sec = default_sec
+                        yr = default_year
+
+                    if name:
+                        self.add_student(name, c_name, sec, roll, yr)
+                        imported_count += 1
+                except Exception:
+                    skipped_count += 1
+
+        return imported_count, skipped_count
+
     def create_exam(self, title, exam_type, subject, class_name, section, num_q, pos, neg, master_tot, subj_max, rubric_scale):
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -224,6 +272,15 @@ KV = '''
     color: hex('#ffffff')
     size_hint_y: None
     height: '48dp'
+
+<FormLabel@Label>:
+    size_hint_y: None
+    height: '24dp'
+    font_size: '13sp'
+    bold: True
+    halign: 'left'
+    text_size: self.size
+    color: hex('#94a3b8')
 
 <ExamRow@BoxLayout>:
     orientation: 'horizontal'
@@ -382,20 +439,20 @@ KV = '''
 <CreateExamScreen>:
     BoxLayout:
         orientation: 'vertical'
-        padding: 18
-        spacing: 10
+        padding: 16
+        spacing: 8
 
         BoxLayout:
             size_hint_y: None
-            height: '40dp'
+            height: '42dp'
             Button:
                 text: '< Cancel'
-                size_hint_x: 0.3
+                size_hint_x: 0.25
                 background_normal: ''
                 background_color: hex('#475569')
                 on_release: root.manager.current = 'exams_list'
             Label:
-                text: 'Create New Exam'
+                text: 'Configure New Test'
                 font_size: '18sp'
                 bold: True
 
@@ -404,113 +461,170 @@ KV = '''
                 orientation: 'vertical'
                 size_hint_y: None
                 height: self.minimum_height
-                spacing: 10
+                spacing: 8
+                padding: [4, 6]
 
-                Label:
-                    text: 'Select Assessment Type:'
-                    size_hint_y: None
-                    height: '24dp'
-                    halign: 'left'
-                    text_size: self.size
+                FormLabel:
+                    text: 'Step 1: Choose Evaluation Format'
                     color: hex('#38bdf8')
-                    bold: True
 
                 BoxLayout:
                     size_hint_y: None
                     height: '44dp'
                     spacing: 8
                     ToggleButton:
-                        id: type_individual
-                        text: 'Individual OMR (Class 3+)'
+                        id: type_matrix
+                        text: 'Gunotsav Matrix (Class 1-2)'
                         group: 'exam_type_grp'
                         state: 'down'
                         on_release: root.on_type_change()
                     ToggleButton:
-                        id: type_matrix
-                        text: 'Gunotsav Matrix (Class 1-2)'
+                        id: type_individual
+                        text: 'Individual OMR (Class 3+)'
                         group: 'exam_type_grp'
                         on_release: root.on_type_change()
 
+                Label:
+                    id: type_desc_lbl
+                    text: 'Evaluates entire class on 1 sheet across Reading, Writing & Numeracy.'
+                    font_size: '11sp'
+                    color: hex('#a78bfa')
+                    size_hint_y: None
+                    height: '22dp'
+                    halign: 'left'
+                    text_size: self.size
+
+                FormLabel:
+                    text: 'Step 2: Basic Information'
+                    color: hex('#38bdf8')
+
                 TextInput:
                     id: title_in
-                    hint_text: 'Exam Title (e.g., Gunotsav Assessment 2026)'
+                    hint_text: 'Exam / Assessment Name (e.g. Gunotsav Round 2026)'
+                    text: 'Gunotsav Assessment'
                     multiline: False
                     size_hint_y: None
                     height: '42dp'
 
                 TextInput:
                     id: subj_in
-                    hint_text: 'Subject (e.g., Reading & Numeracy)'
+                    hint_text: 'Subject / Competency (e.g. Lang-I, Lang-II & Maths)'
+                    text: 'Reading, Writing & Numeracy'
                     multiline: False
                     size_hint_y: None
                     height: '42dp'
 
                 BoxLayout:
                     size_hint_y: None
-                    height: '42dp'
+                    height: '66dp'
                     spacing: 8
-                    TextInput:
-                        id: class_in
-                        hint_text: 'Class (e.g. 1, 2, 5, 10)'
-                        multiline: False
-                    TextInput:
-                        id: sec_in
-                        hint_text: 'Section (e.g. A)'
-                        text: 'A'
-                        multiline: False
+                    BoxLayout:
+                        orientation: 'vertical'
+                        FormLabel:
+                            text: 'Class'
+                        TextInput:
+                            id: class_in
+                            hint_text: 'e.g. 2'
+                            text: '2'
+                            multiline: False
+                    BoxLayout:
+                        orientation: 'vertical'
+                        FormLabel:
+                            text: 'Section'
+                        TextInput:
+                            id: sec_in
+                            hint_text: 'e.g. A'
+                            text: 'A'
+                            multiline: False
+
+                FormLabel:
+                    text: 'Step 3: Marking & Questions'
+                    color: hex('#38bdf8')
 
                 BoxLayout:
                     size_hint_y: None
-                    height: '42dp'
+                    height: '66dp'
                     spacing: 8
-                    TextInput:
-                        id: num_q_in
-                        hint_text: 'Total Questions (e.g. 25)'
-                        text: '25'
-                        input_filter: 'int'
-                        multiline: False
-                    TextInput:
-                        id: rubric_scale_in
-                        hint_text: 'Rubric Scale'
-                        text: '0,1,2,3'
-                        disabled: True
-                        multiline: False
+                    BoxLayout:
+                        orientation: 'vertical'
+                        FormLabel:
+                            id: q_count_lbl
+                            text: 'Total Questions'
+                        TextInput:
+                            id: num_q_in
+                            hint_text: '25'
+                            text: '25'
+                            input_filter: 'int'
+                            multiline: False
+                    BoxLayout:
+                        orientation: 'vertical'
+                        FormLabel:
+                            id: rubric_lbl
+                            text: 'Rubric / Scale'
+                        TextInput:
+                            id: rubric_scale_in
+                            hint_text: '0,1,2,3'
+                            text: '0,1,2,3'
+                            multiline: False
 
                 BoxLayout:
                     size_hint_y: None
-                    height: '42dp'
+                    height: '66dp'
                     spacing: 8
-                    TextInput:
-                        id: pos_in
-                        hint_text: '+P Mark per level/correct'
-                        text: '1.0'
-                        input_filter: 'float'
-                        multiline: False
-                    TextInput:
-                        id: neg_in
-                        hint_text: '-N Penalty (Optional)'
-                        text: '0.0'
-                        input_filter: 'float'
-                        multiline: False
+                    BoxLayout:
+                        orientation: 'vertical'
+                        FormLabel:
+                            text: 'Marks per Right / Level'
+                        TextInput:
+                            id: pos_in
+                            hint_text: '1.0'
+                            text: '1.0'
+                            input_filter: 'float'
+                            multiline: False
+                    BoxLayout:
+                        orientation: 'vertical'
+                        FormLabel:
+                            text: 'Penalty for Wrong'
+                        TextInput:
+                            id: neg_in
+                            hint_text: '0 (None)'
+                            text: '0.0'
+                            input_filter: 'float'
+                            multiline: False
+
+                FormLabel:
+                    text: 'Step 4: Optional Scoring Customization'
+                    color: hex('#94a3b8')
 
                 BoxLayout:
                     size_hint_y: None
-                    height: '42dp'
+                    height: '66dp'
                     spacing: 8
-                    TextInput:
-                        id: subj_max_in
-                        hint_text: 'Non-MCQ Marks (Optional)'
-                        text: '0.0'
-                        input_filter: 'float'
-                        multiline: False
-                    TextInput:
-                        id: master_total_in
-                        hint_text: 'Master Total (Optional)'
-                        input_filter: 'float'
-                        multiline: False
+                    BoxLayout:
+                        orientation: 'vertical'
+                        FormLabel:
+                            text: 'Non-MCQ / Theory (Optional)'
+                        TextInput:
+                            id: subj_max_in
+                            hint_text: '0.0'
+                            text: '0.0'
+                            input_filter: 'float'
+                            multiline: False
+                    BoxLayout:
+                        orientation: 'vertical'
+                        FormLabel:
+                            text: 'Total Marks for % (Optional)'
+                        TextInput:
+                            id: master_total_in
+                            hint_text: 'Auto (Questions x Mark)'
+                            multiline: False
+
+                Widget:
+                    size_hint_y: None
+                    height: '10dp'
 
                 CustomButton:
-                    text: 'Save Exam Configuration'
+                    text: 'Save & Create Exam'
                     background_color: hex('#16a34a')
                     on_release: root.save_exam()
 
@@ -597,9 +711,10 @@ KV = '''
         BoxLayout:
             size_hint_y: None
             height: '42dp'
+            spacing: 6
             Button:
                 text: '< Back'
-                size_hint_x: 0.22
+                size_hint_x: 0.18
                 background_normal: ''
                 background_color: hex('#475569')
                 on_release: root.manager.current = 'home'
@@ -611,13 +726,21 @@ KV = '''
             Button:
                 id: toggle_view_btn
                 text: 'Archived' if root.showing_active else 'Active'
-                size_hint_x: 0.28
+                size_hint_x: 0.22
                 background_normal: ''
                 background_color: hex('#8b5cf6')
                 on_release: root.toggle_view()
             Button:
+                text: 'Import CSV'
+                size_hint_x: 0.25
+                font_size: '12sp'
+                bold: True
+                background_normal: ''
+                background_color: hex('#0284c7')
+                on_release: app.show_csv_import_popup()
+            Button:
                 text: '+ Add'
-                size_hint_x: 0.22
+                size_hint_x: 0.18
                 background_normal: ''
                 background_color: hex('#16a34a')
                 on_release: app.show_add_student_popup()
@@ -781,12 +904,23 @@ class ExamsListScreen(Screen):
 class CreateExamScreen(Screen):
     def on_type_change(self):
         if self.ids.type_matrix.state == 'down':
+            self.ids.type_desc_lbl.text = "Evaluates entire class on 1 sheet across Reading, Writing & Numeracy."
+            self.ids.title_in.text = "Gunotsav Assessment"
+            self.ids.subj_in.text = "Reading, Writing & Numeracy"
+            self.ids.class_in.text = "2"
+            self.ids.num_q_in.text = "25"
+            self.ids.rubric_lbl.text = "Rubric Scale"
             self.ids.rubric_scale_in.disabled = False
-            self.ids.rubric_scale_in.text = '0,1,2,3'
-            self.ids.num_q_in.text = '25'
+            self.ids.rubric_scale_in.text = "0,1,2,3"
         else:
+            self.ids.type_desc_lbl.text = "Standard Multiple-Choice OMR (1 Sheet per Student)."
+            self.ids.title_in.text = "Class Assessment"
+            self.ids.subj_in.text = "General Science"
+            self.ids.class_in.text = "5"
+            self.ids.num_q_in.text = "20"
+            self.ids.rubric_lbl.text = "Options"
             self.ids.rubric_scale_in.disabled = True
-            self.ids.rubric_scale_in.text = 'A,B,C,D'
+            self.ids.rubric_scale_in.text = "A,B,C,D"
 
     def save_exam(self):
         title = self.ids.title_in.text.strip()
@@ -849,7 +983,6 @@ class DHKOMRProApp(App):
         self.db = DatabaseManager(db_path)
 
         Builder.load_string(KV)
-        # Lock screen transitions to instant NoTransition to eliminate layout slide/ghosting
         sm = ScreenManager(transition=NoTransition())
         sm.add_widget(HomeScreen(name='home'))
         sm.add_widget(RegistryScreen(name='registry'))
@@ -879,7 +1012,6 @@ class DHKOMRProApp(App):
             self.show_individual_evaluation_dialog(exam, students)
 
     def show_matrix_evaluation_dialog(self, exam, students):
-        """Displays interactive Class-wise Gunotsav Roster Evaluation dialog."""
         layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
         
         header = Label(
@@ -892,7 +1024,6 @@ class DHKOMRProApp(App):
         grid = GridLayout(cols=1, spacing=6, size_hint_y=None)
         grid.bind(minimum_height=grid.setter('height'))
 
-        # Rubric scale options: [0, 1, 2, 3]
         scale_opts = [s.strip() for s in exam[13].split(',')]
         student_inputs = {}
 
@@ -951,7 +1082,6 @@ class DHKOMRProApp(App):
         popup.open()
 
     def show_individual_evaluation_dialog(self, exam, students):
-        """Displays individual student OMR grading."""
         layout = BoxLayout(orientation='vertical', padding=14, spacing=10)
         roll_in = TextInput(hint_text='Enter Roll Number (e.g. 1)', input_filter='int', multiline=False, size_hint_y=None, height='44dp')
         score_in = TextInput(hint_text='Total Marks Scored', input_filter='float', multiline=False, size_hint_y=None, height='44dp')
@@ -1043,6 +1173,51 @@ class DHKOMRProApp(App):
         layout.add_widget(roll_in)
         layout.add_widget(year_in)
         layout.add_widget(btn)
+        popup.open()
+
+    def show_csv_import_popup(self):
+        layout = BoxLayout(orientation='vertical', padding=10, spacing=8)
+        
+        info_box = BoxLayout(orientation='horizontal', size_hint_y=None, height='40dp', spacing=6)
+        cls_in = TextInput(hint_text='Class (e.g. 1)', text='1', multiline=False, size_hint_x=0.35)
+        sec_in = TextInput(hint_text='Sec (A)', text='A', multiline=False, size_hint_x=0.25)
+        yr_in = TextInput(hint_text='Year', text='2026-2027', multiline=False, size_hint_x=0.4)
+        info_box.add_widget(cls_in)
+        info_box.add_widget(sec_in)
+        info_box.add_widget(yr_in)
+        layout.add_widget(info_box)
+
+        start_dir = '/sdcard/Download' if os.path.exists('/sdcard/Download') else self.user_data_dir
+        file_chooser = FileChooserIconView(path=start_dir, filters=['*.csv', '*.txt'])
+        layout.add_widget(file_chooser)
+
+        btn_bar = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
+        popup = Popup(title='Import Students CSV', content=layout, size_hint=(0.92, 0.88))
+
+        def do_import(instance):
+            if file_chooser.selection:
+                selected_file = file_chooser.selection[0]
+                target_cls = cls_in.text.strip() or "1"
+                target_sec = sec_in.text.strip() or "A"
+                target_yr = yr_in.text.strip() or "2026-2027"
+
+                imported, skipped = self.db.import_students_csv(selected_file, target_cls, target_sec, target_yr)
+                popup.dismiss()
+                self.show_notification(f"Imported: {imported} students!\nSkipped / Duplicate: {skipped}")
+                reg_screen = self.root.get_screen('registry')
+                reg_screen.refresh_students()
+            else:
+                self.show_notification("Please select a .csv file first.")
+
+        btn_cancel = Button(text='Cancel', size_hint_x=0.35, background_color=(0.3, 0.3, 0.3, 1))
+        btn_cancel.bind(on_release=lambda x: popup.dismiss())
+
+        btn_confirm = Button(text='Import File', size_hint_x=0.65, background_color=(0.1, 0.6, 0.2, 1), bold=True)
+        btn_confirm.bind(on_release=do_import)
+
+        btn_bar.add_widget(btn_cancel)
+        btn_bar.add_widget(btn_confirm)
+        layout.add_widget(btn_bar)
         popup.open()
 
     def toggle_student_archive(self, student_id, action_text):
