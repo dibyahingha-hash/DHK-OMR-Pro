@@ -10,6 +10,7 @@ from PIL import Image
 
 from kivy.app import App
 from kivy.lang import Builder
+from kivy.clock import Clock
 from kivy.uix.screenmanager import ScreenManager, Screen, NoTransition
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
@@ -23,7 +24,7 @@ from kivy.uix.filechooser import FileChooserIconView
 from kivy.properties import StringProperty, ListProperty, BooleanProperty, NumericProperty
 from kivy.utils import platform
 
-# Native Android Integration via PyJNIus
+# --- Android JNI Native File Picker & Torch ---
 ANDROID_TORCH_AVAILABLE = False
 camera_manager = None
 default_camera_id = "0"
@@ -68,11 +69,12 @@ if platform == 'android':
 
                     app = App.get_running_app()
                     if app:
-                        app.process_shiksha_setu_file(dest_path)
+                        # Schedule on main thread for instant UI refresh
+                        Clock.schedule_once(lambda dt: app.process_shiksha_setu_file(dest_path), 0)
 
         android_bind(on_activity_result=on_activity_result)
     except Exception as e:
-        print(f"[Init] Android integration error: {e}")
+        print(f"[Init] Native setup error: {e}")
 
 
 DEFAULT_24_INDICATORS = [
@@ -129,8 +131,9 @@ class DatabaseManager:
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS exams (
                     exam_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    exam_category TEXT DEFAULT 'REGULAR', -- 'GUNOTSAV' or 'REGULAR'
                     exam_title TEXT NOT NULL,
-                    exam_type TEXT DEFAULT 'INDIVIDUAL',
+                    exam_type TEXT DEFAULT 'INDIVIDUAL', -- 'MATRIX' or 'INDIVIDUAL'
                     subject TEXT NOT NULL,
                     class_name TEXT NOT NULL,
                     section TEXT DEFAULT 'A',
@@ -163,13 +166,6 @@ class DatabaseManager:
                 )
             ''')
             cursor.execute('''
-                CREATE TABLE IF NOT EXISTS school_indicators (
-                    ind_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ind_title TEXT NOT NULL,
-                    is_active INTEGER DEFAULT 1
-                )
-            ''')
-            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS school_eval (
                     eval_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     academic_year TEXT NOT NULL,
@@ -196,30 +192,6 @@ class DatabaseManager:
                 INSERT OR IGNORE INTO grading_settings (id, scholastic_weight, co_scholastic_weight, cut_aplus, cut_a, cut_b, cut_c)
                 VALUES (1, 90.0, 10.0, 87.0, 74.0, 61.0, 50.0)
             ''')
-
-            cursor.execute("SELECT COUNT(*) FROM school_indicators")
-            if cursor.fetchone()[0] == 0:
-                for ind in DEFAULT_24_INDICATORS:
-                    cursor.execute("INSERT INTO school_indicators (ind_title, is_active) VALUES (?, 1)", (ind,))
-
-            conn.commit()
-
-    def get_indicators(self):
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT ind_id, ind_title FROM school_indicators WHERE is_active = 1 ORDER BY ind_id ASC")
-            return cursor.fetchall()
-
-    def add_indicator(self, title):
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO school_indicators (ind_title, is_active) VALUES (?, 1)", (title.strip(),))
-            conn.commit()
-
-    def delete_indicator(self, ind_id):
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("UPDATE school_indicators SET is_active = 0 WHERE ind_id = ?", (ind_id,))
             conn.commit()
 
     def add_student(self, name, current_class, section, roll_no, academic_year):
@@ -240,19 +212,19 @@ class DatabaseManager:
     def get_students(self, status='ACTIVE', class_name=None):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            if class_name:
+            if class_name is not None:
                 cursor.execute('''
                     SELECT student_id, student_name, current_class, section, roll_no, academic_year, status
                     FROM students
                     WHERE status = ? AND current_class = ?
                     ORDER BY roll_no ASC
-                ''', (status, class_name))
+                ''', (status, str(class_name)))
             else:
                 cursor.execute('''
                     SELECT student_id, student_name, current_class, section, roll_no, academic_year, status
                     FROM students
                     WHERE status = ?
-                    ORDER BY current_class ASC, section ASC, roll_no ASC
+                    ORDER BY CAST(current_class AS INTEGER) ASC, section ASC, roll_no ASC
                 ''', (status,))
             return cursor.fetchall()
 
@@ -336,6 +308,20 @@ class DatabaseManager:
         lower_s = s.lower()
         if 'ka-shreni' in lower_s or 'balbatika' in lower_s or 'balvatika' in lower_s:
             cls = "0"
+        elif re.search(r'\b(xii|12)\b', lower_s) or '-xii' in lower_s:
+            cls = "12"
+        elif re.search(r'\b(xi|11)\b', lower_s) or '-xi' in lower_s:
+            cls = "11"
+        elif re.search(r'\b(x|10)\b', lower_s) or '-x' in lower_s:
+            cls = "10"
+        elif re.search(r'\b(ix|9)\b', lower_s) or '-ix' in lower_s:
+            cls = "9"
+        elif re.search(r'\b(viii|8)\b', lower_s) or '-viii' in lower_s:
+            cls = "8"
+        elif re.search(r'\b(vii|7)\b', lower_s) or '-vii' in lower_s:
+            cls = "7"
+        elif re.search(r'\b(vi|6)\b', lower_s) or '-vi' in lower_s:
+            cls = "6"
         elif re.search(r'\b(v|5)\b', lower_s) or '-v' in lower_s:
             cls = "5"
         elif re.search(r'\b(iv|4)\b', lower_s) or '-iv' in lower_s:
@@ -407,34 +393,35 @@ class DatabaseManager:
 
         return imported_count, skipped_count
 
-    def create_exam(self, title, exam_type, subject, class_name, section, num_q, pos, neg, master_tot, subj_max, rubric_scale):
+    def create_exam(self, category, title, exam_type, subject, class_name, section, num_q, pos, neg, master_tot, subj_max, rubric_scale):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             scale_opts = [s.strip() for s in rubric_scale.split(',')]
             default_val = scale_opts[0] if (exam_type == 'MATRIX' and scale_opts) else "A"
             default_key = json.dumps([default_val] * int(num_q))
             cursor.execute('''
-                INSERT INTO exams (exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, rubric_scale, answer_key, is_locked)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-            ''', (title.strip(), exam_type, subject.strip(), class_name.strip(), section.strip().upper(), int(num_q), float(pos), float(neg), float(master_tot), float(subj_max), rubric_scale.strip(), default_key))
+                INSERT INTO exams (exam_category, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, rubric_scale, answer_key, is_locked)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            ''', (category, title.strip(), exam_type, subject.strip(), class_name.strip(), section.strip().upper(), int(num_q), float(pos), float(neg), float(master_tot), float(subj_max), rubric_scale.strip(), default_key))
             conn.commit()
             return cursor.lastrowid
 
-    def get_all_exams(self):
+    def get_exams_by_category(self, category):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT exam_id, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, is_locked, answer_key, rubric_scale
+                SELECT exam_id, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, is_locked, answer_key, rubric_scale, exam_category
                 FROM exams
+                WHERE exam_category = ?
                 ORDER BY exam_id DESC
-            ''')
+            ''', (category,))
             return cursor.fetchall()
 
     def get_exam_by_id(self, exam_id):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT exam_id, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, is_locked, answer_key, rubric_scale
+                SELECT exam_id, exam_title, exam_type, subject, class_name, section, total_questions, pos_marks, neg_marks, master_total, subjective_max, is_locked, answer_key, rubric_scale, exam_category
                 FROM exams WHERE exam_id = ?
             ''', (exam_id,))
             return cursor.fetchone()
@@ -458,10 +445,15 @@ class DatabaseManager:
             ''', (exam_id,))
             return cursor.fetchall()
 
-    def get_overall_academic_average(self):
+    def get_gunotsav_academic_average(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT AVG(percentage), COUNT(result_id) FROM results")
+            cursor.execute('''
+                SELECT AVG(r.percentage), COUNT(r.result_id)
+                FROM results r
+                JOIN exams e ON r.exam_id = e.exam_id
+                WHERE e.exam_category = 'GUNOTSAV' AND e.class_name != '0'
+            ''')
             row = cursor.fetchone()
             if row and row[0] is not None:
                 return float(row[0]), int(row[1])
@@ -578,8 +570,6 @@ KV = '''
     details_text: ''
     badge_text: 'INDIVIDUAL'
     badge_color: hex('#2563eb')
-    is_locked: False
-    is_matrix: False
     canvas.before:
         Color:
             rgba: hex('#131c2a')
@@ -653,7 +643,7 @@ KV = '''
                 on_release: app.toggle_torch()
 
         Label:
-            text: 'Assam Gunotsav & Assessment Suite'
+            text: 'Dual-Portal Assessment Suite (Classes Ka-Shreni to 12)'
             font_size: '12sp'
             color: hex('#94a3b8')
             size_hint_y: None
@@ -662,38 +652,78 @@ KV = '''
         Widget:
             size_hint_y: 0.02
 
+        # PORTAL 1: GUNOTSAV
         ActionBtn:
-            text: 'Exams & Evaluate Sheets'
-            background_color: hex('#d97706')
-            on_release: root.manager.current = 'exams_list'
-
-        ActionBtn:
-            text: 'School Evaluation Form'
+            text: '🏆  GUNOTSAV PORTAL (Classes 1-12 & Form)'
             background_color: hex('#7c3aed')
-            on_release: root.manager.current = 'school_eval'
+            on_release: app.open_portal('GUNOTSAV')
+
+        # PORTAL 2: REGULAR SCHOOL EXAMS
+        ActionBtn:
+            text: '📝  REGULAR SCHOOL EXAMS (Unit / Terminals)'
+            background_color: hex('#d97706')
+            on_release: app.open_portal('REGULAR')
+
+        Widget:
+            size_hint_y: 0.02
 
         ActionBtn:
-            text: 'School Grade & Norms Calculator'
-            background_color: hex('#059669')
-            on_release: root.manager.current = 'grade_report'
-
-        ActionBtn:
-            text: 'Student Registry (Classes & Rolls)'
+            text: '👥  Student Registry (Ka-Shreni to Class 12)'
             background_color: hex('#2563eb')
             on_release: root.manager.current = 'registry'
 
         ActionBtn:
-            text: 'Class Promotion / Rollover'
+            text: '🔄  Class Promotion / Rollover'
             background_color: hex('#0d9488')
             on_release: root.manager.current = 'rollover'
 
         ActionBtn:
-            text: 'Export Roster Backup (CSV)'
+            text: '💾  Export Roster Backup (CSV)'
             background_color: hex('#4f46e5')
             on_release: app.export_roster()
 
         Widget:
-            size_hint_y: 0.1
+            size_hint_y: 0.08
+
+<GunotsavPortalScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 16
+        spacing: 12
+
+        BoxLayout:
+            size_hint_y: None
+            height: '42dp'
+            Button:
+                text: '< Home'
+                size_hint_x: 0.22
+                background_normal: ''
+                background_color: hex('#334155')
+                on_release: root.manager.current = 'home'
+            Label:
+                text: 'Gunotsav Portal'
+                font_size: '18sp'
+                bold: True
+                color: hex('#c084fc')
+
+        ActionBtn:
+            text: 'Gunotsav Evaluations & Tests'
+            background_color: hex('#7c3aed')
+            on_release:
+                app.active_portal_category = 'GUNOTSAV'
+                root.manager.current = 'exams_list'
+
+        ActionBtn:
+            text: 'School Evaluation Form (24 Indicators)'
+            background_color: hex('#0284c7')
+            on_release: root.manager.current = 'school_eval'
+
+        ActionBtn:
+            text: 'School Composite Grade Calculator'
+            background_color: hex('#059669')
+            on_release: root.manager.current = 'grade_report'
+
+        Widget:
 
 <ExamsListScreen>:
     on_pre_enter: root.refresh_exams()
@@ -710,9 +740,10 @@ KV = '''
                 size_hint_x: 0.22
                 background_normal: ''
                 background_color: hex('#334155')
-                on_release: root.manager.current = 'home'
+                on_release: app.back_from_exams_list()
             Label:
-                text: 'Exams & Tests'
+                id: list_portal_title
+                text: 'Assessments'
                 font_size: '17sp'
                 bold: True
                 color: hex('#f8fafc')
@@ -732,6 +763,7 @@ KV = '''
                 spacing: 8
 
 <CreateExamScreen>:
+    on_pre_enter: root.setup_for_category()
     BoxLayout:
         orientation: 'vertical'
         padding: 14
@@ -747,7 +779,8 @@ KV = '''
                 background_color: hex('#334155')
                 on_release: root.manager.current = 'exams_list'
             Label:
-                text: 'Configure New Test'
+                id: create_hdr_lbl
+                text: 'Configure Test'
                 font_size: '17sp'
                 bold: True
 
@@ -771,7 +804,7 @@ KV = '''
                         spacing: 8
                         ToggleButton:
                             id: type_matrix
-                            text: 'Gunotsav Matrix (Class 1-2)'
+                            text: 'Matrix Evaluation'
                             group: 'exam_type_grp'
                             state: 'down'
                             font_size: '12sp'
@@ -781,7 +814,7 @@ KV = '''
                             on_release: root.on_type_change()
                         ToggleButton:
                             id: type_individual
-                            text: 'Individual OMR (Class 3+)'
+                            text: 'Individual OMR'
                             group: 'exam_type_grp'
                             font_size: '12sp'
                             bold: True
@@ -798,12 +831,12 @@ KV = '''
                         text: 'Assessment / Exam Title'
                     FastInput:
                         id: title_in
-                        text: 'Gunotsav Assessment'
+                        text: 'Unit Assessment'
                     FieldTitle:
                         text: 'Subject / Competency'
                     FastInput:
                         id: subj_in
-                        text: 'Reading, Writing & Numeracy'
+                        text: 'General'
 
                     BoxLayout:
                         size_hint_y: None
@@ -812,10 +845,10 @@ KV = '''
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
-                                text: 'Target Class'
+                                text: 'Class (0=Ka-Shreni, 1-12)'
                             FastInput:
                                 id: class_in
-                                text: '2'
+                                text: '1'
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
@@ -839,13 +872,13 @@ KV = '''
                                 text: 'Total Questions'
                             FastInput:
                                 id: num_q_in
-                                text: '25'
+                                text: '20'
                                 input_filter: 'int'
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
                                 id: rubric_lbl
-                                text: 'Rubric Levels / Options'
+                                text: 'Rubric / Options'
                             FastInput:
                                 id: rubric_scale_in
                                 text: '0,1,2,3'
@@ -865,7 +898,7 @@ KV = '''
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
-                                text: 'Wrong Penalty (-N)'
+                                text: 'Penalty for Wrong'
                             FastInput:
                                 id: neg_in
                                 text: '0.0'
@@ -883,7 +916,7 @@ KV = '''
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
-                                text: 'Oral / Non-MCQ Marks'
+                                text: 'Oral / Theory Marks'
                             FastInput:
                                 id: subj_max_in
                                 text: '0.0'
@@ -891,7 +924,7 @@ KV = '''
                         BoxLayout:
                             orientation: 'vertical'
                             FieldTitle:
-                                text: 'Total Benchmark for %'
+                                text: 'Master Benchmark Total'
                             FastInput:
                                 id: master_total_in
                                 hint_text: 'Auto'
@@ -914,25 +947,17 @@ KV = '''
             spacing: 6
             Button:
                 text: '< Back'
-                size_hint_x: 0.18
+                size_hint_x: 0.22
                 background_normal: ''
                 background_color: hex('#334155')
-                on_release: root.manager.current = 'home'
+                on_release: root.manager.current = 'gunotsav_portal'
             Label:
-                id: form_count_lbl
                 text: 'School Evaluation Form'
                 font_size: '15sp'
                 bold: True
             Button:
-                text: '+ Add'
-                size_hint_x: 0.18
-                bold: True
-                background_normal: ''
-                background_color: hex('#0284c7')
-                on_release: app.show_add_indicator_popup(root)
-            Button:
-                text: 'Save'
-                size_hint_x: 0.2
+                text: 'Save Form'
+                size_hint_x: 0.26
                 bold: True
                 background_normal: ''
                 background_color: hex('#16a34a')
@@ -952,6 +977,15 @@ KV = '''
                 text: '2026-09-26'
                 hint_text: 'Date (YYYY-MM-DD)'
                 size_hint_x: 0.5
+
+        Label:
+            text: '24 Official Indicators (Unfulfilled / Non-applicable = 0):'
+            font_size: '11sp'
+            color: hex('#38bdf8')
+            size_hint_y: None
+            height: '20dp'
+            halign: 'left'
+            text_size: self.size
 
         ScrollView:
             BoxLayout:
@@ -976,9 +1010,9 @@ KV = '''
                 size_hint_x: 0.22
                 background_normal: ''
                 background_color: hex('#334155')
-                on_release: root.manager.current = 'home'
+                on_release: root.manager.current = 'gunotsav_portal'
             Label:
-                text: 'School Grade & Norms'
+                text: 'Gunotsav Grade & Norms'
                 font_size: '17sp'
                 bold: True
             Button:
@@ -998,7 +1032,7 @@ KV = '''
                 FastCard:
                     height: '100dp'
                     Label:
-                        text: 'Overall School Final Grade'
+                        text: 'Official Gunotsav Composite Grade'
                         font_size: '12sp'
                         color: hex('#94a3b8')
                     Label:
@@ -1018,7 +1052,7 @@ KV = '''
                     height: '70dp'
                     Label:
                         id: schol_summary_lbl
-                        text: 'Scholastic (Academic Learning): 0.0%'
+                        text: 'Scholastic (Classes 1-12 Avg): 0.0%'
                         bold: True
                         halign: 'left'
                         text_size: self.size
@@ -1064,7 +1098,7 @@ KV = '''
                         text_size: self.size
 
                 ActionBtn:
-                    text: 'Refresh Calculation'
+                    text: 'Recalculate Grade'
                     background_color: hex('#2563eb')
                     on_release: root.calculate_report()
 
@@ -1153,8 +1187,8 @@ KV = '''
             height: '42dp'
             spacing: 6
             Button:
-                text: '< Back'
-                size_hint_x: 0.16
+                text: '< Home'
+                size_hint_x: 0.18
                 background_normal: ''
                 background_color: hex('#334155')
                 on_release: root.manager.current = 'home'
@@ -1190,7 +1224,7 @@ KV = '''
                 on_release: app.trigger_shiksha_setu_picker()
             Button:
                 text: 'Reset All'
-                size_hint_x: 0.30
+                size_hint_x: 0.28
                 font_size: '11sp'
                 bold: True
                 background_normal: ''
@@ -1240,7 +1274,7 @@ KV = '''
             size_hint_y: None
             height: '40dp'
             Button:
-                text: '< Back'
+                text: '< Home'
                 size_hint_x: 0.3
                 background_normal: ''
                 background_color: hex('#334155')
@@ -1252,11 +1286,11 @@ KV = '''
 
         FastInput:
             id: old_class_input
-            hint_text: 'Current Class (e.g., 1)'
+            hint_text: 'Current Class (0 for Ka-Shreni, 1 to 11)'
 
         FastInput:
             id: new_class_input
-            hint_text: 'Promote To Class (e.g., 2)'
+            hint_text: 'Promote To Class (1 to 12)'
 
         FastInput:
             id: new_year_input
@@ -1271,6 +1305,9 @@ KV = '''
 '''
 
 class HomeScreen(Screen):
+    pass
+
+class GunotsavPortalScreen(Screen):
     pass
 
 class RegistryScreen(Screen):
@@ -1293,7 +1330,7 @@ class RegistryScreen(Screen):
             row.student_id = s[0]
             row.roll_text = f"#{s[4]}"
             row.name_text = str(s[1])
-            cls_name = "Balvatika" if s[2] == "0" else f"Class {s[2]}"
+            cls_name = "Ka-Shreni" if str(s[2]) == "0" else f"Class {s[2]}"
             row.class_text = f"{cls_name}-{s[3]}"
             if self.showing_active:
                 row.action_text = 'Archive'
@@ -1319,9 +1356,13 @@ class RolloverScreen(Screen):
 
 class ExamsListScreen(Screen):
     def refresh_exams(self):
+        app = App.get_running_app()
+        category = app.active_portal_category
+        self.ids.list_portal_title.text = f"{'Gunotsav' if category == 'GUNOTSAV' else 'Regular'} Assessments"
+        
         container = self.ids.exams_container
         container.clear_widgets()
-        exams = App.get_running_app().db.get_all_exams()
+        exams = app.db.get_exams_by_category(category)
         from kivy.factory import Factory
         from kivy.utils import get_color_from_hex
 
@@ -1329,35 +1370,47 @@ class ExamsListScreen(Screen):
             row = Factory.ExamRow()
             row.exam_id = ex[0]
             is_mat = (ex[2] == 'MATRIX')
-            row.is_matrix = is_mat
             row.badge_text = '[MATRIX]' if is_mat else '[OMR]'
             row.badge_color = get_color_from_hex('#8b5cf6') if is_mat else get_color_from_hex('#38bdf8')
             row.title_text = f"{ex[1]} ({ex[3]})"
-            cls_label = "Balvatika" if ex[4] == "0" else f"Class {ex[4]}"
+            cls_label = "Ka-Shreni" if str(ex[4]) == "0" else f"Class {ex[4]}"
             row.details_text = f"{cls_label}-{ex[5]} | Qs: {ex[6]} | Scale: {ex[13] if is_mat else '+'+str(ex[7])}"
-            row.is_locked = bool(ex[11])
             container.add_widget(row)
 
 class CreateExamScreen(Screen):
-    def on_type_change(self):
-        if self.ids.type_matrix.state == 'down':
-            self.ids.title_in.text = "Gunotsav Assessment"
+    def setup_for_category(self):
+        app = App.get_running_app()
+        if app.active_portal_category == 'GUNOTSAV':
+            self.ids.create_hdr_lbl.text = "Configure Gunotsav Assessment"
+            self.ids.title_in.text = "Gunotsav Round 2026"
             self.ids.subj_in.text = "Reading, Writing & Numeracy"
             self.ids.class_in.text = "2"
-            self.ids.num_q_in.text = "25"
+            self.ids.type_matrix.state = 'down'
+            self.on_type_change()
+        else:
+            self.ids.create_hdr_lbl.text = "Configure Regular School Test"
+            self.ids.title_in.text = "Unit Test / Terminal"
+            self.ids.subj_in.text = "Mathematics"
+            self.ids.class_in.text = "5"
+            self.ids.type_individual.state = 'down'
+            self.on_type_change()
+
+    def on_type_change(self):
+        app = App.get_running_app()
+        if self.ids.type_matrix.state == 'down':
             self.ids.rubric_lbl.text = "Rubric Levels"
             self.ids.rubric_scale_in.disabled = False
             self.ids.rubric_scale_in.text = "0,1,2,3"
+            self.ids.num_q_in.text = "25"
         else:
-            self.ids.title_in.text = "Class Assessment"
-            self.ids.subj_in.text = "General Science"
-            self.ids.class_in.text = "5"
-            self.ids.num_q_in.text = "20"
             self.ids.rubric_lbl.text = "Options"
             self.ids.rubric_scale_in.disabled = True
             self.ids.rubric_scale_in.text = "A,B,C,D"
+            self.ids.num_q_in.text = "20"
 
     def save_exam(self):
+        app = App.get_running_app()
+        category = app.active_portal_category
         title = self.ids.title_in.text.strip()
         subj = self.ids.subj_in.text.strip()
         cls = self.ids.class_in.text.strip()
@@ -1367,7 +1420,12 @@ class CreateExamScreen(Screen):
         rubric_scale = self.ids.rubric_scale_in.text.strip() if exam_type == 'MATRIX' else 'A,B,C,D'
 
         if not (title and subj and cls and num_q):
-            App.get_running_app().show_notification("Please enter Title, Subject, Class, and Questions Count.")
+            app.show_notification("Please fill all required fields.")
+            return
+
+        # Ka-Shreni is strictly excluded from Gunotsav portal
+        if category == 'GUNOTSAV' and str(cls) == '0':
+            app.show_notification("Ka-Shreni is not evaluated under Gunotsav!\nPlease select Class 1 to 12.")
             return
 
         pos_val = float(self.ids.pos_in.text.strip()) if self.ids.pos_in.text.strip() else 1.0
@@ -1377,22 +1435,18 @@ class CreateExamScreen(Screen):
         auto_calculated_max = (int(num_q) * pos_val) + subj_val
         master_tot = float(self.ids.master_total_in.text.strip()) if self.ids.master_total_in.text.strip() else auto_calculated_max
 
-        App.get_running_app().db.create_exam(
-            title, exam_type, subj, cls, sec, num_q, pos_val, neg_val, master_tot, subj_val, rubric_scale
+        app.db.create_exam(
+            category, title, exam_type, subj, cls, sec, num_q, pos_val, neg_val, master_tot, subj_val, rubric_scale
         )
         self.manager.current = 'exams_list'
 
 class SchoolEvalScreen(Screen):
     indicator_toggles = {}
-    current_indicators = []
 
     def load_form(self):
         container = self.ids.indicators_container
         container.clear_widgets()
         self.indicator_toggles = {}
-
-        self.current_indicators = App.get_running_app().db.get_indicators()
-        self.ids.form_count_lbl.text = f"School Evaluation ({len(self.current_indicators)} Indicators)"
 
         latest = App.get_running_app().db.get_latest_school_eval()
         prev_data = {}
@@ -1402,22 +1456,22 @@ class SchoolEvalScreen(Screen):
             except Exception:
                 prev_data = {}
 
-        for item in self.current_indicators:
-            ind_id, ind_title = item
-            row = BoxLayout(size_hint_y=None, height='44dp', spacing=6)
+        for idx, text in enumerate(DEFAULT_24_INDICATORS):
+            ind_id = idx + 1
+            row = BoxLayout(size_hint_y=None, height='44dp', spacing=8)
 
-            lbl = Label(text=ind_title, size_hint_x=0.62, font_size='11sp', halign='left', shorten=True)
+            lbl = Label(text=text, size_hint_x=0.70, font_size='11sp', halign='left', shorten=True)
             lbl.bind(size=lbl.setter('text_size'))
 
             is_yes = prev_data.get(str(ind_id), "YES") == "YES"
 
             btn_yes = ToggleButton(
-                text='YES', group=f"ind_{ind_id}", size_hint_x=0.14,
+                text='YES', group=f"ind_{ind_id}", size_hint_x=0.15,
                 state='down' if is_yes else 'normal',
                 background_color=(0.1, 0.65, 0.2, 1) if is_yes else (0.2, 0.25, 0.35, 1)
             )
             btn_no = ToggleButton(
-                text='NO', group=f"ind_{ind_id}", size_hint_x=0.14,
+                text='0 / NO', group=f"ind_{ind_id}", size_hint_x=0.15,
                 state='normal' if is_yes else 'down',
                 background_color=(0.7, 0.2, 0.2, 1) if not is_yes else (0.2, 0.25, 0.35, 1)
             )
@@ -1437,33 +1491,17 @@ class SchoolEvalScreen(Screen):
             btn_yes.bind(on_release=cy)
             btn_no.bind(on_release=cn)
 
-            btn_del = Button(
-                text='✕', size_hint_x=0.10,
-                background_normal='', background_color=(0.5, 0.1, 0.1, 1),
-                bold=True
-            )
-            btn_del.bind(on_release=lambda inst, i_id=ind_id: self.delete_ind(i_id))
-
             self.indicator_toggles[ind_id] = btn_yes
 
             row.add_widget(lbl)
             row.add_widget(btn_yes)
             row.add_widget(btn_no)
-            row.add_widget(btn_del)
             container.add_widget(row)
-
-    def delete_ind(self, ind_id):
-        App.get_running_app().db.delete_indicator(ind_id)
-        self.load_form()
 
     def save_eval(self):
         year = self.ids.year_in.text.strip() or "2026-2027"
         e_date = self.ids.date_in.text.strip() or datetime.now().strftime('%Y-%m-%d')
-        total_count = len(self.current_indicators)
-
-        if total_count == 0:
-            App.get_running_app().show_notification("No indicators active to save.")
-            return
+        total_count = 24
 
         raw_map = {}
         yes_count = 0
@@ -1475,7 +1513,7 @@ class SchoolEvalScreen(Screen):
 
         pct = (yes_count / float(total_count)) * 100.0
         App.get_running_app().db.save_school_eval(year, e_date, total_count, yes_count, pct, raw_map)
-        App.get_running_app().show_notification(f"Saved! {yes_count}/{total_count} Indicators Fulfilled ({pct:.1f}%)")
+        App.get_running_app().show_notification(f"Saved! {yes_count}/24 Indicators Fulfilled ({pct:.1f}%)")
 
 class GradeReportScreen(Screen):
     def calculate_report(self):
@@ -1483,16 +1521,15 @@ class GradeReportScreen(Screen):
         settings = db.get_grading_settings()
         schol_w, co_w, aplus, a, b, c = settings
 
-        schol_avg, total_scans = db.get_overall_academic_average()
-        self.ids.schol_summary_lbl.text = f"Academic (All Classes Avg): {schol_avg:.1f}% ({total_scans} evaluations)"
-        self.ids.schol_weight_lbl.text = f"Weightage: {schol_w:.1f}%"
+        schol_avg, total_scans = db.get_gunotsav_academic_average()
+        self.ids.schol_summary_lbl.text = f"Scholastic (Gunotsav Classes 1-12 Avg): {schol_avg:.1f}% ({total_scans} evaluations)"
+        self.ids.schol_weight_lbl.text = f"Weightage Applied: {schol_w:.1f}%"
 
         latest_eval = db.get_latest_school_eval()
         co_avg = float(latest_eval[4]) if latest_eval else 0.0
         yes_cnt = latest_eval[3] if latest_eval else 0
-        tot_cnt = latest_eval[7] if latest_eval and len(latest_eval) > 7 else 24
-        self.ids.school_eval_summary_lbl.text = f"School Evaluation Form: {co_avg:.1f}% ({yes_cnt}/{tot_cnt} Yes)"
-        self.ids.co_weight_lbl.text = f"Weightage: {co_w:.1f}%"
+        self.ids.school_eval_summary_lbl.text = f"School Evaluation Form: {co_avg:.1f}% ({yes_cnt}/24 Yes)"
+        self.ids.co_weight_lbl.text = f"Weightage Applied: {co_w:.1f}%"
 
         tot_w = schol_w + co_w
         if tot_w > 0:
@@ -1544,6 +1581,7 @@ class ResultsScreen(Screen):
 class DHKOMRProApp(App):
     torch_state = BooleanProperty(False)
     active_eval_exam_id = 0
+    active_portal_category = StringProperty('GUNOTSAV')
 
     def build(self):
         data_dir = self.user_data_dir
@@ -1554,6 +1592,7 @@ class DHKOMRProApp(App):
         Builder.load_string(KV)
         sm = ScreenManager(transition=NoTransition())
         sm.add_widget(HomeScreen(name='home'))
+        sm.add_widget(GunotsavPortalScreen(name='gunotsav_portal'))
         sm.add_widget(RegistryScreen(name='registry'))
         sm.add_widget(RolloverScreen(name='rollover'))
         sm.add_widget(ExamsListScreen(name='exams_list'))
@@ -1562,6 +1601,19 @@ class DHKOMRProApp(App):
         sm.add_widget(GradeReportScreen(name='grade_report'))
         sm.add_widget(ResultsScreen(name='results_view'))
         return sm
+
+    def open_portal(self, category):
+        self.active_portal_category = category
+        if category == 'GUNOTSAV':
+            self.root.current = 'gunotsav_portal'
+        else:
+            self.root.current = 'exams_list'
+
+    def back_from_exams_list(self):
+        if self.active_portal_category == 'GUNOTSAV':
+            self.root.current = 'gunotsav_portal'
+        else:
+            self.root.current = 'home'
 
     def trigger_shiksha_setu_picker(self):
         if platform == 'android':
@@ -1618,9 +1670,11 @@ class DHKOMRProApp(App):
     def process_shiksha_setu_file(self, file_path):
         imported, skipped = self.db.import_shiksha_setu(file_path)
         self.show_notification(f"Import Finished!\nImported: {imported} students\nSkipped / Duplicate: {skipped}")
+        
+        # Immediate UI refresh without restart
         reg_screen = self.root.get_screen('registry')
         if reg_screen:
-            reg_screen.refresh_students()
+            Clock.schedule_once(lambda dt: reg_screen.refresh_students(), 0)
 
     def confirm_clear_all_popup(self):
         layout = BoxLayout(orientation='vertical', padding=15, spacing=12)
@@ -1637,7 +1691,7 @@ class DHKOMRProApp(App):
             self.show_notification("Student registry cleared.")
             reg_screen = self.root.get_screen('registry')
             if reg_screen:
-                reg_screen.refresh_students()
+                Clock.schedule_once(lambda dt: reg_screen.refresh_students(), 0)
 
         btn_confirm = Button(text='Yes, Reset All', background_color=(0.8, 0.1, 0.1, 1), bold=True)
         btn_confirm.bind(on_release=do_wipe)
@@ -1646,27 +1700,6 @@ class DHKOMRProApp(App):
         btn_bar.add_widget(btn_confirm)
         layout.add_widget(lbl)
         layout.add_widget(btn_bar)
-        popup.open()
-
-    def show_add_indicator_popup(self, parent_screen):
-        layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
-        ind_in = TextInput(hint_text='Indicator description', multiline=False, size_hint_y=None, height='44dp')
-
-        popup = Popup(title='Add New Indicator', content=layout, size_hint=(0.88, 0.35))
-
-        def add_and_refresh(instance):
-            txt = ind_in.text.strip()
-            if txt:
-                self.db.add_indicator(txt)
-                popup.dismiss()
-                parent_screen.load_form()
-            else:
-                self.show_notification("Please enter an indicator title.")
-
-        btn = Button(text='Add to Checklist', size_hint_y=None, height='42dp', background_color=(0.1, 0.65, 0.2, 1), bold=True)
-        btn.bind(on_release=add_and_refresh)
-        layout.add_widget(ind_in)
-        layout.add_widget(btn)
         popup.open()
 
     def show_weightage_settings_popup(self, parent_screen):
@@ -1694,7 +1727,7 @@ class DHKOMRProApp(App):
         for b in [b1, b2, b3, b4, b5, b6]:
             layout.add_widget(b)
 
-        popup = Popup(title='Edit Government Norms & Cutoffs', content=layout, size_hint=(0.92, 0.72))
+        popup = Popup(title='Edit Gunotsav Norms & Cutoffs', content=layout, size_hint=(0.92, 0.72))
 
         def save_rules(instance):
             try:
@@ -1705,7 +1738,7 @@ class DHKOMRProApp(App):
                 )
                 popup.dismiss()
                 parent_screen.calculate_report()
-                self.show_notification("Grading rules and cutoffs updated successfully!")
+                self.show_notification("Grading norms updated successfully!")
             except ValueError:
                 self.show_notification("Please enter valid decimal numbers for all fields.")
 
@@ -1725,7 +1758,8 @@ class DHKOMRProApp(App):
         students = self.db.get_students(status='ACTIVE', class_name=target_class)
 
         if not students:
-            self.show_notification(f"No active students found for Class {target_class}!\nPlease add them in the Student Registry first.")
+            cls_txt = "Ka-Shreni" if str(target_class) == "0" else f"Class {target_class}"
+            self.show_notification(f"No active students found for {cls_txt}!\nPlease add them in the Student Registry first.")
             return
 
         if is_matrix:
@@ -1736,8 +1770,9 @@ class DHKOMRProApp(App):
     def show_matrix_evaluation_dialog(self, exam, students):
         layout = BoxLayout(orientation='vertical', padding=12, spacing=8)
         
+        cls_txt = "Ka-Shreni" if str(exam[4]) == "0" else f"Class {exam[4]}"
         header = Label(
-            text=f"Gunotsav Matrix: Class {exam[4]} ({len(students)} Students)",
+            text=f"Matrix: {cls_txt} ({len(students)} Students)",
             font_size='15sp', bold=True, size_hint_y=None, height='32dp', color=(0.2, 0.8, 1, 1)
         )
         layout.add_widget(header)
@@ -1767,7 +1802,7 @@ class DHKOMRProApp(App):
         scroll.add_widget(grid)
         layout.add_widget(scroll)
 
-        popup = Popup(title='Gunotsav Class Roster Scoring', content=layout, size_hint=(0.92, 0.85))
+        popup = Popup(title='Class Roster Scoring', content=layout, size_hint=(0.92, 0.85))
 
         def save_matrix_scores(instance):
             for s_id, (s_data, s_inp) in student_inputs.items():
@@ -1775,7 +1810,7 @@ class DHKOMRProApp(App):
                     score = float(s_inp.text.strip()) if s_inp.text.strip() else 0.0
                 except ValueError:
                     score = 0.0
-                
+
                 max_marks = float(exam[9]) if exam[9] > 0 else 25.0
                 pct = (score / max_marks) * 100.0 if max_marks > 0 else 0.0
 
@@ -1868,7 +1903,7 @@ class DHKOMRProApp(App):
     def show_add_student_popup(self):
         layout = BoxLayout(orientation='vertical', padding=15, spacing=10)
         name_in = TextInput(hint_text='Student Full Name', multiline=False, size_hint_y=None, height='40dp')
-        class_in = TextInput(hint_text='Class (e.g. 1, 2, 10)', multiline=False, size_hint_y=None, height='40dp')
+        class_in = TextInput(hint_text='Class (0 for Ka-Shreni, 1-12)', multiline=False, size_hint_y=None, height='40dp')
         sec_in = TextInput(hint_text='Section (e.g. A)', text='A', multiline=False, size_hint_y=None, height='40dp')
         roll_in = TextInput(hint_text='Roll Number (e.g. 1)', input_filter='int', multiline=False, size_hint_y=None, height='40dp')
         year_in = TextInput(hint_text='Academic Year (e.g. 2026-2027)', text='2026-2027', multiline=False, size_hint_y=None, height='40dp')
@@ -1881,7 +1916,8 @@ class DHKOMRProApp(App):
                     self.db.add_student(name_in.text, class_in.text, sec_in.text, roll_in.text, year_in.text)
                     popup.dismiss()
                     reg_screen = self.root.get_screen('registry')
-                    reg_screen.refresh_students()
+                    if reg_screen:
+                        Clock.schedule_once(lambda dt: reg_screen.refresh_students(), 0)
                 except sqlite3.IntegrityError:
                     self.show_notification("Student with this Class and Roll already exists.")
             else:
@@ -1901,7 +1937,8 @@ class DHKOMRProApp(App):
         new_status = 'ARCHIVED' if action_text == 'Archive' else 'ACTIVE'
         self.db.set_student_status(student_id, new_status)
         reg_screen = self.root.get_screen('registry')
-        reg_screen.refresh_students()
+        if reg_screen:
+            Clock.schedule_once(lambda dt: reg_screen.refresh_students(), 0)
 
     def export_roster(self):
         export_dir = self.user_data_dir
