@@ -3,7 +3,7 @@
 # (str) Title of your application
 title = DHK OMR Pro
 
-# (str) Package name (lowercase letters and numbers only)
+# (str) Package name (lowercase, no spaces, letters only)
 package.name = dhkomrpro
 
 # (str) Package domain (needed for android packaging)
@@ -25,7 +25,8 @@ source.exclude_dirs = bin, .buildozer, tests
 version = 1.0.0
 
 # (list) Application requirements
-requirements = python3,kivy,pillow,pyjnius
+# Added jpeg and png native recipes to satisfy Pillow's C headers
+requirements = python3,kivy,pillow,pyjnius,jpeg,png
 
 # (str) Supported orientation
 orientation = portrait
@@ -48,6 +49,12 @@ android.api = 33
 
 # (int) Minimum API supported (Android 7.0+)
 android.minapi = 24
+
+# (str) Android SDK build tools version
+android.build_tools_version = 33.0.2
+
+# (str) Android NDK version to use (Pins to stable 25b)
+android.ndk = 25b
 
 # (bool) Auto accept Android SDK license
 android.accept_sdk_license = True
