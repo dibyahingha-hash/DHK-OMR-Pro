@@ -26,7 +26,8 @@ version = 1.0.0
 
 # (list) Application requirements
 # Added jpeg and png native recipes to satisfy Pillow's C headers
-requirements = python3,kivy,pillow<=10.4.0,pyjnius,jpeg,png
+requirements = python3,kivy,pillow,pyjnius
+
 
 
 # (str) Supported orientation
