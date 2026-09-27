@@ -43,7 +43,7 @@ jobs:
             git zip unzip autoconf automake libtool libtool-bin \
             pkg-config zlib1g-dev libncurses-dev libtinfo6 \
             cmake libffi-dev libssl-dev build-essential ccache \
-            libjpeg-dev libpng-dev libc6-dev-i386
+            libjpeg-dev libpng-dev
 
       - name: Install Buildozer and Fixed Cython
         run: |
