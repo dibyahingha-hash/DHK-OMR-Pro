@@ -19,7 +19,6 @@ source.include_exts = py,png,jpg,kv,atlas,json
 version = 0.1
 
 # (list) Application requirements
-# Pinned to Python 3.10 to prevent python-for-android from falling back to Python 3.14
 requirements = python3==3.10.11,hostpython3==3.10.11,kivy,pillow,pyjnius
 
 # (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
@@ -41,11 +40,9 @@ android.minapi = 24
 android.ndk = 25b
 
 # (bool) If True, then skip trying to update the Android sdk
-# This should be True to avoid unexpected updates
 android.skip_update = False
 
 # (bool) If True, then automatically accept SDK license
-# agreements. This is intended for automation only
 android.accept_sdk_license = True
 
 # (str) The Android arch to build for
@@ -56,10 +53,6 @@ android.allow_backup = True
 
 # (str) python-for-android branch to use
 p4a.branch = master
-
-# (str) extra command line arguments to pass when invoking pythonforandroid
-# Forces pip to build from source and avoid broken platform-mismatch wheels
-p4a.extra_args = --no-binary :all:
 
 [buildozer]
 
