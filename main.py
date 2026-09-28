@@ -4,6 +4,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.metrics import dp
+from kivy.clock import mainthread
 
 from database import Database
 from file_picker import launch_android_file_picker
@@ -20,7 +21,6 @@ KV = """
 BoxLayout:
     orientation: 'vertical'
     
-    # Top Bar
     BoxLayout:
         size_hint_y: None
         height: dp(54)
@@ -39,7 +39,6 @@ BoxLayout:
             valign: 'middle'
             text_size: self.size
 
-    # Upload Button
     BoxLayout:
         size_hint_y: None
         height: dp(56)
@@ -49,7 +48,6 @@ BoxLayout:
             background_color: (0.20, 0.55, 0.35, 1)
             on_release: app.select_file()
 
-    # Dynamic Student Roster List
     ScrollView:
         do_scroll_x: False
         BoxLayout:
@@ -73,13 +71,15 @@ class DHKOMRProApp(App):
     def select_file(self):
         launch_android_file_picker(self.on_file_success, self.on_file_error)
 
+    @mainthread
     def on_file_success(self, parsed_students):
         count = self.db.insert_students_bulk(parsed_students)
         self.refresh_student_list()
         self.show_popup("Success", f"Successfully loaded {count} students into database.")
 
+    @mainthread
     def on_file_error(self, message):
-        self.show_popup("Notice", message)
+        self.show_popup("Notice", str(message))
 
     def refresh_student_list(self):
         container = self.root_widget.ids.container
