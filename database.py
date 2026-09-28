@@ -24,7 +24,7 @@ class Database:
             )
         """)
 
-        # 2. Master Answer Key Table
+        # 2. Master Answer Key Table (Locked Master Key)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS answer_keys (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,6 +32,8 @@ class Database:
                 subject TEXT NOT NULL,
                 question_num INTEGER NOT NULL,
                 correct_option INTEGER NOT NULL,
+                is_locked INTEGER DEFAULT 1,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(class_level, subject, question_num)
             )
         """)
@@ -52,40 +54,6 @@ class Database:
             )
         """)
 
-        # Populate a default Class 1 & 2 Answer Key if empty
-        cursor.execute("SELECT COUNT(*) FROM answer_keys WHERE class_level = 'Class 1-2'")
-        if cursor.fetchone()[0] == 0:
-            default_keys = [
-                # Language - I Reading (Q1 to Q5)
-                ('Class 1-2', 'Lang1_Reading', 1, 1),
-                ('Class 1-2', 'Lang1_Reading', 2, 2),
-                ('Class 1-2', 'Lang1_Reading', 3, 1),
-                ('Class 1-2', 'Lang1_Reading', 4, 3),
-                ('Class 1-2', 'Lang1_Reading', 5, 2),
-                # Language - I Writing (Q1 to Q5)
-                ('Class 1-2', 'Lang1_Writing', 1, 1),
-                ('Class 1-2', 'Lang1_Writing', 2, 2),
-                ('Class 1-2', 'Lang1_Writing', 3, 3),
-                ('Class 1-2', 'Lang1_Writing', 4, 1),
-                ('Class 1-2', 'Lang1_Writing', 5, 2),
-                # Language - II (Q1 to Q5)
-                ('Class 1-2', 'Lang2', 1, 1),
-                ('Class 1-2', 'Lang2', 2, 1),
-                ('Class 1-2', 'Lang2', 3, 2),
-                ('Class 1-2', 'Lang2', 4, 3),
-                ('Class 1-2', 'Lang2', 5, 1),
-                # Numeracy (Q1 to Q5)
-                ('Class 1-2', 'Numeracy', 1, 2),
-                ('Class 1-2', 'Numeracy', 2, 1),
-                ('Class 1-2', 'Numeracy', 3, 3),
-                ('Class 1-2', 'Numeracy', 4, 2),
-                ('Class 1-2', 'Numeracy', 5, 1),
-            ]
-            cursor.executemany("""
-                INSERT OR IGNORE INTO answer_keys (class_level, subject, question_num, correct_option)
-                VALUES (?, ?, ?, ?)
-            """, default_keys)
-
         conn.commit()
         conn.close()
 
@@ -94,7 +62,7 @@ class Database:
             return 0
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.executemany("""
+        cursor.execute("""
             INSERT OR REPLACE INTO students (unique_id, student_name, student_class, section, roll_no)
             VALUES (?, ?, ?, ?, ?)
         """, student_list)
@@ -111,18 +79,45 @@ class Database:
         conn.close()
         return rows
 
-    def get_answer_key(self, class_level, subject):
+    def save_master_key_locked(self, class_level, key_dict):
+        """
+        key_dict format:
+        {
+           'Lang1_Reading': {1: 1, 2: 2, 3: 0, 4: 3, 5: 1},
+           'Lang1_Writing': {1: 2, 2: 1, ...},
+           'Lang2': {...},
+           'Numeracy': {...}
+        }
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        for subject, q_map in key_dict.items():
+            for q_num, opt in q_map.items():
+                cursor.execute("""
+                    INSERT OR REPLACE INTO answer_keys (class_level, subject, question_num, correct_option, is_locked)
+                    VALUES (?, ?, ?, ?, 1)
+                """, (class_level, subject, q_num, opt))
+        conn.commit()
+        conn.close()
+
+    def get_master_key(self, class_level):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT question_num, correct_option 
+            SELECT subject, question_num, correct_option 
             FROM answer_keys 
-            WHERE class_level = ? AND subject = ?
-            ORDER BY question_num ASC
-        """, (class_level, subject))
+            WHERE class_level = ?
+            ORDER BY subject, question_num ASC
+        """, (class_level,))
         rows = cursor.fetchall()
         conn.close()
-        return {q_num: correct_opt for q_num, correct_opt in rows}
+        
+        master_map = {}
+        for subj, q_num, opt in rows:
+            if subj not in master_map:
+                master_map[subj] = {}
+            master_map[subj][q_num] = opt
+        return master_map
 
     def save_evaluation(self, unique_id, student_name, class_level, subject, total_q, correct_cnt, score_pct):
         conn = self.get_connection()
