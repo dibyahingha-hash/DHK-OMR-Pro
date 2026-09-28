@@ -3,8 +3,10 @@ from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
+from kivy.uix.camera import Camera
 from kivy.metrics import dp
 from kivy.clock import mainthread
+from kivy.utils import platform
 
 from database import Database
 from file_picker import launch_android_file_picker
@@ -21,9 +23,10 @@ KV = """
 BoxLayout:
     orientation: 'vertical'
     
+    # Header Bar
     BoxLayout:
         size_hint_y: None
-        height: dp(54)
+        height: dp(52)
         padding: [dp(12), dp(6)]
         canvas.before:
             Color:
@@ -32,31 +35,100 @@ BoxLayout:
                 pos: self.pos
                 size: self.size
         Label:
-            text: "DHK OMR Pro - Shiksha Setu Upload"
-            font_size: '15sp'
+            id: title_label
+            text: "DHK OMR Pro - Roster"
+            font_size: '16sp'
             bold: True
             halign: 'left'
             valign: 'middle'
             text_size: self.size
 
+    # Main Dynamic Body (Roster vs Camera)
+    ScreenManager:
+        id: sm
+        
+        # Screen 1: Roster & Ingestion
+        Screen:
+            name: "roster_screen"
+            BoxLayout:
+                orientation: 'vertical'
+                BoxLayout:
+                    size_hint_y: None
+                    height: dp(54)
+                    padding: dp(6)
+                    DHKButton:
+                        text: "Upload Shiksha Setu File (.xlsx)"
+                        background_color: (0.20, 0.55, 0.35, 1)
+                        on_release: app.select_file()
+                ScrollView:
+                    do_scroll_x: False
+                    BoxLayout:
+                        id: roster_container
+                        orientation: 'vertical'
+                        padding: dp(8)
+                        spacing: dp(6)
+                        size_hint_y: None
+                        height: self.minimum_height
+
+        # Screen 2: Live Camera Scanner
+        Screen:
+            name: "scanner_screen"
+            FloatLayout:
+                id: camera_box
+                Camera:
+                    id: camera_feed
+                    resolution: (1280, 720)
+                    play: False
+                    allow_stretch: True
+                    keep_ratio: False
+                    size_hint: (1, 1)
+                    pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+
+                # Sheet Alignment Guide Box Overlay
+                Widget:
+                    canvas:
+                        Color:
+                            rgba: (0, 0.9, 0.2, 0.8)
+                        Line:
+                            rectangle: (self.x + dp(30), self.y + dp(90), self.width - dp(60), self.height - dp(180))
+                            width: 2.5
+
+                Label:
+                    text: "Align OMR sheet edges inside the green frame"
+                    font_size: '13sp'
+                    bold: True
+                    size_hint_y: None
+                    height: dp(30)
+                    pos_hint: {'center_x': 0.5, 'top': 0.95}
+                    canvas.before:
+                        Color:
+                            rgba: (0, 0, 0, 0.6)
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+
+    # Bottom Mode Navigation
     BoxLayout:
         size_hint_y: None
-        height: dp(56)
-        padding: dp(8)
-        DHKButton:
-            text: "Upload Shiksha Setu File (.xlsx)"
-            background_color: (0.20, 0.55, 0.35, 1)
-            on_release: app.select_file()
+        height: dp(54)
+        padding: dp(4)
+        spacing: dp(6)
+        canvas.before:
+            Color:
+                rgba: (0.08, 0.12, 0.18, 1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
 
-    ScrollView:
-        do_scroll_x: False
-        BoxLayout:
-            id: container
-            orientation: 'vertical'
-            padding: dp(10)
-            spacing: dp(8)
-            size_hint_y: None
-            height: self.minimum_height
+        DHKButton:
+            text: "Student Roster"
+            background_color: (0.16, 0.42, 0.70, 1)
+            on_release: app.switch_screen("roster_screen")
+
+        DHKButton:
+            text: "Scan OMR"
+            background_color: (0.80, 0.40, 0.10, 1)
+            on_release: app.switch_screen("scanner_screen")
 """
 
 class DHKOMRProApp(App):
@@ -67,6 +139,26 @@ class DHKOMRProApp(App):
 
     def on_start(self):
         self.refresh_student_list()
+        self.request_camera_permissions()
+
+    def request_camera_permissions(self):
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+            request_permissions([Permission.CAMERA, Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
+
+    def switch_screen(self, screen_name):
+        sm = self.root_widget.ids.sm
+        cam = self.root_widget.ids.camera_feed
+        title = self.root_widget.ids.title_label
+
+        if screen_name == "scanner_screen":
+            sm.current = "scanner_screen"
+            title.text = "DHK OMR Pro - Scanner"
+            cam.play = True
+        else:
+            cam.play = False
+            sm.current = "roster_screen"
+            title.text = "DHK OMR Pro - Roster"
 
     def select_file(self):
         launch_android_file_picker(self.on_file_success, self.on_file_error)
@@ -82,7 +174,7 @@ class DHKOMRProApp(App):
         self.show_popup("Notice", str(message))
 
     def refresh_student_list(self):
-        container = self.root_widget.ids.container
+        container = self.root_widget.ids.roster_container
         container.clear_widgets()
         students = self.db.get_all_students()
 
