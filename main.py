@@ -5,7 +5,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.metrics import dp
-from kivy.clock import mainthread
+from kivy.clock import mainthread, Clock
 from kivy.utils import platform
 
 from database import Database
@@ -43,7 +43,7 @@ BoxLayout:
             valign: 'middle'
             text_size: self.size
 
-    # Separate Screens
+    # Dynamic Screens
     ScreenManager:
         id: sm
         
@@ -70,36 +70,34 @@ BoxLayout:
                         size_hint_y: None
                         height: self.minimum_height
 
-        # Screen 2: Dedicated Scanner View
+        # Screen 2: Live Native Scanner View
         Screen:
             name: "scanner_screen"
-            BoxLayout:
-                orientation: 'vertical'
-                padding: dp(24)
-                spacing: dp(16)
-                
+            FloatLayout:
+                id: scan_layout
+
+                # Green Alignment Frame
+                Widget:
+                    canvas:
+                        Color:
+                            rgba: (0, 1, 0.3, 0.9)
+                        Line:
+                            rectangle: (self.x + dp(24), self.y + dp(80), self.width - dp(48), self.height - dp(160))
+                            width: 2.5
+
                 Label:
-                    text: "Class 1 & 2 Evaluation"
-                    font_size: '18sp'
+                    text: "Align OMR Sheet within the frame"
+                    font_size: '13sp'
                     bold: True
                     size_hint_y: None
-                    height: dp(30)
-                
-                Label:
-                    text: "Lay the OMR sheet flat on a table in good light.\\n\\nTap the button below to snap a picture. The app will automatically extract student responses and score them against the answer key."
-                    halign: 'center'
-                    valign: 'middle'
-                    font_size: '13sp'
-                    color: (0.8, 0.8, 0.8, 1)
-                    text_size: (self.width - dp(20), None)
-                    size_hint_y: 1
-
-                DHKButton:
-                    text: "Capture & Evaluate Sheet"
-                    size_hint_y: None
-                    height: dp(56)
-                    background_color: (0.85, 0.45, 0.10, 1)
-                    on_release: app.launch_camera_scanner()
+                    height: dp(36)
+                    pos_hint: {'center_x': 0.5, 'top': 0.96}
+                    canvas.before:
+                        Color:
+                            rgba: (0, 0, 0, 0.7)
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
 
     # Bottom Tab Navigation Bar
     BoxLayout:
@@ -120,29 +118,115 @@ BoxLayout:
             on_release: app.switch_screen("roster_screen")
 
         DHKButton:
-            text: "OMR Scanner"
-            background_color: (0.24, 0.32, 0.42, 1)
+            text: "Live Scanner"
+            background_color: (0.85, 0.45, 0.10, 1)
             on_release: app.switch_screen("scanner_screen")
 """
 
 class DHKOMRProApp(App):
     def build(self):
         self.db = Database()
+        self.native_cam_active = False
         self.root_widget = Builder.load_string(KV)
         return self.root_widget
 
     def on_start(self):
         self.refresh_student_list()
+        Clock.schedule_once(self.delayed_request_permissions, 0.5)
+
+    def delayed_request_permissions(self, dt):
+        if platform == 'android':
+            try:
+                from android.permissions import request_permissions, Permission
+                request_permissions([Permission.CAMERA, Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
+            except Exception as e:
+                print(f"Permission error: {e}")
 
     def switch_screen(self, screen_name):
         sm = self.root_widget.ids.sm
         title = self.root_widget.ids.title_label
+
         if screen_name == "scanner_screen":
             sm.current = "scanner_screen"
             title.text = "DHK OMR Pro - Scanner"
+            Clock.schedule_once(self.start_native_camera, 0.2)
         else:
+            self.stop_native_camera()
             sm.current = "roster_screen"
             title.text = "DHK OMR Pro - Roster"
+
+    def start_native_camera(self, dt=None):
+        """Starts hardware camera preview directly onto Android window surface."""
+        if platform != 'android' or self.native_cam_active:
+            return
+
+        try:
+            from jnius import autoclass, PythonJavaClass, java_method
+
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            Camera = autoclass('android.hardware.Camera')
+            SurfaceView = autoclass('android.view.SurfaceView')
+            LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
+
+            activity = PythonActivity.mActivity
+            self.surface_view = SurfaceView(activity)
+            self.cam = Camera.open(0)
+
+            # Set orientation for portrait view
+            self.cam.setDisplayOrientation(90)
+
+            class SurfaceCallback(PythonJavaClass):
+                __javainterfaces__ = ['android/view/SurfaceHolder$Callback']
+
+                def __init__(self, cam):
+                    super().__init__()
+                    self.cam = cam
+
+                @java_method('(Landroid/view/SurfaceHolder;)V')
+                def surfaceCreated(self, holder):
+                    try:
+                        self.cam.setPreviewDisplay(holder)
+                        self.cam.startPreview()
+                    except Exception as ex:
+                        print("Surface create err:", ex)
+
+                @java_method('(Landroid/view/SurfaceHolder;III)V')
+                def surfaceChanged(self, holder, format, width, height):
+                    pass
+
+                @java_method('(Landroid/view/SurfaceHolder;)V')
+                def surfaceDestroyed(self, holder):
+                    pass
+
+            self.surface_callback = SurfaceCallback(self.cam)
+            holder = self.surface_view.getHolder()
+            holder.addCallback(self.surface_callback)
+
+            # Insert preview layer directly beneath the Kivy interface
+            params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            activity.addContentView(self.surface_view, params)
+            self.surface_view.setZOrderMediaOverlay(False)
+
+            self.native_cam_active = True
+        except Exception as e:
+            self.show_popup("Camera Init", str(e))
+
+    def stop_native_camera(self):
+        if not self.native_cam_active:
+            return
+        try:
+            if hasattr(self, 'cam') and self.cam is not None:
+                self.cam.stopPreview()
+                self.cam.release()
+                self.cam = None
+
+            if hasattr(self, 'surface_view') and self.surface_view is not None:
+                self.surface_view.setVisibility(8)  # View.GONE = 8
+                self.surface_view = None
+
+            self.native_cam_active = False
+        except Exception as e:
+            print("Camera stop error:", e)
 
     def select_file(self):
         launch_android_file_picker(self.on_file_success, self.on_file_error)
@@ -157,60 +241,6 @@ class DHKOMRProApp(App):
     def on_file_error(self, message):
         self.show_popup("Notice", str(message))
 
-    def launch_camera_scanner(self):
-        """Launches Android native system camera safely."""
-        if platform != 'android':
-            self.show_popup("Info", "Camera requires an Android device.")
-            return
-
-        try:
-            from jnius import autoclass, cast
-            from android import activity
-
-            PythonActivity = autoclass('org.kivy.android.PythonActivity')
-            Intent = autoclass('android.content.Intent')
-            MediaStore = autoclass('android.provider.MediaStore')
-
-            # ACTION_IMAGE_CAPTURE without EXTRA_OUTPUT safely returns the bitmap thumbnail/data
-            intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-            REQUEST_CODE = 4001
-
-            def on_camera_result(request_code, result_code, data):
-                if request_code == REQUEST_CODE:
-                    # -1 is Activity.RESULT_OK
-                    if result_code == -1 and data is not None:
-                        # Extract the captured bitmap
-                        extras = data.getExtras()
-                        if extras is not None and extras.get("data") is not None:
-                            bmp = extras.get("data")
-                            save_path = os.path.join(App.get_running_app().user_data_dir, "omr_capture.png")
-                            
-                            FileOutputStream = autoclass('java.io.FileOutputStream')
-                            CompressFormat = autoclass('android.graphics.Bitmap$CompressFormat')
-                            out_stream = FileOutputStream(save_path)
-                            bmp.compress(CompressFormat.PNG, 100, out_stream)
-                            out_stream.flush()
-                            out_stream.close()
-
-                            self.on_image_captured(save_path)
-                        else:
-                            self.show_popup("Notice", "Could not retrieve image data.")
-                    else:
-                        self.show_popup("Notice", "Scan cancelled.")
-                activity.unbind(on_activity_result=on_camera_result)
-
-            activity.bind(on_activity_result=on_camera_result)
-            current_activity = cast('android.app.Activity', PythonActivity.mActivity)
-            current_activity.startActivityForResult(intent, REQUEST_CODE)
-
-        except Exception as e:
-            self.show_popup("Camera Error", str(e))
-
-    @mainthread
-    def on_image_captured(self, image_path):
-        size_kb = os.path.getsize(image_path) // 1024
-        self.show_popup("Captured!", f"Sheet photo captured ({size_kb} KB).\\nReady for Phase 3 evaluation.")
-
     def refresh_student_list(self):
         container = self.root_widget.ids.roster_container
         container.clear_widgets()
@@ -219,7 +249,7 @@ class DHKOMRProApp(App):
         if not students:
             container.add_widget(
                 Label(
-                    text="No students loaded.\\nTap the green button to upload the Shiksha Setu Excel file.",
+                    text="No students loaded.\nTap the green button to upload the Shiksha Setu Excel file.",
                     halign='center',
                     size_hint_y=None,
                     height=dp(80),
