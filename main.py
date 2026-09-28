@@ -1,10 +1,11 @@
+import os
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.metrics import dp
-from kivy.clock import mainthread, Clock
+from kivy.clock import mainthread
 from kivy.utils import platform
 
 from database import Database
@@ -35,76 +36,39 @@ BoxLayout:
                 size: self.size
         Label:
             id: title_label
-            text: "DHK OMR Pro - Roster"
+            text: "DHK OMR Pro"
             font_size: '16sp'
             bold: True
             halign: 'left'
             valign: 'middle'
             text_size: self.size
 
-    # Main Dynamic Body
-    ScreenManager:
-        id: sm
-        
-        # Screen 1: Roster & Ingestion
-        Screen:
-            name: "roster_screen"
+    # Roster List View
+    BoxLayout:
+        orientation: 'vertical'
+        BoxLayout:
+            size_hint_y: None
+            height: dp(54)
+            padding: dp(6)
+            DHKButton:
+                text: "Upload Shiksha Setu File (.xlsx)"
+                background_color: (0.20, 0.55, 0.35, 1)
+                on_release: app.select_file()
+        ScrollView:
+            do_scroll_x: False
             BoxLayout:
+                id: roster_container
                 orientation: 'vertical'
-                BoxLayout:
-                    size_hint_y: None
-                    height: dp(54)
-                    padding: dp(6)
-                    DHKButton:
-                        text: "Upload Shiksha Setu File (.xlsx)"
-                        background_color: (0.20, 0.55, 0.35, 1)
-                        on_release: app.select_file()
-                ScrollView:
-                    do_scroll_x: False
-                    BoxLayout:
-                        id: roster_container
-                        orientation: 'vertical'
-                        padding: dp(8)
-                        spacing: dp(6)
-                        size_hint_y: None
-                        height: self.minimum_height
+                padding: dp(8)
+                spacing: dp(6)
+                size_hint_y: None
+                height: self.minimum_height
 
-        # Screen 2: Scanner View
-        Screen:
-            name: "scanner_screen"
-            FloatLayout:
-                id: camera_box
-
-                # Sheet Alignment Guide Box Overlay
-                Widget:
-                    canvas:
-                        Color:
-                            rgba: (0, 0.9, 0.2, 0.8)
-                        Line:
-                            rectangle: (self.x + dp(30), self.y + dp(90), self.width - dp(60), self.height - dp(180))
-                            width: 2.5
-
-                Label:
-                    id: scan_status
-                    text: "Align OMR sheet edges inside the green frame"
-                    font_size: '13sp'
-                    bold: True
-                    size_hint_y: None
-                    height: dp(34)
-                    pos_hint: {'center_x': 0.5, 'top': 0.95}
-                    canvas.before:
-                        Color:
-                            rgba: (0, 0, 0, 0.7)
-                        Rectangle:
-                            pos: self.pos
-                            size: self.size
-
-    # Bottom Mode Navigation
+    # Bottom Action Bar
     BoxLayout:
         size_hint_y: None
-        height: dp(54)
-        padding: dp(4)
-        spacing: dp(6)
+        height: dp(56)
+        padding: dp(6)
         canvas.before:
             Color:
                 rgba: (0.08, 0.12, 0.18, 1)
@@ -113,14 +77,9 @@ BoxLayout:
                 size: self.size
 
         DHKButton:
-            text: "Student Roster"
-            background_color: (0.16, 0.42, 0.70, 1)
-            on_release: app.switch_screen("roster_screen")
-
-        DHKButton:
-            text: "Scan OMR"
-            background_color: (0.80, 0.40, 0.10, 1)
-            on_release: app.switch_screen("scanner_screen")
+            text: "Scan Class 1 & 2 OMR Sheet"
+            background_color: (0.85, 0.45, 0.10, 1)
+            on_release: app.launch_camera_scanner()
 """
 
 class DHKOMRProApp(App):
@@ -131,26 +90,6 @@ class DHKOMRProApp(App):
 
     def on_start(self):
         self.refresh_student_list()
-        Clock.schedule_once(self.delayed_request_permissions, 1.0)
-
-    def delayed_request_permissions(self, dt):
-        if platform == 'android':
-            try:
-                from android.permissions import request_permissions, Permission
-                request_permissions([Permission.CAMERA, Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
-            except Exception as e:
-                print(f"Permission error: {e}")
-
-    def switch_screen(self, screen_name):
-        sm = self.root_widget.ids.sm
-        title = self.root_widget.ids.title_label
-
-        if screen_name == "scanner_screen":
-            sm.current = "scanner_screen"
-            title.text = "DHK OMR Pro - Scanner"
-        else:
-            sm.current = "roster_screen"
-            title.text = "DHK OMR Pro - Roster"
 
     def select_file(self):
         launch_android_file_picker(self.on_file_success, self.on_file_error)
@@ -164,6 +103,56 @@ class DHKOMRProApp(App):
     @mainthread
     def on_file_error(self, message):
         self.show_popup("Notice", str(message))
+
+    def launch_camera_scanner(self):
+        """Launches Android native system camera via JNI without broken drivers."""
+        if platform != 'android':
+            self.show_popup("Info", "Camera requires an Android device.")
+            return
+
+        try:
+            from jnius import autoclass, cast
+            from android import activity
+
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            Intent = autoclass('android.content.Intent')
+            MediaStore = autoclass('android.provider.MediaStore')
+            File = autoclass('java.io.File')
+            Uri = autoclass('android.net.Uri')
+
+            # Image destination in app storage
+            storage_dir = App.get_running_app().user_data_dir
+            photo_file = os.path.join(storage_dir, "omr_capture.jpg")
+            image_java_file = File(photo_file)
+
+            intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+            
+            # File URI exposure handling via FileProvider or simple URI
+            uri = Uri.fromFile(image_java_file)
+            intent.putExtra(MediaStore.EXTRA_OUTPUT, uri)
+
+            REQUEST_CODE = 4001
+
+            def on_camera_result(request_code, result_code, data):
+                if request_code == REQUEST_CODE:
+                    # Result -1 is Activity.RESULT_OK
+                    if result_code == -1 and os.path.exists(photo_file):
+                        self.on_image_captured(photo_file)
+                    else:
+                        self.show_popup("Notice", "Scan cancelled or no photo taken.")
+                activity.unbind(on_activity_result=on_camera_result)
+
+            activity.bind(on_activity_result=on_camera_result)
+            current_activity = cast('android.app.Activity', PythonActivity.mActivity)
+            current_activity.startActivityForResult(intent, REQUEST_CODE)
+
+        except Exception as e:
+            self.show_popup("Camera Launch Error", str(e))
+
+    @mainthread
+    def on_image_captured(self, image_path):
+        size_kb = os.path.getsize(image_path) // 1024
+        self.show_popup("Captured!", f"Photo saved ({size_kb} KB).\nReady for evaluation engine.")
 
     def refresh_student_list(self):
         container = self.root_widget.ids.roster_container
