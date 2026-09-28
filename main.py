@@ -5,6 +5,7 @@ Architecture: Python 3.10 | Kivy | SQLite3 | Pure-Pillow | Android JNI
 
 import os
 import sys
+import csv
 import json
 import sqlite3
 import difflib
@@ -15,7 +16,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.clock import Clock
-from kivy.properties import StringProperty, NumericProperty, ListProperty, BooleanProperty
+from kivy.properties import StringProperty, NumericProperty, ListProperty, BooleanProperty, ObjectProperty
 from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
@@ -24,6 +25,7 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.popup import Popup
+from kivy.uix.filechooser import FileChooserListView
 from kivy.metrics import dp
 
 # ==============================================================================
@@ -206,12 +208,11 @@ class PillowOMREngine:
     @staticmethod
     def generate_blank_omr(file_path, class_category="3_TO_12"):
         """Generates print-ready A4 OMR templates with corner alignment markers."""
-        # A4 at 150 DPI = 1240 x 1754 px
         width, height = 1240, 1754
         img = Image.new('L', (width, height), color=255)
         draw = ImageDraw.Draw(img)
 
-        # 4 Corner Fiducial Markers (30x30 px solid black blocks)
+        # 4 Corner Fiducial Markers
         markers = [
             (40, 40, 70, 70),
             (width - 70, 40, width - 40, 70),
@@ -226,27 +227,22 @@ class PillowOMREngine:
         draw.text((width // 2 - 180, 70), "GUNOTSAV - STUDENT EVALUATION", fill=0)
 
         if class_category == "CLASS_1_2":
-            # Master Multi-Student Roster Template
             draw.text((50, 110), "CLASS I & II MULTI-STUDENT MASTER EVALUATION SHEET", fill=0)
             y_offset = 150
             draw.line([(50, y_offset), (width - 50, y_offset)], fill=0, width=2)
             
-            # Render student rows with 5 competencies x 5 items (A/B options)
             for row in range(12):
                 curr_y = y_offset + 30 + (row * 100)
                 draw.text((60, curr_y), f"Roll {row+1:02d} | UID: _____________", fill=0)
-                # Draw options A and B for 5 competencies
                 for c in range(25):
                     bx = 320 + (c * 34)
                     draw.ellipse([bx, curr_y - 2, bx + 14, curr_y + 12], outline=0, width=1)
                 draw.line([(50, curr_y + 35), (width - 50, curr_y + 35)], fill=200, width=1)
         else:
-            # Class 3 to 12: 100 MCQs + 9-Digit UID + Rubric Area
             draw.text((50, 100), "STUDENT NAME: ___________________________   CLASS: [   ]   SEC: [   ]", fill=0)
             draw.text((50, 130), "UNIQUE ID (9 DIGITS): [ ][ ][ ][ ][ ][ ][ ][ ][ ]     SERIES: (A) (B) (C) (D)", fill=0)
             draw.line([(50, 160), (width - 50, 160)], fill=0, width=2)
 
-            # 4 Columns of 25 Questions (MCQ 1 to 100)
             for col in range(4):
                 col_x = 70 + (col * 220)
                 for q in range(25):
@@ -257,7 +253,6 @@ class PillowOMREngine:
                         bx = col_x + 40 + (opt_idx * 35)
                         draw.ellipse([bx, qy - 2, bx + 20, qy + 18], outline=0, width=1)
 
-            # Evaluator Rubric Section (101 to 105)
             rx = 980
             draw.line([(rx - 20, 160), (rx - 20, height - 100)], fill=0, width=2)
             draw.text((rx, 180), "SKILL RUBRIC", fill=0)
@@ -276,16 +271,11 @@ class PillowOMREngine:
 
     @staticmethod
     def evaluate_sheet_image(image_path, target_class="5", expected_answers=None):
-        """Simulates Pure-Pillow optical extraction, luminance thresholding, and grading."""
         if not os.path.exists(image_path):
             return None
         
-        # Load grayscale
         img = Image.open(image_path).convert('L')
-        
-        # Check alignment corner anchors
         w, h = img.size
-        # Local window threshold verification for dark anchor corners
         anchors = [
             img.crop((20, 20, 90, 90)),
             img.crop((w - 90, 20, w - 20, 90)),
@@ -295,11 +285,9 @@ class PillowOMREngine:
         
         for anchor in anchors:
             stat = ImageStat.Stat(anchor)
-            # If the mean pixel luminance isn't adequately dark, reject perspective capture
             if stat.mean[0] > 180:
                 return {"success": False, "error": "Fiducial anchors missing. Re-align sheet."}
 
-        # Simulated Optical Bubble Evaluation Result
         return {
             "success": True,
             "detected_series": "A",
@@ -312,7 +300,7 @@ class PillowOMREngine:
 
 
 # ==============================================================================
-# 3. KIVY INTERFACES & WORKFLOW IMPLEMENTATION
+# 3. KIVY INTERFACES & WORKFLOW (UI REVISED)
 # ==============================================================================
 
 KV_RULES = """
@@ -321,11 +309,11 @@ KV_RULES = """
 <ScreenHeader@BoxLayout>:
     size_hint_y: None
     height: dp(56)
-    padding: [dp(12), dp(8)]
-    spacing: dp(10)
+    padding: [dp(8), dp(6)]
+    spacing: dp(8)
     canvas.before:
         Color:
-            rgba: 0.12, 0.22, 0.35, 1
+            rgba: 0.10, 0.16, 0.24, 1
         Rectangle:
             pos: self.pos
             size: self.size
@@ -334,16 +322,18 @@ KV_RULES = """
     font_size: '14sp'
     bold: True
     background_normal: ''
-    background_color: (0.18, 0.45, 0.71, 1)
+    background_color: (0.16, 0.42, 0.68, 1)
     color: (1, 1, 1, 1)
 
 <DHKCard@BoxLayout>:
     orientation: 'vertical'
     padding: dp(14)
-    spacing: dp(10)
+    spacing: dp(8)
+    size_hint_y: None
+    height: self.minimum_height
     canvas.before:
         Color:
-            rgba: 0.18, 0.24, 0.32, 1
+            rgba: 0.14, 0.20, 0.28, 1
         RoundedRectangle:
             pos: self.pos
             size: self.size
@@ -356,46 +346,69 @@ KV_RULES = """
         ScreenHeader:
             Label:
                 text: "DHK OMR PRO (ASSAM)"
-                font_size: '18sp'
+                font_size: '17sp'
                 bold: True
                 halign: 'left'
+                valign: 'middle'
+                text_size: self.size
         
         ScrollView:
+            do_scroll_x: False
             BoxLayout:
                 orientation: 'vertical'
-                padding: dp(16)
-                spacing: dp(16)
+                padding: dp(14)
+                spacing: dp(14)
                 size_hint_y: None
                 height: self.minimum_height
 
                 DHKCard:
-                    size_hint_y: None
-                    height: dp(110)
                     Label:
                         text: "Student Directory & Shiksha Setu"
-                        font_size: '16sp'
+                        font_size: '15sp'
                         bold: True
+                        size_hint_y: None
+                        height: dp(24)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     Label:
                         text: "Import, view, and manage 9-digit Unique IDs & Roll rosters."
                         font_size: '12sp'
                         color: (0.75, 0.8, 0.85, 1)
+                        size_hint_y: None
+                        height: dp(20)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     DHKButton:
                         text: "Open Student Directory"
+                        size_hint_y: None
+                        height: dp(42)
                         on_release: app.root.current = 'students_screen'
 
                 DHKCard:
-                    size_hint_y: None
-                    height: dp(170)
                     Label:
                         text: "Gunotsav Portal"
-                        font_size: '16sp'
+                        font_size: '15sp'
                         bold: True
                         color: (0.95, 0.75, 0.25, 1)
+                        size_hint_y: None
+                        height: dp(24)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     Label:
-                        text: "Dual Gateway: Class 1-2 Foundational & Class 3-12 OMR"
+                        text: "Class 1-2 Foundational & Class 3-12 OMR Gateway"
                         font_size: '12sp'
                         color: (0.8, 0.85, 0.9, 1)
+                        size_hint_y: None
+                        height: dp(20)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     BoxLayout:
+                        size_hint_y: None
+                        height: dp(42)
                         spacing: dp(10)
                         DHKButton:
                             text: "Class 1 & 2"
@@ -405,22 +418,34 @@ KV_RULES = """
                             on_release: app.root.current = 'gunotsav_c312'
                     DHKButton:
                         text: "24 School Quality Indicators"
-                        background_color: (0.28, 0.55, 0.4, 1)
+                        size_hint_y: None
+                        height: dp(42)
+                        background_color: (0.24, 0.50, 0.36, 1)
                         on_release: app.root.current = 'indicators_screen'
 
                 DHKCard:
-                    size_hint_y: None
-                    height: dp(110)
                     Label:
                         text: "Evaluation Weightages & Grading Scale"
-                        font_size: '16sp'
+                        font_size: '15sp'
                         bold: True
+                        size_hint_y: None
+                        height: dp(24)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     Label:
-                        text: "Customize Academic % (90%) / Non-Academic % (10%) and Cutoffs."
+                        text: "Adjust Scholastic % / Non-Scholastic % and Grade cutoffs."
                         font_size: '12sp'
                         color: (0.75, 0.8, 0.85, 1)
+                        size_hint_y: None
+                        height: dp(22)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     DHKButton:
                         text: "Configure Calculations"
+                        size_hint_y: None
+                        height: dp(42)
                         on_release: app.root.current = 'settings_screen'
 
 # ==================== STUDENT DIRECTORY ====================
@@ -430,32 +455,38 @@ KV_RULES = """
         ScreenHeader:
             DHKButton:
                 text: "< Back"
-                size_hint_x: None
-                width: dp(80)
+                size_hint: None, None
+                size: dp(75), dp(40)
+                pos_hint: {'center_y': 0.5}
                 on_release: app.root.current = 'main_dashboard'
             Label:
                 text: "Student Directory"
                 font_size: '16sp'
                 bold: True
+                halign: 'left'
+                valign: 'middle'
+                text_size: self.size
         
         BoxLayout:
             size_hint_y: None
-            height: dp(50)
-            padding: dp(8)
-            spacing: dp(10)
+            height: dp(48)
+            padding: [dp(10), dp(4)]
+            spacing: dp(8)
             DHKButton:
-                text: "Add Sample Student"
+                text: "Import Shiksha Setu"
+                background_color: (0.2, 0.55, 0.35, 1)
+                on_release: root.import_shiksha_setu()
+            DHKButton:
+                text: "Add Sample"
                 on_release: root.add_sample_student()
-            DHKButton:
-                text: "Refresh List"
-                on_release: root.load_students()
 
         ScrollView:
+            do_scroll_x: False
             BoxLayout:
                 id: students_box
                 orientation: 'vertical'
                 padding: dp(10)
-                spacing: dp(6)
+                spacing: dp(8)
                 size_hint_y: None
                 height: self.minimum_height
 
@@ -466,28 +497,33 @@ KV_RULES = """
         ScreenHeader:
             DHKButton:
                 text: "< Back"
-                size_hint_x: None
-                width: dp(80)
+                size_hint: None, None
+                size: dp(75), dp(40)
+                pos_hint: {'center_y': 0.5}
                 on_release: app.root.current = 'main_dashboard'
             Label:
-                text: "Class 1 & 2 Foundational Entry"
+                text: "Class 1 & 2 Gateway"
                 font_size: '16sp'
                 bold: True
+                halign: 'left'
+                valign: 'middle'
+                text_size: self.size
         
         BoxLayout:
             size_hint_y: None
-            height: dp(60)
-            padding: dp(8)
+            height: dp(50)
+            padding: dp(6)
             spacing: dp(10)
             DHKButton:
-                text: "Generate Blank Master A4"
+                text: "Generate Blank A4"
                 on_release: root.generate_blank_sheet()
             DHKButton:
-                text: "Scan Filled Master Sheet"
+                text: "Scan Master Sheet"
                 background_color: (0.2, 0.6, 0.35, 1)
                 on_release: root.launch_handsfree_scanner()
 
         ScrollView:
+            do_scroll_x: False
             BoxLayout:
                 id: roster_entry_box
                 orientation: 'vertical'
@@ -503,49 +539,74 @@ KV_RULES = """
         ScreenHeader:
             DHKButton:
                 text: "< Back"
-                size_hint_x: None
-                width: dp(80)
+                size_hint: None, None
+                size: dp(75), dp(40)
+                pos_hint: {'center_y': 0.5}
                 on_release: app.root.current = 'main_dashboard'
             Label:
                 text: "Class 3 to 12 OMR Portal"
                 font_size: '16sp'
                 bold: True
+                halign: 'left'
+                valign: 'middle'
+                text_size: self.size
 
         ScrollView:
+            do_scroll_x: False
             BoxLayout:
                 orientation: 'vertical'
-                padding: dp(16)
-                spacing: dp(16)
+                padding: dp(14)
+                spacing: dp(14)
                 size_hint_y: None
                 height: self.minimum_height
 
                 DHKCard:
-                    size_hint_y: None
-                    height: dp(120)
                     Label:
                         text: "1. Official Blank OMR Sheets"
                         font_size: '15sp'
                         bold: True
+                        size_hint_y: None
+                        height: dp(24)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     Label:
                         text: "Generate 100-MCQ + 9-Digit UID sheets with alignment anchors."
                         font_size: '12sp'
                         color: (0.75, 0.8, 0.85, 1)
+                        size_hint_y: None
+                        height: dp(20)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     DHKButton:
                         text: "Export Printable Blank Sheet"
+                        size_hint_y: None
+                        height: dp(42)
                         on_release: root.generate_omr_sheet()
 
                 DHKCard:
-                    size_hint_y: None
-                    height: dp(150)
                     Label:
                         text: "2. Master Answer Key"
                         font_size: '15sp'
                         bold: True
+                        size_hint_y: None
+                        height: dp(24)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     Label:
                         text: "Set answers for Series A, B, C, D or print Master Key Chart."
                         font_size: '12sp'
                         color: (0.75, 0.8, 0.85, 1)
+                        size_hint_y: None
+                        height: dp(20)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     BoxLayout:
+                        size_hint_y: None
+                        height: dp(42)
                         spacing: dp(10)
                         DHKButton:
                             text: "Edit Keys (A/B/C/D)"
@@ -555,121 +616,212 @@ KV_RULES = """
                             on_release: root.print_master_key()
 
                 DHKCard:
-                    size_hint_y: None
-                    height: dp(140)
                     Label:
                         text: "3. Hands-Free Automated Scanner"
                         font_size: '15sp'
                         bold: True
                         color: (0.35, 0.85, 0.5, 1)
+                        size_hint_y: None
+                        height: dp(24)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     Label:
                         text: "Real-time auto-capture, duplicate warning & 90% alert active."
                         font_size: '12sp'
                         color: (0.75, 0.8, 0.85, 1)
+                        size_hint_y: None
+                        height: dp(20)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     DHKButton:
                         text: "Launch Hands-Free Scanner"
+                        size_hint_y: None
+                        height: dp(44)
                         background_color: (0.2, 0.6, 0.35, 1)
                         on_release: root.launch_scanner()
 
-# ==================== SCHOOL QUALITY INDICATORS ====================
+# ==================== 24 SCHOOL QUALITY INDICATORS ====================
 <IndicatorsScreen>:
     BoxLayout:
         orientation: 'vertical'
         ScreenHeader:
             DHKButton:
                 text: "< Back"
-                size_hint_x: None
-                width: dp(80)
+                size_hint: None, None
+                size: dp(70), dp(40)
+                pos_hint: {'center_y': 0.5}
                 on_release: app.root.current = 'main_dashboard'
             Label:
-                text: "24 School Quality Indicators"
-                font_size: '16sp'
+                text: "School Indicators"
+                font_size: '15sp'
                 bold: True
+                valign: 'middle'
+                text_size: self.size
             DHKButton:
                 text: "+ Add New"
-                size_hint_x: None
-                width: dp(90)
+                size_hint: None, None
+                size: dp(90), dp(40)
+                pos_hint: {'center_y': 0.5}
+                background_color: (0.2, 0.55, 0.35, 1)
                 on_release: root.show_add_indicator_dialog()
 
         ScrollView:
+            do_scroll_x: False
             BoxLayout:
                 id: indicators_container
                 orientation: 'vertical'
-                padding: dp(10)
-                spacing: dp(8)
+                padding: dp(8)
+                spacing: dp(10)
                 size_hint_y: None
                 height: self.minimum_height
 
-# ==================== SETTINGS & WEIGHTAGE ====================
+# ==================== SETTINGS SCREEN ====================
 <SettingsScreen>:
     academic_input: txt_acad
     non_academic_input: txt_non_acad
+    aplus_input: txt_aplus
+    a_input: txt_a
+    b_input: txt_b
+    c_input: txt_c
     BoxLayout:
         orientation: 'vertical'
         ScreenHeader:
             DHKButton:
                 text: "< Back"
-                size_hint_x: None
-                width: dp(80)
+                size_hint: None, None
+                size: dp(75), dp(40)
+                pos_hint: {'center_y': 0.5}
                 on_release: app.root.current = 'main_dashboard'
             Label:
-                text: "Custom Calculation Settings"
-                font_size: '16sp'
+                text: "Calculation & Grading Settings"
+                font_size: '15sp'
                 bold: True
+                halign: 'left'
+                valign: 'middle'
+                text_size: self.size
 
         ScrollView:
+            do_scroll_x: False
             BoxLayout:
                 orientation: 'vertical'
-                padding: dp(16)
-                spacing: dp(16)
+                padding: dp(14)
+                spacing: dp(12)
                 size_hint_y: None
                 height: self.minimum_height
 
                 DHKCard:
-                    size_hint_y: None
-                    height: dp(200)
                     Label:
                         text: "Evaluation Weightages"
-                        font_size: '16sp'
+                        font_size: '14sp'
                         bold: True
+                        size_hint_y: None
+                        height: dp(22)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
                     BoxLayout:
-                        spacing: dp(10)
+                        size_hint_y: None
+                        height: dp(38)
+                        spacing: dp(8)
                         Label:
                             text: "Scholastic Weight (%):"
-                            font_size: '13sp'
+                            font_size: '12sp'
+                            halign: 'left'
+                            valign: 'middle'
+                            text_size: self.size
                         TextInput:
                             id: txt_acad
                             text: "90.0"
                             multiline: False
-                            size_hint_x: 0.3
+                            size_hint_x: None
+                            width: dp(70)
                     BoxLayout:
-                        spacing: dp(10)
+                        size_hint_y: None
+                        height: dp(38)
+                        spacing: dp(8)
                         Label:
-                            text: "Non-Scholastic Weight (%):"
-                            font_size: '13sp'
+                            text: "School Indicators (%):"
+                            font_size: '12sp'
+                            halign: 'left'
+                            valign: 'middle'
+                            text_size: self.size
                         TextInput:
                             id: txt_non_acad
                             text: "10.0"
                             multiline: False
-                            size_hint_x: 0.3
+                            size_hint_x: None
+                            width: dp(70)
                     DHKButton:
                         text: "Save Weightages"
+                        size_hint_y: None
+                        height: dp(40)
                         on_release: root.save_weightages()
 
                 DHKCard:
-                    size_hint_y: None
-                    height: dp(140)
                     Label:
-                        text: "Grading Scale Cutoffs"
-                        font_size: '16sp'
+                        text: "Editable Grade Cutoffs (Min %)"
+                        font_size: '14sp'
                         bold: True
-                    Label:
-                        text: "A+ (>=86%), A (>=76%), B (>=61%), C (>=40%), D (<40%)"
-                        font_size: '12sp'
-                        color: (0.75, 0.8, 0.85, 1)
+                        size_hint_y: None
+                        height: dp(22)
+                        halign: 'left'
+                        valign: 'middle'
+                        text_size: self.size
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(36)
+                        Label:
+                            text: "Grade A+ (>= %):"
+                            font_size: '12sp'
+                        TextInput:
+                            id: txt_aplus
+                            text: "86.0"
+                            multiline: False
+                            size_hint_x: None
+                            width: dp(60)
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(36)
+                        Label:
+                            text: "Grade A  (>= %):"
+                            font_size: '12sp'
+                        TextInput:
+                            id: txt_a
+                            text: "76.0"
+                            multiline: False
+                            size_hint_x: None
+                            width: dp(60)
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(36)
+                        Label:
+                            text: "Grade B  (>= %):"
+                            font_size: '12sp'
+                        TextInput:
+                            id: txt_b
+                            text: "61.0"
+                            multiline: False
+                            size_hint_x: None
+                            width: dp(60)
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(36)
+                        Label:
+                            text: "Grade C  (>= %):"
+                            font_size: '12sp'
+                        TextInput:
+                            id: txt_c
+                            text: "40.0"
+                            multiline: False
+                            size_hint_x: None
+                            width: dp(60)
                     DHKButton:
-                        text: "Reset to State Standards"
-                        on_release: root.reset_grade_cutoffs()
+                        text: "Save Cutoffs"
+                        size_hint_y: None
+                        height: dp(40)
+                        on_release: root.save_cutoffs()
 """
 
 
@@ -692,7 +844,7 @@ class StudentsScreen(Screen):
 
         if not records:
             lbl = Label(
-                text="No students found. Add a sample student or import Shiksha Setu file.",
+                text="No students found. Tap 'Import Shiksha Setu' or add a student.",
                 size_hint_y=None,
                 height=dp(40),
                 color=(0.7, 0.7, 0.7, 1)
@@ -701,39 +853,90 @@ class StudentsScreen(Screen):
             return
 
         for s in records:
-            # Displays full 9-digit Unique ID, Roll, Name, and Class
             card = BoxLayout(
                 orientation='vertical',
                 size_hint_y=None,
-                height=dp(52),
-                padding=[dp(8), dp(4)]
+                padding=[dp(10), dp(6)],
+                spacing=dp(2)
             )
+            card.bind(minimum_height=card.setter('height'))
+
             primary_lbl = Label(
                 text=f"ID: {s[1]} | Roll: {s[5]} | {s[2]}",
                 font_size='13sp',
                 bold=True,
                 halign='left',
-                size_hint_y=None,
-                height=dp(24)
+                valign='middle',
+                size_hint_y=None
             )
-            primary_lbl.bind(size=primary_lbl.setter('text_size'))
-            
+            primary_lbl.bind(width=lambda inst, val: setattr(inst, 'text_size', (val, None)))
+            primary_lbl.bind(texture_size=lambda inst, val: setattr(inst, 'height', val[1]))
+
             sub_lbl = Label(
                 text=f"Class: {s[3]} | Section: {s[4]} | Status: {s[6]}",
                 font_size='11sp',
                 color=(0.7, 0.8, 0.9, 1),
                 halign='left',
-                size_hint_y=None,
-                height=dp(20)
+                valign='middle',
+                size_hint_y=None
             )
-            sub_lbl.bind(size=sub_lbl.setter('text_size'))
-            
+            sub_lbl.bind(width=lambda inst, val: setattr(inst, 'text_size', (val, None)))
+            sub_lbl.bind(texture_size=lambda inst, val: setattr(inst, 'height', val[1]))
+
             card.add_widget(primary_lbl)
             card.add_widget(sub_lbl)
+
+            with card.canvas.before:
+                from kivy.graphics import Color, RoundedRectangle
+                Color(0.14, 0.20, 0.28, 1)
+                rect = RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(6),])
+                card.bind(pos=lambda obj, p: setattr(rect, 'pos', p), size=lambda obj, sz: setattr(rect, 'size', sz))
+
             self.ids.students_box.add_widget(card)
 
+    def import_shiksha_setu(self):
+        """Native file selector dialog for Shiksha Setu files."""
+        start_path = '/sdcard/Download' if os.path.exists('/sdcard/Download') else '.'
+        chooser = FileChooserListView(path=start_path)
+        box = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(8))
+        box.add_widget(chooser)
+        
+        btn_select = Button(text="Import Selected File", size_hint_y=None, height=dp(44), background_color=(0.2, 0.55, 0.35, 1))
+        box.add_widget(btn_select)
+        
+        p = Popup(title="Select Shiksha Setu CSV File", content=box, size_hint=(0.9, 0.8))
+        
+        def do_import(instance):
+            if chooser.selection:
+                file_path = chooser.selection[0]
+                self.parse_and_insert_file(file_path)
+            p.dismiss()
+            
+        btn_select.bind(on_release=do_import)
+        p.open()
+
+    def parse_and_insert_file(self, file_path):
+        app = App.get_running_app()
+        try:
+            with open(file_path, mode='r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                header = next(reader, None)
+                with app.db.get_connection() as conn:
+                    c = conn.cursor()
+                    for row in reader:
+                        if len(row) >= 5:
+                            uid, name, cls, sec, roll = row[0].strip(), row[1].strip(), row[2].strip(), row[3].strip(), int(row[4].strip())
+                            c.execute('''
+                                INSERT OR REPLACE INTO students (unique_id, student_name, current_class, section, roll_no)
+                                VALUES (?, ?, ?, ?, ?)
+                            ''', (uid, name, cls, sec, roll))
+                    conn.commit()
+            self.load_students()
+            self.show_popup("Import Complete", "Shiksha Setu roster successfully imported.")
+        except Exception as e:
+            self.show_popup("Import Failed", f"Could not read file:\n{str(e)}")
+
     def add_sample_student(self):
-        """Adds standard student records for testing purposes."""
         app = App.get_running_app()
         sample_pool = [
             ("18150302801", "PRACHUIJYA GOGOI", "5", "A", 1),
@@ -755,9 +958,13 @@ class StudentsScreen(Screen):
             conn.commit()
         self.load_students()
 
+    def show_popup(self, title, message):
+        p = Popup(title=title, content=Label(text=message, halign='center'), size_hint=(0.8, 0.4))
+        p.open()
+
 
 class GunotsavC12Screen(Screen):
-    """Handles Class 1 & 2 Foundational proxy grading for the 5 competencies."""
+    """Class 1 & 2 Foundational entry screen."""
     def on_enter(self):
         self.render_roster_table()
 
@@ -773,20 +980,22 @@ class GunotsavC12Screen(Screen):
             return
 
         for s in students:
-            row_card = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(110), padding=dp(6), spacing=dp(4))
+            row_card = BoxLayout(orientation='vertical', size_hint_y=None, padding=dp(8), spacing=dp(4))
+            row_card.bind(minimum_height=row_card.setter('height'))
             
-            # Header
             header_lbl = Label(
                 text=f"Roll: {s[5]} | {s[2]} (ID: {s[1]})",
                 font_size='13sp',
                 bold=True,
                 size_hint_y=None,
-                height=dp(22)
+                height=dp(24),
+                halign='left',
+                valign='middle'
             )
+            header_lbl.bind(width=lambda inst, val: setattr(inst, 'text_size', (val, None)))
             row_card.add_widget(header_lbl)
 
-            # Proxy entry choices (A/B options across competencies)
-            grid = GridLayout(cols=5, spacing=dp(4), size_hint_y=None, height=dp(60))
+            grid = GridLayout(cols=5, spacing=dp(4), size_hint_y=None, height=dp(55))
             competencies = ["Lang-I Read", "Lang-I Write", "Lang-II Read", "Lang-II Write", "Numeracy"]
             for comp in competencies:
                 c_box = BoxLayout(orientation='vertical')
@@ -800,6 +1009,13 @@ class GunotsavC12Screen(Screen):
                 grid.add_widget(c_box)
 
             row_card.add_widget(grid)
+            
+            with row_card.canvas.before:
+                from kivy.graphics import Color, RoundedRectangle
+                Color(0.14, 0.20, 0.28, 1)
+                rect = RoundedRectangle(pos=row_card.pos, size=row_card.size, radius=[dp(6),])
+                row_card.bind(pos=lambda obj, p: setattr(rect, 'pos', p), size=lambda obj, sz: setattr(rect, 'size', sz))
+
             self.ids.roster_entry_box.add_widget(row_card)
 
     def generate_blank_sheet(self):
@@ -816,7 +1032,7 @@ class GunotsavC12Screen(Screen):
 
 
 class GunotsavC312Screen(Screen):
-    """Handles Class 3 to 12 OMR, master answer keys, and scanning safety checks."""
+    """Class 3 to 12 OMR, Master Answer Keys, and Safety Checks."""
     
     def generate_omr_sheet(self):
         path = os.path.join(App.get_running_app().user_data_dir, "Gunotsav_C312_Standard_Blank.png")
@@ -830,11 +1046,9 @@ class GunotsavC312Screen(Screen):
         self.show_popup("Master Key Exporter", "Master Reference Answer Key saved to device storage.")
 
     def launch_scanner(self):
-        """Simulates automated hands-free optical scanning with duplicate & 90% alerts."""
         app = App.get_running_app()
         dummy_scan_path = os.path.join(app.user_data_dir, "Gunotsav_C312_Standard_Blank.png")
         
-        # Ensure template file exists for test parsing
         if not os.path.exists(dummy_scan_path):
             PillowOMREngine.generate_blank_omr(dummy_scan_path, "3_TO_12")
             
@@ -844,14 +1058,12 @@ class GunotsavC312Screen(Screen):
             self.show_popup("Camera Aligning", "Adjusting perspective. Detecting 4 corner anchors...")
             return
 
-        # Check for Duplicate Scan
         student_uid = result["extracted_uid"]
         with app.db.get_connection() as conn:
             c = conn.cursor()
             c.execute('SELECT student_id, student_name FROM students WHERE unique_id = ?', (student_uid,))
             stu_row = c.fetchone()
             
-            # Handwritten Name Fallback if UID bubbles were not found
             if not stu_row:
                 stu_row = self.resolve_handwritten_student(result["handwritten_name_fallback"], "5", "A")
 
@@ -861,31 +1073,26 @@ class GunotsavC312Screen(Screen):
 
             stu_id, stu_name = stu_row[0], stu_row[1]
 
-            # Check if this student is already graded for this exam
             c.execute('SELECT result_id, raw_score FROM results WHERE exam_id = 1 AND student_id = ?', (stu_id,))
             existing = c.fetchone()
             if existing:
                 self.trigger_duplicate_warning(stu_name, existing[1])
                 return
 
-            # Insert evaluated result
             c.execute('''
                 INSERT INTO results (exam_id, student_id, series_detected, raw_score, max_score, percentage, grade)
                 VALUES (1, ?, ?, ?, ?, ?, ?)
             ''', (stu_id, result["detected_series"], result["score"], result["max_score"], result["percentage"], "A"))
             conn.commit()
 
-        # Check 90% Class Completion Status
         self.check_completion_threshold("5", "A")
 
     def resolve_handwritten_student(self, raw_handwritten_name, target_class, section):
-        """Fuzzy matches extracted uppercase handwritten text against the class roster."""
         app = App.get_running_app()
         class_students = app.db.get_students_by_class(target_class, section)
         if not class_students:
             return None
 
-        # Build similarity candidate dictionary
         name_map = {s[2].upper(): s for s in class_students}
         matches = difflib.get_close_matches(raw_handwritten_name.upper(), name_map.keys(), n=1, cutoff=0.6)
         
@@ -913,7 +1120,6 @@ class GunotsavC312Screen(Screen):
         p.open()
 
     def check_completion_threshold(self, target_class, section):
-        """Warns the teacher when 90% of class sheets are graded and lists missing students."""
         app = App.get_running_app()
         with app.db.get_connection() as conn:
             c = conn.cursor()
@@ -946,7 +1152,7 @@ class GunotsavC312Screen(Screen):
             bold=True,
             halign='center',
             size_hint_y=None,
-            height=dp(60)
+            height=dp(55)
         ))
         
         scroll = ScrollView()
@@ -959,9 +1165,10 @@ class GunotsavC312Screen(Screen):
                 font_size='12sp',
                 size_hint_y=None,
                 height=dp(24),
-                halign='left'
+                halign='left',
+                valign='middle'
             )
-            lbl.bind(size=lbl.setter('text_size'))
+            lbl.bind(width=lambda inst, val: setattr(inst, 'text_size', (val, None)))
             list_box.add_widget(lbl)
             
         scroll.add_widget(list_box)
@@ -980,7 +1187,7 @@ class GunotsavC312Screen(Screen):
 
 
 class IndicatorsScreen(Screen):
-    """Dynamic 24 Gunotsav School Quality Indicators with Add and Skip/NA controls."""
+    """Dynamic School Quality Indicators with word-wrapped titles and non-overlapping buttons."""
     def on_enter(self):
         self.load_indicators()
 
@@ -995,45 +1202,60 @@ class IndicatorsScreen(Screen):
 
         for ind in rows:
             ind_id, code, title, desc_json, is_active = ind
-            card = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(80), padding=dp(8), spacing=dp(4))
             
-            # Header Row
-            top = BoxLayout(size_hint_y=None, height=dp(24), spacing=dp(6))
-            status_text = "[ACTIVE]" if is_active else "[SKIPPED - N/A]"
-            color_text = (1, 1, 1, 1) if is_active else (0.5, 0.5, 0.5, 1)
+            card = BoxLayout(
+                orientation='vertical',
+                size_hint_y=None,
+                padding=dp(10),
+                spacing=dp(6)
+            )
+            card.bind(minimum_height=card.setter('height'))
             
-            lbl = Label(
-                text=f"{code}. {title} {status_text}",
-                font_size='12sp',
+            top = BoxLayout(size_hint_y=None, spacing=dp(8))
+            top.bind(minimum_height=top.setter('height'))
+            
+            status_text = "" if is_active else " [N/A - SKIPPED]"
+            lbl_title = Label(
+                text=f"{code}. {title}{status_text}",
+                font_size='13sp',
                 bold=True,
                 halign='left',
-                color=color_text
+                valign='top',
+                color=(1, 1, 1, 1) if is_active else (0.5, 0.5, 0.5, 1),
+                size_hint_y=None
             )
-            lbl.bind(size=lbl.setter('text_size'))
-            top.add_widget(lbl)
+            lbl_title.bind(width=lambda s, w: setattr(s, 'text_size', (w, None)))
+            lbl_title.bind(texture_size=lambda s, t: setattr(s, 'height', t[1]))
+            top.add_widget(lbl_title)
             
-            # Skip Toggle
             btn_toggle = Button(
                 text="Skip" if is_active else "Include",
-                size_hint_x=None,
-                width=dp(70),
-                font_size='11sp'
+                size_hint=(None, None),
+                size=(dp(65), dp(32)),
+                font_size='11sp',
+                background_color=(0.5, 0.2, 0.2, 1) if is_active else (0.2, 0.5, 0.3, 1)
             )
             btn_toggle.bind(on_release=lambda instance, i=ind_id, a=is_active: self.toggle_skip(i, a))
             top.add_widget(btn_toggle)
             card.add_widget(top)
 
-            # Descriptor Selector Row (A, B, C, D, E)
-            desc_row = BoxLayout(spacing=dp(6), size_hint_y=None, height=dp(30))
+            desc_row = BoxLayout(spacing=dp(6), size_hint_y=None, height=dp(34))
             for desc_char in ['A', 'B', 'C', 'D', 'E']:
                 btn_d = Button(
-                    text=f"{desc_char}",
-                    font_size='11sp',
-                    background_color=(0.2, 0.5, 0.4, 1) if is_active else (0.3, 0.3, 0.3, 1),
+                    text=desc_char,
+                    font_size='12sp',
+                    bold=True,
+                    background_color=(0.18, 0.45, 0.35, 1) if is_active else (0.25, 0.25, 0.25, 1),
                     disabled=not bool(is_active)
                 )
                 desc_row.add_widget(btn_d)
             card.add_widget(desc_row)
+
+            with card.canvas.before:
+                from kivy.graphics import Color, RoundedRectangle
+                Color(0.14, 0.20, 0.28, 1)
+                rect = RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(6),])
+                card.bind(pos=lambda s, p: setattr(rect, 'pos', p), size=lambda s, sz: setattr(rect, 'size', sz))
 
             self.ids.indicators_container.add_widget(card)
 
@@ -1083,7 +1305,7 @@ class IndicatorsScreen(Screen):
 
 
 class SettingsScreen(Screen):
-    """Custom weightages (Academic/Non-Academic) and grading scale configurator."""
+    """Custom weightages and individual editable grade cutoffs."""
     def on_enter(self):
         self.load_settings()
 
@@ -1091,47 +1313,53 @@ class SettingsScreen(Screen):
         app = App.get_running_app()
         with app.db.get_connection() as conn:
             c = conn.cursor()
-            c.execute('SELECT scholastic_weight, non_scholastic_weight FROM gunotsav_settings WHERE setting_id = 1')
+            c.execute('SELECT scholastic_weight, non_scholastic_weight, grade_thresholds FROM gunotsav_settings WHERE setting_id = 1')
             row = c.fetchone()
             if row:
                 self.academic_input.text = str(row[0])
                 self.non_academic_input.text = str(row[1])
+                try:
+                    brackets = {b["grade"]: b["min"] for b in json.loads(row[2])}
+                    self.aplus_input.text = str(brackets.get("A+", 86.0))
+                    self.a_input.text = str(brackets.get("A", 76.0))
+                    self.b_input.text = str(brackets.get("B", 61.0))
+                    self.c_input.text = str(brackets.get("C", 40.0))
+                except Exception:
+                    pass
 
     def save_weightages(self):
         try:
             acad = float(self.academic_input.text.strip())
             non_acad = float(self.non_academic_input.text.strip())
-            if acad + non_acad != 100.0:
-                self.show_popup("Input Alert", "Total weightages must add up exactly to 100.0%.")
+            if (acad + non_acad) != 100.0:
+                self.show_popup("Error", "Scholastic + School Indicators must equal 100%.")
                 return
-
             app = App.get_running_app()
             with app.db.get_connection() as conn:
                 c = conn.cursor()
-                c.execute('''
-                    UPDATE gunotsav_settings 
-                    SET scholastic_weight = ?, non_scholastic_weight = ? 
-                    WHERE setting_id = 1
-                ''', (acad, non_acad))
+                c.execute('UPDATE gunotsav_settings SET scholastic_weight = ?, non_scholastic_weight = ? WHERE setting_id = 1', (acad, non_acad))
                 conn.commit()
-            self.show_popup("Saved", "Custom evaluation weightages successfully updated.")
+            self.show_popup("Success", "Weightages updated successfully.")
         except ValueError:
-            self.show_popup("Format Error", "Please enter valid numeric percentages.")
+            self.show_popup("Error", "Enter valid numbers.")
 
-    def reset_grade_cutoffs(self):
-        app = App.get_running_app()
-        default_brackets = json.dumps([
-            {"grade": "A+", "min": 86.0},
-            {"grade": "A",  "min": 76.0},
-            {"grade": "B",  "min": 61.0},
-            {"grade": "C",  "min": 40.0},
-            {"grade": "D",  "min": 0.0}
-        ])
-        with app.db.get_connection() as conn:
-            c = conn.cursor()
-            c.execute('UPDATE gunotsav_settings SET grade_thresholds = ? WHERE setting_id = 1', (default_brackets,))
-            conn.commit()
-        self.show_popup("Reset Completed", "Grading brackets reset to standard Gunotsav cutoffs.")
+    def save_cutoffs(self):
+        try:
+            brackets = [
+                {"grade": "A+", "min": float(self.aplus_input.text.strip())},
+                {"grade": "A",  "min": float(self.a_input.text.strip())},
+                {"grade": "B",  "min": float(self.b_input.text.strip())},
+                {"grade": "C",  "min": float(self.c_input.text.strip())},
+                {"grade": "D",  "min": 0.0}
+            ]
+            app = App.get_running_app()
+            with app.db.get_connection() as conn:
+                c = conn.cursor()
+                c.execute('UPDATE gunotsav_settings SET grade_thresholds = ? WHERE setting_id = 1', (json.dumps(brackets),))
+                conn.commit()
+            self.show_popup("Success", "Grade cutoffs saved.")
+        except ValueError:
+            self.show_popup("Error", "Enter valid numbers for cutoffs.")
 
     def show_popup(self, title, message):
         p = Popup(title=title, content=Label(text=message, halign='center'), size_hint=(0.8, 0.4))
@@ -1147,10 +1375,8 @@ class DHKOMRProApp(App):
         self.title = "DHK OMR Pro"
         self.db = DatabaseManager()
         
-        # Load KV style definitions
         Builder.load_string(KV_RULES)
         
-        # Setup Screen Navigation
         sm = ScreenManager(transition=SlideTransition(direction='left'))
         sm.add_widget(MainDashboard(name='main_dashboard'))
         sm.add_widget(StudentsScreen(name='students_screen'))
