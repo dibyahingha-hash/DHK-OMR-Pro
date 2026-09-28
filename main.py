@@ -3,9 +3,8 @@ from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
-from kivy.uix.camera import Camera
 from kivy.metrics import dp
-from kivy.clock import mainthread
+from kivy.clock import mainthread, Clock
 from kivy.utils import platform
 
 from database import Database
@@ -43,7 +42,7 @@ BoxLayout:
             valign: 'middle'
             text_size: self.size
 
-    # Main Dynamic Body (Roster vs Camera)
+    # Main Dynamic Body
     ScreenManager:
         id: sm
         
@@ -70,19 +69,11 @@ BoxLayout:
                         size_hint_y: None
                         height: self.minimum_height
 
-        # Screen 2: Live Camera Scanner
+        # Screen 2: Scanner View
         Screen:
             name: "scanner_screen"
             FloatLayout:
                 id: camera_box
-                Camera:
-                    id: camera_feed
-                    resolution: (1280, 720)
-                    play: False
-                    allow_stretch: True
-                    keep_ratio: False
-                    size_hint: (1, 1)
-                    pos_hint: {'center_x': 0.5, 'center_y': 0.5}
 
                 # Sheet Alignment Guide Box Overlay
                 Widget:
@@ -94,15 +85,16 @@ BoxLayout:
                             width: 2.5
 
                 Label:
+                    id: scan_status
                     text: "Align OMR sheet edges inside the green frame"
                     font_size: '13sp'
                     bold: True
                     size_hint_y: None
-                    height: dp(30)
+                    height: dp(34)
                     pos_hint: {'center_x': 0.5, 'top': 0.95}
                     canvas.before:
                         Color:
-                            rgba: (0, 0, 0, 0.6)
+                            rgba: (0, 0, 0, 0.7)
                         Rectangle:
                             pos: self.pos
                             size: self.size
@@ -139,24 +131,24 @@ class DHKOMRProApp(App):
 
     def on_start(self):
         self.refresh_student_list()
-        self.request_camera_permissions()
+        Clock.schedule_once(self.delayed_request_permissions, 1.0)
 
-    def request_camera_permissions(self):
+    def delayed_request_permissions(self, dt):
         if platform == 'android':
-            from android.permissions import request_permissions, Permission
-            request_permissions([Permission.CAMERA, Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
+            try:
+                from android.permissions import request_permissions, Permission
+                request_permissions([Permission.CAMERA, Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
+            except Exception as e:
+                print(f"Permission error: {e}")
 
     def switch_screen(self, screen_name):
         sm = self.root_widget.ids.sm
-        cam = self.root_widget.ids.camera_feed
         title = self.root_widget.ids.title_label
 
         if screen_name == "scanner_screen":
             sm.current = "scanner_screen"
             title.text = "DHK OMR Pro - Scanner"
-            cam.play = True
         else:
-            cam.play = False
             sm.current = "roster_screen"
             title.text = "DHK OMR Pro - Roster"
 
