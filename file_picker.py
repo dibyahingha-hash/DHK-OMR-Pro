@@ -1,16 +1,42 @@
-
 import os
 import zipfile
+import re
 import xml.etree.ElementTree as ET
 from kivy.utils import platform
 from kivy.app import App
 
+def extract_class_and_section(raw_text):
+    """
+    Parses strings like 'Class-III Section A', 'Class-V', 'Class-I', 'Ka-Shreni / Balbatika'
+    Returns tuple: (class_str, section_str)
+    """
+    text = str(raw_text).strip()
+    roman_map = {'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5',
+                 'VI': '6', 'VII': '7', 'VIII': '8', 'IX': '9', 'X': '10',
+                 'XI': '11', 'XII': '12'}
+
+    sec_match = re.search(r'Section\s*([A-Za-z])', text, re.IGNORECASE)
+    section = sec_match.group(1).upper() if sec_match else 'A'
+
+    # Check Roman numerals (e.g., Class-III)
+    rom_match = re.search(r'Class-?\s*([IVXLCDM]+)', text, re.IGNORECASE)
+    if rom_match:
+        rom = rom_match.group(1).upper()
+        if rom in roman_map:
+            return roman_map[rom], section
+
+    # Check Digits (e.g., Class 3, Class-5)
+    num_match = re.search(r'Class-?\s*(\d+)', text, re.IGNORECASE)
+    if num_match:
+        return num_match.group(1), section
+
+    # Handle Pre-primary / Balvatika / Ka-Shreni
+    if any(k in text.lower() for k in ['ka-shreni', 'balbatika', 'balvatika', 'ukg', 'pp1']):
+        return 'PP', section
+
+    return '1', section
+
 def parse_shiksha_xlsx(file_path):
-    """
-    Parses a Shiksha Setu .xlsx file directly via standard zipfile & XML.
-    Bypasses school metadata header rows and extracts:
-    (Unique ID, Name, Class, Section, Roll No)
-    """
     students = []
     try:
         with zipfile.ZipFile(file_path, 'r') as z:
@@ -19,11 +45,14 @@ def parse_shiksha_xlsx(file_path):
             if 'xl/sharedStrings.xml' in z.namelist():
                 tree = ET.fromstring(z.read('xl/sharedStrings.xml'))
                 for si in tree.findall('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}si'):
-                    t_el = si.find('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t')
-                    shared_strings.append(t_el.text if t_el is not None and t_el.text else '')
+                    t_parts = [t.text for t in si.findall('.//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t') if t.text]
+                    shared_strings.append("".join(t_parts).strip())
 
-            # 2. Parse the primary worksheet
-            sheet_content = z.read('xl/worksheets/sheet1.xml')
+            # 2. Find worksheet
+            sheet_files = [f for f in z.namelist() if f.startswith('xl/worksheets/sheet') and f.endswith('.xml')]
+            if not sheet_files:
+                return []
+            sheet_content = z.read(sheet_files[0])
             tree = ET.fromstring(sheet_content)
             rows = tree.findall('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}sheetData/'
                                 '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}row')
@@ -44,43 +73,45 @@ def parse_shiksha_xlsx(file_path):
                 if not row_vals:
                     continue
 
-                # Detect header row containing student columns
-                lower_vals = [str(v).lower() for v in row_vals]
-                if any('unique' in v or 'student id' in v or 'student name' in v for v in lower_vals):
+                lower_vals = [str(v).lower().strip() for v in row_vals]
+
+                # Map headers
+                if not col_map and any('uniqueid' in v or 'student name' in v for v in lower_vals):
                     for i, v in enumerate(lower_vals):
-                        if 'unique' in v or 'student id' in v or 'uid' in v:
+                        if 'uniqueid' in v or 'unique id' in v or v == 'uid':
                             col_map['uid'] = i
-                        elif 'student name' in v or 'name' in v:
+                        elif v == 'student name' or ('student' in v and 'name' in v and 'father' not in v):
                             col_map['name'] = i
-                        elif 'class' in v:
-                            col_map['class'] = i
-                        elif 'section' in v:
-                            col_map['section'] = i
-                        elif 'roll' in v:
+                        elif 'sr.no' in v or 's.no' in v or 'roll' in v:
                             col_map['roll'] = i
+                        elif 'class' in v:
+                            col_map['class_sec'] = i
                     continue
 
-                # Parse student record once column map is found
+                # Parse rows once header is mapped
                 if 'uid' in col_map and 'name' in col_map:
                     uid_idx = col_map['uid']
                     name_idx = col_map['name']
+
                     if len(row_vals) > max(uid_idx, name_idx):
                         raw_uid = str(row_vals[uid_idx]).split('.')[0].strip()
                         raw_name = str(row_vals[name_idx]).strip().upper()
 
-                        if raw_uid and raw_uid.isdigit() and raw_name and raw_name != 'NONE':
-                            cls_idx = col_map.get('class')
-                            sec_idx = col_map.get('section')
-                            roll_idx = col_map.get('roll')
-
-                            cls = str(row_vals[cls_idx]).split('.')[0].strip() if cls_idx is not None and len(row_vals) > cls_idx else '1'
-                            sec = str(row_vals[sec_idx]).strip().upper() if sec_idx is not None and len(row_vals) > sec_idx and row_vals[sec_idx] else 'A'
-                            
+                        if raw_uid and raw_uid.isdigit() and len(raw_uid) >= 5 and raw_name and raw_name != 'NONE':
+                            # Roll number from Sr.No
                             roll = 0
+                            roll_idx = col_map.get('roll')
                             if roll_idx is not None and len(row_vals) > roll_idx:
                                 clean_roll = str(row_vals[roll_idx]).split('.')[0].strip()
                                 if clean_roll.isdigit():
                                     roll = int(clean_roll)
+
+                            # Class & Section string
+                            cls = '1'
+                            sec = 'A'
+                            cls_idx = col_map.get('class_sec')
+                            if cls_idx is not None and len(row_vals) > cls_idx:
+                                cls, sec = extract_class_and_section(row_vals[cls_idx])
 
                             students.append((raw_uid, raw_name, cls, sec, roll))
     except Exception as e:
@@ -130,7 +161,7 @@ def launch_android_file_picker(on_success_callback, on_error_callback):
                         if parsed_students:
                             on_success_callback(parsed_students)
                         else:
-                            on_error_callback("No valid student rows found. Ensure this is an official Shiksha Setu Excel file.")
+                            on_error_callback("No valid student rows found in this file.")
                     except Exception as e:
                         on_error_callback(f"Failed to read file: {str(e)}")
                 else:
