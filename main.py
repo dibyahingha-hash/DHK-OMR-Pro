@@ -70,7 +70,7 @@ BoxLayout:
                         size_hint_y: None
                         height: self.minimum_height
 
-        # Screen 2: Live Native Scanner View
+        # Screen 2: Live Scanner View
         Screen:
             name: "scanner_screen"
             FloatLayout:
@@ -127,6 +127,8 @@ class DHKOMRProApp(App):
     def build(self):
         self.db = Database()
         self.native_cam_active = False
+        self.surface_view = None
+        self.cam = None
         self.root_widget = Builder.load_string(KV)
         return self.root_widget
 
@@ -156,7 +158,7 @@ class DHKOMRProApp(App):
             title.text = "DHK OMR Pro - Roster"
 
     def start_native_camera(self, dt=None):
-        """Starts hardware camera preview directly onto Android window surface."""
+        """Starts hardware camera preview safely on Android UI Thread."""
         if platform != 'android' or self.native_cam_active:
             return
 
@@ -167,13 +169,9 @@ class DHKOMRProApp(App):
             Camera = autoclass('android.hardware.Camera')
             SurfaceView = autoclass('android.view.SurfaceView')
             LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
+            Runnable = autoclass('java.lang.Runnable')
 
             activity = PythonActivity.mActivity
-            self.surface_view = SurfaceView(activity)
-            self.cam = Camera.open(0)
-
-            # Set orientation for portrait view
-            self.cam.setDisplayOrientation(90)
 
             class SurfaceCallback(PythonJavaClass):
                 __javainterfaces__ = ['android/view/SurfaceHolder$Callback']
@@ -198,18 +196,36 @@ class DHKOMRProApp(App):
                 def surfaceDestroyed(self, holder):
                     pass
 
-            self.surface_callback = SurfaceCallback(self.cam)
-            holder = self.surface_view.getHolder()
-            holder.addCallback(self.surface_callback)
+            app_ref = self
 
-            # Insert preview layer directly beneath the Kivy interface
-            params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            activity.addContentView(self.surface_view, params)
-            self.surface_view.setZOrderMediaOverlay(False)
+            class CameraLauncherRunnable(PythonJavaClass):
+                __javainterfaces__ = ['java/lang/Runnable']
 
-            self.native_cam_active = True
+                @java_method('()V')
+                def run(self):
+                    try:
+                        app_ref.cam = Camera.open(0)
+                        app_ref.cam.setDisplayOrientation(90)
+                        app_ref.surface_view = SurfaceView(activity)
+
+                        app_ref.surface_callback = SurfaceCallback(app_ref.cam)
+                        holder = app_ref.surface_view.getHolder()
+                        holder.addCallback(app_ref.surface_callback)
+
+                        params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                        activity.addContentView(app_ref.surface_view, params)
+                        app_ref.surface_view.setZOrderMediaOverlay(False)
+
+                        app_ref.native_cam_active = True
+                    except Exception as err:
+                        app_ref.show_popup("Camera Error", str(err))
+
+            # Dispatches to Android Main UI Thread
+            runnable_task = CameraLauncherRunnable()
+            activity.runOnUiThread(runnable_task)
+
         except Exception as e:
-            self.show_popup("Camera Init", str(e))
+            self.show_popup("Thread Error", str(e))
 
     def stop_native_camera(self):
         if not self.native_cam_active:
@@ -221,7 +237,7 @@ class DHKOMRProApp(App):
                 self.cam = None
 
             if hasattr(self, 'surface_view') and self.surface_view is not None:
-                self.surface_view.setVisibility(8)  # View.GONE = 8
+                self.surface_view.setVisibility(8)
                 self.surface_view = None
 
             self.native_cam_active = False
