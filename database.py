@@ -2,8 +2,11 @@ import sqlite3
 import os
 
 class Database:
-    def __init__(self, db_name="dhk_omr.db"):
-        self.db_path = db_name
+    def __init__(self, db_dir=None):
+        if db_dir:
+            self.db_path = os.path.join(db_dir, "dhk_omr.db")
+        else:
+            self.db_path = "dhk_omr.db"
         self.init_db()
 
     def get_connection(self):
@@ -13,7 +16,6 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # 1. Students Roster Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS students (
                 unique_id TEXT PRIMARY KEY,
@@ -24,7 +26,6 @@ class Database:
             )
         """)
 
-        # 2. Master Answer Key Table (Locked Master Key)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS answer_keys (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +39,6 @@ class Database:
             )
         """)
 
-        # 3. Student Evaluations / Results Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS evaluations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,12 +62,11 @@ class Database:
             return 0
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.executemany("""
             INSERT OR REPLACE INTO students (unique_id, student_name, student_class, section, roll_no)
             VALUES (?, ?, ?, ?, ?)
         """, student_list)
         conn.commit()
-        count = cursor.rowcount
         conn.close()
         return len(student_list)
 
@@ -80,15 +79,6 @@ class Database:
         return rows
 
     def save_master_key_locked(self, class_level, key_dict):
-        """
-        key_dict format:
-        {
-           'Lang1_Reading': {1: 1, 2: 2, 3: 0, 4: 3, 5: 1},
-           'Lang1_Writing': {1: 2, 2: 1, ...},
-           'Lang2': {...},
-           'Numeracy': {...}
-        }
-        """
         conn = self.get_connection()
         cursor = conn.cursor()
         for subject, q_map in key_dict.items():
@@ -128,16 +118,3 @@ class Database:
         """, (unique_id, student_name, class_level, subject, total_q, correct_cnt, score_pct))
         conn.commit()
         conn.close()
-
-    def get_evaluations_for_student(self, unique_id):
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT subject, total_questions, correct_count, score_percent, timestamp
-            FROM evaluations
-            WHERE unique_id = ?
-            ORDER BY timestamp DESC
-        """, (unique_id,))
-        rows = cursor.fetchall()
-        conn.close()
-        return rows
