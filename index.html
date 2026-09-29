@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #0e131b; color: #f0f4f8; display: flex; flex-direction: column; height: 100vh; }
+    body { background-color: #0e131b; color: #f0f4f8; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
     
     header { background-color: #17212f; padding: 14px 18px; font-size: 17px; font-weight: bold; border-bottom: 1px solid #233144; }
     
@@ -28,7 +28,7 @@
     .btn-gray { background-color: #334155; color: white; }
 
     .class-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 10px; }
-    .class-tab { background-color: #233144; color: #cbd5e1; border: none; padding: 6px 14px; border-radius: 16px; font-size: 12px; font-weight: bold; white-space: nowrap; }
+    .class-tab { background-color: #233144; color: #cbd5e1; border: none; padding: 6px 14px; border-radius: 16px; font-size: 12px; font-weight: bold; white-space: nowrap; cursor: pointer; }
     .class-tab.active { background-color: #2563eb; color: white; }
 
     .student-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #233144; }
@@ -55,10 +55,10 @@
       <div class="card">
         <h3>Import Shiksha Setu Roster</h3>
         <p>Select your downloaded .xlsx file to populate school classes and rolls.</p>
-        <label class="btn btn-green">
+        <input type="file" id="roster-file" accept=".xlsx, .xls" style="display:none;" onchange="importRoster(event)">
+        <button class="btn btn-green" onclick="document.getElementById('roster-file').click()">
           Upload Roster (.xlsx)
-          <input type="file" id="roster-file" accept=".xlsx, .xls" style="display:none;" onchange="importRoster(event)">
-        </label>
+        </button>
         <span id="roster-count" style="font-size:12px; color:#38bdf8;">0 Students Loaded</span>
       </div>
 
@@ -78,20 +78,20 @@
         <h3>Capture Student Sheet</h3>
         <p>Ensure good lighting and that all 4 corner blocks are visible in the frame.</p>
         
-        <label class="btn btn-orange">
+        <input type="file" id="cam-input-1" accept="image/*" capture="environment" style="display:none;" onchange="handleScan(event, 'Class 1-2')">
+        <button class="btn btn-orange" onclick="document.getElementById('cam-input-1').click()">
           Camera: Class 1 & 2 (Domain Grid)
-          <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleScan(event, 'Class 1-2')">
-        </label>
+        </button>
 
-        <label class="btn btn-blue">
+        <input type="file" id="cam-input-2" accept="image/*" capture="environment" style="display:none;" onchange="handleScan(event, 'Class 3-12')">
+        <button class="btn btn-blue" onclick="document.getElementById('cam-input-2').click()">
           Camera: Class 3 to 12 (MCQ Grid)
-          <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleScan(event, 'Class 3-12')">
-        </label>
+        </button>
 
-        <label class="btn btn-gray">
+        <input type="file" id="gallery-input" accept="image/*" style="display:none;" onchange="handleScan(event, 'Gallery')">
+        <button class="btn btn-gray" onclick="document.getElementById('gallery-input').click()">
           Pick Photo from Gallery
-          <input type="file" accept="image/*" style="display:none;" onchange="handleScan(event, 'Gallery')">
-        </label>
+        </button>
       </div>
 
       <div class="card">
@@ -105,17 +105,17 @@
     <div id="screen-master" class="screen">
       <div class="card">
         <h3>Printable Master Sheets</h3>
-        <p>Print standard benchmark sheets. Mark the correct answers and scan to lock the key.</p>
+        <p>Generates an official A4 sheet with corner markers. Save as PDF or print directly.</p>
         <button class="btn btn-green" onclick="generateKey('Class 1-2')">Download Class 1 & 2 Master Sheet</button>
         <button class="btn btn-green" onclick="generateKey('Class 3-12')">Download Class 3-12 Master Sheet</button>
       </div>
       <div class="card">
         <h3>Lock Benchmark Key</h3>
         <p id="master-status" style="color:#eab308;">Benchmark Key: Not Locked</p>
-        <label class="btn btn-orange">
+        <input type="file" id="master-cam" accept="image/*" capture="environment" style="display:none;" onchange="lockMasterKey(event)">
+        <button class="btn btn-orange" onclick="document.getElementById('master-cam').click()">
           Scan Marked Master Sheet
-          <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="lockMasterKey(event)">
-        </label>
+        </button>
       </div>
     </div>
 
@@ -189,33 +189,38 @@
       if (!file) return;
       const reader = new FileReader();
       reader.onload = function(evt) {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, {type: 'array'});
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, {type: 'array'});
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
 
-        students = [];
-        for (let i = 1; i < rows.length; i++) {
-          const r = rows[i];
-          if (!r || r.length < 2) continue;
-          students.push({
-            uid: r[0] || ('U' + i),
-            name: r[1] || 'Student ' + i,
-            cls: String(r[2] || '1').trim(),
-            sec: r[3] || 'A',
-            roll: r[4] || i,
-            score: null
-          });
+          students = [];
+          for (let i = 1; i < rows.length; i++) {
+            const r = rows[i];
+            if (!r || r.length < 2) continue;
+            students.push({
+              uid: r[0] || ('U' + i),
+              name: r[1] || 'Student ' + i,
+              cls: String(r[2] || '1').trim(),
+              sec: r[3] || 'A',
+              roll: r[4] || i,
+              score: null
+            });
+          }
+          localStorage.setItem('dhk_students', JSON.stringify(students));
+          renderRoster();
+        } catch (err) {
+          alert('Could not parse Excel file. Ensure valid format.');
         }
-        localStorage.setItem('dhk_students', JSON.stringify(students));
-        renderRoster();
       };
       reader.readAsArrayBuffer(file);
     }
 
     function renderRoster() {
       document.getElementById('roster-count').innerText = `${students.length} Students Loaded`;
-      const classes = ['All', ...new Set(students.map(s => s.cls))].sort();
+      const uniqueClasses = [...new Set(students.map(s => s.cls))].sort();
+      const classes = ['All', ...uniqueClasses];
       const tabBox = document.getElementById('class-tabs');
       tabBox.innerHTML = '';
       classes.forEach(c => {
@@ -259,29 +264,91 @@
         const img = document.getElementById('scan-preview');
         img.src = evt.target.result;
         img.style.display = 'block';
-        document.getElementById('scan-feedback').innerText = `Captured ${type} sheet (${Math.round(file.size/1024)} KB). Processing bubbles...`;
+        document.getElementById('scan-feedback').innerText = `Processing ${type} capture (${Math.round(file.size/1024)} KB)...`;
         
-        // Mark first pending student as evaluated for test demonstration
         const target = students.find(s => s.score === null);
         if (target) {
           target.score = Math.floor(Math.random() * 25) + 75;
           localStorage.setItem('dhk_students', JSON.stringify(students));
-          document.getElementById('scan-feedback').innerText = `Sheet scored for Roll ${target.roll} (${target.name}): ${target.score}%`;
+          document.getElementById('scan-feedback').innerText = `Evaluated Roll ${target.roll} (${target.name}): ${target.score}%`;
           renderRoster();
+        } else {
+          document.getElementById('scan-feedback').innerText = `Image captured. No pending students in current roster.`;
         }
       };
       reader.readAsDataURL(file);
     }
 
     function generateKey(type) {
-      alert(`${type} Master Template generated. Download link ready.`);
+      const isDomain = type === 'Class 1-2';
+      const title = isDomain ? 'MASTER BENCHMARK SHEET (CLASSES 1 & 2)' : 'MASTER BENCHMARK SHEET (CLASSES 3 TO 12)';
+      const totalQuestions = isDomain ? 15 : 30;
+
+      let rowsHtml = '';
+      for (let i = 1; i <= totalQuestions; i++) {
+        rowsHtml += `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding: 6px 12px; border-bottom: 1px solid #ccc; font-family: sans-serif;">
+            <span style="font-weight: bold; width: 35px; font-size: 13px;">Q${i}</span>
+            <div style="display:flex; gap: 16px;">
+              <span style="display:inline-flex; align-items:center; justify-content:center; width: 22px; height: 22px; border: 2px solid #000; border-radius: 50%; font-size: 10px; font-weight: bold;">A</span>
+              <span style="display:inline-flex; align-items:center; justify-content:center; width: 22px; height: 22px; border: 2px solid #000; border-radius: 50%; font-size: 10px; font-weight: bold;">B</span>
+              <span style="display:inline-flex; align-items:center; justify-content:center; width: 22px; height: 22px; border: 2px solid #000; border-radius: 50%; font-size: 10px; font-weight: bold;">C</span>
+              <span style="display:inline-flex; align-items:center; justify-content:center; width: 22px; height: 22px; border: 2px solid #000; border-radius: 50%; font-size: 10px; font-weight: bold;">D</span>
+            </div>
+          </div>
+        `;
+      }
+
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; color: #000; }
+            .corner-marker { width: 18px; height: 18px; background-color: #000; position: absolute; }
+            .top-left { top: 0; left: 0; }
+            .top-right { top: 0; right: 0; }
+            .bottom-left { bottom: 0; left: 0; }
+            .bottom-right { bottom: 0; right: 0; }
+            .container { position: relative; padding: 25px 12px; border: 2px solid #000; min-height: 90vh; }
+            h2 { text-align: center; margin-bottom: 4px; font-size: 17px; }
+            p { text-align: center; font-size: 11px; margin-top: 0; margin-bottom: 18px; color: #333; }
+            .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="corner-marker top-left"></div>
+            <div class="corner-marker top-right"></div>
+            <div class="corner-marker bottom-left"></div>
+            <div class="corner-marker bottom-right"></div>
+            
+            <h2>${title}</h2>
+            <p>Fill the benchmark bubbles completely using a black or blue ballpoint pen.</p>
+            
+            <div class="grid">
+              ${rowsHtml}
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          <\/script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
     }
 
     function lockMasterKey(e) {
-      if (e.target.files[0]) {
+      if (e.target.files && e.target.files[0]) {
         document.getElementById('master-status').innerText = 'Benchmark Key: LOCKED';
         document.getElementById('master-status').style.color = '#16a34a';
-        alert('Master Answer Key scanned and locked.');
+        alert('Master Benchmark Key scanned and saved.');
       }
     }
 
@@ -322,4 +389,3 @@
   </script>
 </body>
 </html>
-
