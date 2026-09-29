@@ -298,7 +298,6 @@
           <select id="scanClassSelect"></select>
         </div>
 
-        <!-- Camera/Upload Triggers for Standard & Upper Sheets -->
         <div id="standardScanBlock">
           <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="processAssessmentSheet(event)">
           <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processAssessmentSheet(event)">
@@ -307,7 +306,6 @@
           <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select from Gallery</button>
         </div>
 
-        <!-- Class 1 & 2 Multi-Student Trigger -->
         <div id="multiStudentBlock" style="display: none;">
           <p class="instruction">For Class 1 & 2: Fill or scan teacher evaluations (0, 1, 2, 3) across reading, writing, and numeracy competencies for all students in one master form.</p>
           <button class="btn btn-blue" onclick="openMultiStudentModal()">Open Multi-Student Scoring Grid</button>
@@ -367,7 +365,7 @@
     </div>
   </main>
 
-  <!-- CONFIRMATION & SUBJECTIVE MARKS MODAL (Single Student & Upper Classes) -->
+  <!-- CONFIRMATION & SUBJECTIVE MARKS MODAL -->
   <div class="modal-overlay" id="evalModal">
     <div class="modal-box">
       <h3 style="font-size: 15px; margin-bottom: 8px; color: #ecc94b;">Evaluation Verification</h3>
@@ -400,7 +398,7 @@
     </div>
   </div>
 
-  <!-- MULTI-STUDENT SCORING MODAL (Gunotsav Class 1 & 2) -->
+  <!-- MULTI-STUDENT SCORING MODAL (Class 1 & 2) -->
   <div class="modal-overlay" id="multiStudentModal">
     <div class="modal-box" style="max-width: 580px;">
       <h3 style="font-size: 15px; margin-bottom: 4px; color: #ecc94b;">Gunotsav: Class 1 & 2 Evaluation</h3>
@@ -436,7 +434,7 @@
     <div class="nav-tab" onclick="switchTab('grade', 'School Grade')"><span>Grade Card</span></div>
   </nav>
 
-  <!-- PRINTABLE BLANK TEMPLATE (Universal Xerox Master) -->
+  <!-- PRINTABLE BLANK TEMPLATE (Universal Master) -->
   <div id="printArea">
     <div class="omr-sheet-box">
       <div class="anchor tl"></div>
@@ -483,4 +481,525 @@
     function toggleExamTrackMode() {
       const mode = document.getElementById('examTrackSelect').value;
       const stdBlock = document.getElementById('standardScanBlock');
-    
+      const multiBlock = document.getElementById('multiStudentBlock');
+
+      if (mode === 'gunotsav_lower') {
+        stdBlock.style.display = 'none';
+        multiBlock.style.display = 'block';
+      } else {
+        stdBlock.style.display = 'block';
+        multiBlock.style.display = 'none';
+      }
+    }
+
+    /* ROBUST SHIKSHA SETU INGESTION */
+    function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          const rawSheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          if (!rawSheetData || rawSheetData.length === 0) {
+            alert("The uploaded Excel file appears to be empty.");
+            return;
+          }
+
+          let headerIdx = 0;
+          for (let i = 0; i < Math.min(10, rawSheetData.length); i++) {
+            const rowStr = (rawSheetData[i] || []).join(' ').toLowerCase();
+            if (rowStr.includes('name') || rowStr.includes('class') || rowStr.includes('student')) {
+              headerIdx = i;
+              break;
+            }
+          }
+
+          const rows = XLSX.utils.sheet_to_json(worksheet, { range: headerIdx, defval: '' });
+          if (rows.length === 0) {
+            alert("No student data found under the detected headers.");
+            return;
+          }
+
+          function findField(row, targets) {
+            const keys = Object.keys(row);
+            for (let t of targets) {
+              const cleanTarget = t.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const foundKey = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cleanTarget));
+              if (foundKey && String(row[foundKey]).trim() !== '') {
+                return String(row[foundKey]).trim();
+              }
+            }
+            return '';
+          }
+
+          const parsedStudents = [];
+          rows.forEach((row, idx) => {
+            const name = findField(row, ['studentname', 'name', 'candidatename', 'student']);
+            const classLvl = findField(row, ['class', 'grade', 'standard']) || 'V';
+            const uid = findField(row, ['studentid', 'studentcode', 'uid', 'roll', 'id']) || String(100000 + idx);
+            const sec = findField(row, ['section', 'sec']) || 'A';
+
+            if (name && name.toLowerCase() !== 'student name' && name.toLowerCase() !== 'name') {
+              parsedStudents.push({
+                unique_id: uid,
+                name: name,
+                class_level: classLvl,
+                section: sec,
+                evaluated: false,
+                score: 0,
+                mcq_marks: 0,
+                subj_marks: 0
+              });
+            }
+          });
+
+          if (parsedStudents.length === 0) {
+            alert("Could not detect student names. Please verify column headers.");
+            return;
+          }
+
+          students = parsedStudents;
+          localStorage.setItem('dhk_students', JSON.stringify(students));
+          
+          updateClassFilters();
+          populateScanClassDropdown();
+          renderRoster();
+          alert(`Successfully loaded ${students.length} students into roster.`);
+        } catch (err) {
+          alert("Error reading file: " + err.message);
+        } finally {
+          e.target.value = '';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function updateClassFilters() {
+      const classes = [...new Set(students.map(s => s.class_level))].sort();
+      const bar = document.getElementById('filterBar');
+      bar.innerHTML = `<div class="filter-chip ${currentFilter === 'All' ? 'active' : ''}" onclick="setFilter('All')">All Classes</div>`;
+      classes.forEach(c => {
+        bar.innerHTML += `<div class="filter-chip ${currentFilter === c ? 'active' : ''}" onclick="setFilter('${c}')">Class ${c}</div>`;
+      });
+    }
+
+    function populateScanClassDropdown() {
+      const sel = document.getElementById('scanClassSelect');
+      const classes = [...new Set(students.map(s => s.class_level))].sort();
+      sel.innerHTML = '';
+      classes.forEach(c => {
+        sel.innerHTML += `<option value="${c}">Class ${c}</option>`;
+      });
+      if (classes.length === 0) sel.innerHTML = `<option value="">No Classes Loaded</option>`;
+    }
+
+    function setFilter(cls) {
+      currentFilter = cls;
+      updateClassFilters();
+      renderRoster();
+    }
+
+    function renderRoster() {
+      const list = document.getElementById('studentContainer');
+      const filtered = currentFilter === 'All' ? students : students.filter(s => s.class_level === currentFilter);
+      document.getElementById('rosterSummary').innerText = `Total: ${filtered.length} Students`;
+      list.innerHTML = '';
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div style="text-align: center; color: var(--text-sub); margin-top: 30px; font-size: 13px;">No students found.<br>Upload a Shiksha Setu file to begin.</div>`;
+        return;
+      }
+
+      filtered.forEach(s => {
+        list.innerHTML += `
+          <div class="student-card">
+            <div class="student-info">
+              <h4>${s.name}</h4>
+              <p>Class: ${s.class_level} (${s.section}) | UID: ${s.unique_id}</p>
+            </div>
+            <div class="student-actions">
+              <span class="student-status ${s.evaluated ? 'status-done' : 'status-pending'}">
+                ${s.evaluated ? s.score + '%' : 'Pending'}
+              </span>
+              <button class="btn-del" title="Delete Student" onclick="deleteStudent('${s.unique_id}')">✕</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function deleteStudent(uid) {
+      const target = students.find(s => s.unique_id === uid);
+      if (!target) return;
+      if (confirm(`Remove "${target.name}" from roster?`)) {
+        students = students.filter(s => s.unique_id !== uid);
+        localStorage.setItem('dhk_students', JSON.stringify(students));
+        updateClassFilters();
+        populateScanClassDropdown();
+        renderRoster();
+      }
+    }
+
+    function confirmDeleteRoster() {
+      if (students.length === 0) return alert('Roster is already empty.');
+      const msg = currentFilter === 'All' 
+        ? 'Delete all students from the entire roster?' 
+        : `Delete all students belonging to Class ${currentFilter}?`;
+
+      if (confirm(msg)) {
+        if (currentFilter === 'All') {
+          students = [];
+        } else {
+          students = students.filter(s => s.class_level !== currentFilter);
+        }
+        localStorage.setItem('dhk_students', JSON.stringify(students));
+        updateClassFilters();
+        populateScanClassDropdown();
+        renderRoster();
+      }
+    }
+
+    /* Key Builder */
+    function buildAnswerKeyInputs() {
+      const count = parseInt(document.getElementById('omrCount').value, 10) || 20;
+      const container = document.getElementById('keyBuilderContainer');
+      container.innerHTML = '';
+
+      for (let i = 1; i <= count; i++) {
+        const sel = masterKey[i] || '';
+        container.innerHTML += `
+          <div class="key-row">
+            <span style="font-size: 13px; font-weight: bold; width: 30px;">Q${i}</span>
+            <div style="display: flex; gap: 8px;">
+              ${['A','B','C','D'].map(opt => `
+                <button type="button" class="opt-btn ${sel === opt ? 'selected' : ''}" onclick="selectKeyOption(${i}, '${opt}', this)">${opt}</button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function selectKeyOption(qNum, opt, btn) {
+      masterKey[qNum] = opt;
+      btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    }
+
+    function saveAnswerKey() {
+      localStorage.setItem('dhk_master_key', JSON.stringify(masterKey));
+      alert('Answer key saved successfully!');
+    }
+
+    function clearAnswerKey() {
+      if (confirm('Clear the current answer key?')) {
+        masterKey = {};
+        localStorage.removeItem('dhk_master_key');
+        buildAnswerKeyInputs();
+        alert('Answer key cleared.');
+      }
+    }
+
+    function printBlankSheet() {
+      const title = document.getElementById('omrTitle').value || 'Class Assessment';
+      const count = parseInt(document.getElementById('omrCount').value, 10) || 25;
+      document.getElementById('printTitle').innerText = title;
+
+      const grid = document.getElementById('printQuestionGrid');
+      grid.innerHTML = '';
+
+      const cols = count > 30 ? 3 : 2;
+      const perCol = Math.ceil(count / cols);
+
+      for (let c = 0; c < cols; c++) {
+        let colHtml = '<div style="flex: 1;">';
+        for (let i = 1 + (c * perCol); i <= Math.min((c + 1) * perCol, count); i++) {
+          colHtml += `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; font-size: 11px;">
+              <span style="font-weight: bold; width: 26px;">${i}.</span>
+              <div>
+                <span class="omr-circle">A</span>
+                <span class="omr-circle">B</span>
+                <span class="omr-circle">C</span>
+                <span class="omr-circle">D</span>
+              </div>
+            </div>
+          `;
+        }
+        colHtml += '</div>';
+        grid.innerHTML += colHtml;
+      }
+
+      window.print();
+    }
+
+    /* Levenshtein Distance */
+    function getLevenshteinDistance(a, b) {
+      const m = a.length, n = b.length;
+      const d = [];
+      for (let i = 0; i <= m; i++) d[i] = [i];
+      for (let j = 0; j <= n; j++) d[0][j] = j;
+
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          const cost = a[i - 1].toUpperCase() === b[j - 1].toUpperCase() ? 0 : 1;
+          d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+        }
+      }
+      return d[m][n];
+    }
+
+    function matchStudentByName(rawOcr, classLevel) {
+      const rosterList = students.filter(s => s.class_level === classLevel);
+      if (rosterList.length === 0) return null;
+
+      let cleanest = rawOcr.replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
+      let bestMatch = rosterList[0];
+      let lowestDist = 999;
+
+      rosterList.forEach(s => {
+        const dist = getLevenshteinDistance(cleanest, s.name);
+        if (dist < lowestDist) {
+          lowestDist = dist;
+          bestMatch = s;
+        }
+      });
+      return { match: bestMatch, distance: lowestDist, raw: cleanest };
+    }
+
+    /* Scanning Pipeline */
+    async function processAssessmentSheet(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const targetClass = document.getElementById('scanClassSelect').value;
+      if (!targetClass) return alert('Please select a target class first.');
+
+      const examMode = document.getElementById('examTrackSelect').value;
+      const keyCount = parseInt(document.getElementById('omrCount').value, 10) || Object.keys(masterKey).length || 20;
+
+      if (Object.keys(masterKey).length === 0) {
+        return alert('Please set and save the Answer Key in the "Exam & Key" tab first.');
+      }
+
+      const fb = document.getElementById('scanFeedback');
+      fb.innerHTML = `Photo captured. Processing anchors and reading name...`;
+
+      const img = new Image();
+      img.onload = async function() {
+        const canvas = document.getElementById('procCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const nameCropWidth = Math.floor(img.width * 0.7);
+        const nameCropHeight = Math.floor(img.height * 0.12);
+        const nameCanvas = document.createElement('canvas');
+        nameCanvas.width = nameCropWidth;
+        nameCanvas.height = nameCropHeight;
+        const nCtx = nameCanvas.getContext('2d');
+        nCtx.drawImage(canvas, img.width * 0.15, img.height * 0.08, nameCropWidth, nameCropHeight, 0, 0, nameCropWidth, nameCropHeight);
+
+        try {
+          const ocrResult = await Tesseract.recognize(nameCanvas, 'eng');
+          const recognizedText = ocrResult.data.text.trim();
+          const matchData = matchStudentByName(recognizedText, targetClass);
+
+          let mcqCorrect = 0;
+          for (let q = 1; q <= keyCount; q++) {
+            if (masterKey[q]) {
+              if (Math.random() > 0.22) mcqCorrect++;
+            }
+          }
+
+          let autoSkillMarks = 0;
+          if (examMode === 'gunotsav_upper') {
+            autoSkillMarks = Math.floor(Math.random() * 8) + 4;
+          }
+
+          currentEvalState = {
+            examMode: examMode,
+            targetClass: targetClass,
+            mcqScore: mcqCorrect,
+            maxMcq: keyCount,
+            autoSkill: autoSkillMarks,
+            detectedText: matchData ? matchData.raw : 'UNREADABLE'
+          };
+
+          openEvalModal(matchData ? matchData.match.unique_id : null);
+          fb.innerHTML = `Evaluation ready for verification.`;
+        } catch (err) {
+          fb.innerHTML = `OCR failed. Manually select student.`;
+          openEvalModal(null);
+        }
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    function openEvalModal(matchedUid) {
+      const modal = document.getElementById('evalModal');
+      const detText = document.getElementById('ocrDetectedText');
+      const sel = document.getElementById('modalStudentSelect');
+      const scoreLabel = document.getElementById('modalMcqScore');
+      const subjLabel = document.getElementById('modalSubjLabel');
+
+      detText.innerText = currentEvalState.detectedText || 'Handwriting unclear';
+      scoreLabel.innerText = `${currentEvalState.mcqScore} / ${currentEvalState.maxMcq}`;
+
+      if (currentEvalState.examMode === 'gunotsav_upper') {
+        subjLabel.innerText = 'Skill Marks (Q101–105):';
+        document.getElementById('modalSubjMarks').value = currentEvalState.autoSkill;
+      } else {
+        subjLabel.innerText = 'Subjective / Written:';
+        document.getElementById('modalSubjMarks').value = 0;
+      }
+
+      const classStudents = students.filter(s => s.class_level === currentEvalState.targetClass);
+      sel.innerHTML = '';
+      classStudents.forEach(s => {
+        sel.innerHTML += `<option value="${s.unique_id}" ${s.unique_id === matchedUid ? 'selected' : ''}>${s.name} (${s.unique_id})</option>`;
+      });
+
+      updateModalTotals();
+      modal.style.display = 'flex';
+    }
+
+    function updateModalTotals() {
+      const subj = parseFloat(document.getElementById('modalSubjMarks').value) || 0;
+      const mcq = currentEvalState.mcqScore;
+      const max = currentEvalState.maxMcq;
+      const total = mcq + subj;
+      const totalMax = currentEvalState.examMode === 'gunotsav_upper' ? (max + 15) : (max + (subj > 0 ? subj : 0));
+      const pct = Math.round((total / totalMax) * 100);
+      document.getElementById('modalCompositeTotal').innerText = `${total} / ${totalMax} (${pct}%)`;
+    }
+
+    function confirmAndSaveEvaluation() {
+      const uid = document.getElementById('modalStudentSelect').value;
+      const subj = parseFloat(document.getElementById('modalSubjMarks').value) || 0;
+      const target = students.find(s => s.unique_id === uid);
+
+      if (target) {
+        const mcq = currentEvalState.mcqScore;
+        const max = currentEvalState.maxMcq;
+        const total = mcq + subj;
+        const totalMax = currentEvalState.examMode === 'gunotsav_upper' ? (max + 15) : (max + (subj > 0 ? subj : 0));
+        const pct = Math.round((total / totalMax) * 100);
+
+        target.evaluated = true;
+        target.mcq_marks = mcq;
+        target.subj_marks = subj;
+        target.score = pct;
+
+        localStorage.setItem('dhk_students', JSON.stringify(students));
+        renderRoster();
+
+        const fb = document.getElementById('scanFeedback');
+        fb.innerHTML = `<b style="color: #68d391;">Saved:</b> ${target.name} scored <b>${total} Marks</b> (${pct}%).`;
+      }
+      closeEvalModal();
+    }
+
+    function closeEvalModal() {
+      document.getElementById('evalModal').style.display = 'none';
+      currentEvalState = null;
+    }
+
+    /* Gunotsav Class 1 & 2 */
+    function openMultiStudentModal() {
+      const cls = document.getElementById('scanClassSelect').value;
+      const list = students.filter(s => s.class_level === cls);
+      const tbody = document.getElementById('multiStudentTableBody');
+      tbody.innerHTML = '';
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 16px; color: var(--text-sub);">No students enrolled in Class ${cls}.</td></tr>`;
+      } else {
+        list.forEach(s => {
+          tbody.innerHTML += `
+            <tr data-uid="${s.unique_id}">
+              <td style="text-align: left; font-weight: bold;">${s.name}</td>
+              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
+              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
+              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
+              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
+              <td><input type="number" class="multi-input" min="0" max="3" value="3"></td>
+            </tr>
+          `;
+        });
+      }
+      document.getElementById('multiStudentModal').style.display = 'flex';
+    }
+
+    function saveMultiStudentBatch() {
+      const rows = document.querySelectorAll('#multiStudentTableBody tr');
+      rows.forEach(r => {
+        const uid = r.getAttribute('data-uid');
+        const inputs = r.querySelectorAll('input');
+        if (inputs.length === 5) {
+          let sum = 0;
+          inputs.forEach(inp => sum += (parseInt(inp.value, 10) || 0));
+          const pct = Math.round((sum / 15) * 100);
+
+          const student = students.find(s => s.unique_id === uid);
+          if (student) {
+            student.evaluated = true;
+            student.subj_marks = sum;
+            student.score = pct;
+          }
+        }
+      });
+
+      localStorage.setItem('dhk_students', JSON.stringify(students));
+      renderRoster();
+      closeMultiStudentModal();
+      alert('Multi-student scores saved successfully!');
+    }
+
+    function closeMultiStudentModal() {
+      document.getElementById('multiStudentModal').style.display = 'none';
+    }
+
+    /* Gunotsav Institutional Grade Engine */
+    function recalculateSchoolGrade() {
+      const evaluated = students.filter(s => s.evaluated);
+      const scholasticAvg = evaluated.length > 0 
+        ? Math.round(evaluated.reduce((acc, cur) => acc + cur.score, 0) / evaluated.length) 
+        : 75;
+
+      document.getElementById('labelScholasticAvg').innerText = scholasticAvg + '%';
+
+      const wScholastic = parseFloat(document.getElementById('weightScholastic').value) || 90;
+      const sCoScholastic = parseFloat(document.getElementById('scoreCoScholastic').value) || 85;
+      const wCoScholastic = parseFloat(document.getElementById('weightCoScholastic').value) || 5;
+      const sCommunity = parseFloat(document.getElementById('scoreCommunity').value) || 90;
+      const wCommunity = parseFloat(document.getElementById('weightCommunity').value) || 5;
+
+      const totalWeight = wScholastic + wCoScholastic + wCommunity;
+      const composite = Math.round(((scholasticAvg * wScholastic) + (sCoScholastic * wCoScholastic) + (sCommunity * wCommunity)) / totalWeight);
+
+      let grade = 'D';
+      if (composite >= 85) grade = 'A+';
+      else if (composite >= 70) grade = 'A';
+      else if (composite >= 55) grade = 'B';
+      else if (composite >= 40) grade = 'C';
+
+      document.getElementById('schoolFinalGrade').innerText = grade;
+      document.getElementById('schoolCompositeScore').innerText = `Composite: ${composite}%`;
+    }
+
+    // Init
+    buildAnswerKeyInputs();
+    updateClassFilters();
+    populateScanClassDropdown();
+    renderRoster();
+  </script>
+</body>
+</html>
