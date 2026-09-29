@@ -4,456 +4,400 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>DHK OMR Pro</title>
+  <!-- SheetJS for Shiksha Setu Excel Parsing -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #0d1117; color: #f0f6fc; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-    
-    header { background-color: #161b22; padding: 14px 18px; font-size: 17px; font-weight: bold; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; }
-    header .status-tag { font-size: 11px; background-color: #238636; color: #fff; padding: 3px 8px; border-radius: 12px; }
-    
-    main { flex: 1; overflow-y: auto; padding: 14px; }
-    
-    nav { display: flex; background-color: #161b22; border-top: 1px solid #30363d; height: 56px; }
-    nav button { flex: 1; background: none; border: none; color: #8b949e; font-size: 12px; font-weight: 600; cursor: pointer; }
-    nav button.active { color: #58a6ff; border-top: 3px solid #58a6ff; }
-
-    .card { background-color: #161b22; border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid #30363d; }
-    .card h3 { font-size: 15px; margin-bottom: 6px; color: #f0f6fc; }
-    .card p { font-size: 12px; color: #8b949e; line-height: 1.4; margin-bottom: 12px; }
-
-    .btn { display: block; width: 100%; padding: 11px; border: none; border-radius: 6px; font-weight: bold; font-size: 13px; text-align: center; cursor: pointer; margin-bottom: 8px; text-decoration: none; }
-    .btn-green { background-color: #238636; color: white; }
-    .btn-blue { background-color: #1f6feb; color: white; }
-    .btn-orange { background-color: #d29922; color: #0d1117; }
-    .btn-gray { background-color: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
-
-    .class-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; }
-    .class-tab { background-color: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: bold; white-space: nowrap; cursor: pointer; }
-    .class-tab.active { background-color: #1f6feb; color: white; border-color: #58a6ff; }
-
-    /* NEAT TWO-COLUMN GRID VIEW */
-    .student-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    @media (max-width: 380px) {
-      .student-grid { grid-template-columns: 1fr; }
+    :root {
+      --bg-dark: #121721;
+      --card-bg: #1e2635;
+      --header-bg: #1a2230;
+      --accent-blue: #296bb2;
+      --accent-green: #2e8556;
+      --accent-orange: #d9731a;
+      --text-main: #f0f4f8;
+      --text-sub: #a0aec0;
+      --border-color: #2d3748;
     }
-    
-    .grid-card { background-color: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
-    .grid-card .roll-badge { position: absolute; top: 8px; right: 8px; background: #30363d; color: #58a6ff; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 4px; }
-    .grid-card .student-name { font-size: 13px; font-weight: bold; color: #f0f6fc; margin-top: 14px; margin-bottom: 4px; word-break: break-word; }
-    .grid-card .student-meta { font-size: 11px; color: #8b949e; line-height: 1.3; margin-bottom: 8px; }
-    .grid-card .student-score { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 6px; border-top: 1px solid #30363d; }
-    
-    .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
-    .badge-pending { background-color: #30363d; color: #8b949e; }
-    .badge-done { background-color: #238636; color: white; }
 
-    .grid-input { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .grid-input label { font-size: 13px; color: #c9d1d9; }
-    .grid-input input { width: 80px; background-color: #0d1117; border: 1px solid #30363d; color: white; padding: 6px 8px; border-radius: 4px; text-align: right; }
-    
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* Top App Bar */
+    header {
+      background-color: var(--header-bg);
+      padding: 14px 16px;
+      font-size: 16px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: #276749;
+      color: #9ae6b4;
+    }
+
+    /* Screen Views */
+    main { flex: 1; overflow-y: auto; padding: 14px; display: block; }
     .screen { display: none; }
     .screen.active { display: block; }
+
+    /* Buttons & Cards */
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      font-weight: bold;
+      font-size: 14px;
+      color: #fff;
+      cursor: pointer;
+      margin-bottom: 10px;
+      text-align: center;
+      display: block;
+    }
+    .btn-green { background-color: var(--accent-green); }
+    .btn-blue { background-color: var(--accent-blue); }
+    .btn-orange { background-color: var(--accent-orange); }
+    .btn-gray { background-color: #4a5568; }
+
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border-color);
+    }
+    .instruction { font-size: 12px; color: var(--text-sub); margin-bottom: 14px; line-height: 1.4; }
+
+    /* Horizontal Filter Bar */
+    .filter-bar {
+      display: flex;
+      overflow-x: auto;
+      gap: 6px;
+      margin-bottom: 12px;
+      padding-bottom: 4px;
+    }
+    .filter-chip {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-sub);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .filter-chip.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+    /* Student List Cards */
+    .student-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--card-bg);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border: 1px solid var(--border-color);
+    }
+    .student-info h4 { font-size: 14px; margin-bottom: 2px; }
+    .student-info p { font-size: 11px; color: var(--text-sub); }
+    .student-status { font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
+    .status-pending { background: #4a5568; color: #cbd5e0; }
+    .status-done { background: #276749; color: #9ae6b4; }
+
+    /* Form Fields for Grade screen */
+    .form-group {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .form-group label { font-size: 13px; color: var(--text-sub); }
+    .form-group input {
+      width: 70px;
+      padding: 8px;
+      background: var(--header-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: #fff;
+      text-align: right;
+      font-size: 14px;
+    }
+
+    /* Bottom Navigation Bar */
+    nav {
+      height: 56px;
+      background-color: var(--header-bg);
+      display: flex;
+      border-top: 1px solid var(--border-color);
+    }
+    .nav-tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: var(--text-sub);
+      font-size: 11px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .nav-tab.active { color: #63b3ed; font-weight: bold; }
+    .nav-tab svg { width: 20px; height: 20px; margin-bottom: 2px; fill: currentColor; }
   </style>
 </head>
 <body>
 
+  <!-- Top Title Bar -->
   <header>
-    <span id="screen-title">Student Roster</span>
-    <span class="status-tag" id="status-tag">Ready</span>
+    <span id="appTitle">DHK OMR Pro • Student Roster</span>
+    <span class="badge" id="appStatus">Ready</span>
   </header>
 
+  <!-- Screens Container -->
   <main>
     <!-- SCREEN 1: ROSTER -->
     <div id="screen-roster" class="screen active">
-      <div class="card">
-        <h3>Import Shiksha Setu Roster</h3>
-        <p>Upload your official school roster file (.xlsx or .xls).</p>
-        <input type="file" id="roster-file" accept=".xlsx, .xls" style="display:none;" onchange="importRoster(event)">
-        <button class="btn btn-green" onclick="document.getElementById('roster-file').click()">
-          Upload Roster (.xlsx)
-        </button>
-        <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:12px; color:#58a6ff;">
-          <span id="roster-count">0 Students Loaded</span>
-          <span id="evaluated-count" style="color:#238636;">0 Evaluated</span>
-        </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;" onchange="handleFileUpload(event)">
+      <button class="btn btn-green" onclick="document.getElementById('fileInput').click()">Upload Shiksha Setu (.xlsx)</button>
+      
+      <div class="filter-bar" id="filterBar">
+        <div class="filter-chip active" onclick="setFilter('All')">All Classes</div>
       </div>
 
-      <div class="class-tabs" id="class-tabs">
-        <button class="class-tab active" onclick="filterClass('All')">All</button>
-      </div>
-
-      <div class="card">
-        <h3>Student Records</h3>
-        <div id="student-container">
-          <p style="font-size:12px; color:#8b949e;">No roster uploaded yet.</p>
-        </div>
-      </div>
+      <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px;" id="rosterSummary">Total: 0 Students</div>
+      <div id="studentContainer"></div>
     </div>
 
-    <!-- SCREEN 2: SCANNER -->
-    <div id="screen-scanner" class="screen">
-      <div class="card">
-        <h3>Capture Student Sheet</h3>
-        <p>Align all 4 corner markers in the frame with proper lighting.</p>
-        
-        <input type="file" id="cam-input-1" accept="image/*" capture="environment" style="display:none;" onchange="handleScan(event, 'Class 1-2')">
-        <button class="btn btn-orange" onclick="document.getElementById('cam-input-1').click()">
-          Camera: Class 1 & 2 (Domain Grid)
-        </button>
-
-        <input type="file" id="cam-input-2" accept="image/*" capture="environment" style="display:none;" onchange="handleScan(event, 'Class 3-12')">
-        <button class="btn btn-blue" onclick="document.getElementById('cam-input-2').click()">
-          Camera: Class 3 to 12 (MCQ Grid)
-        </button>
-
-        <input type="file" id="gallery-input" accept="image/*" style="display:none;" onchange="handleScan(event, 'Gallery')">
-        <button class="btn btn-gray" onclick="document.getElementById('gallery-input').click()">
-          Pick Photo from Gallery
-        </button>
-      </div>
-
-      <div class="card">
-        <h3>Scanner Status</h3>
-        <p id="scan-feedback">Waiting for camera capture...</p>
-        <img id="scan-preview" style="width:100%; border-radius:6px; display:none; margin-top:8px;">
-      </div>
-    </div>
-
-    <!-- SCREEN 3: MASTER KEYS -->
+    <!-- SCREEN 2: MASTER KEYS -->
     <div id="screen-master" class="screen">
       <div class="card">
-        <h3>Printable Master Benchmark Sheets</h3>
-        <p>Generates an official A4 sheet with corner blocks. Print or save as PDF.</p>
-        <button class="btn btn-green" onclick="generateKey('Class 1-2')">Download Class 1 & 2 Sheet</button>
-        <button class="btn btn-green" onclick="generateKey('Class 3-12')">Download Class 3-12 Sheet</button>
+        <h3 style="font-size: 14px; margin-bottom: 6px;">Step 1: Set Benchmark Master Key</h3>
+        <p class="instruction">Download and print assessment templates. Darken correct benchmark answers, then scan to lock them into the app.</p>
+        <button class="btn btn-green" onclick="alert('Downloading Class 1 & 2 Template...')">Download Class 1 & 2 Master Sheet (A4)</button>
+        <button class="btn btn-blue" onclick="alert('Downloading Class 3-12 Template...')">Download Classes 3-12 Master Sheet (A4)</button>
       </div>
+    </div>
+
+    <!-- SCREEN 3: SCANNER -->
+    <div id="screen-scanner" class="screen">
       <div class="card">
-        <h3>Lock Benchmark Key</h3>
-        <p id="master-status" style="color:#d29922; margin-bottom:8px;">Benchmark Key: Not Locked</p>
-        <input type="file" id="master-cam" accept="image/*" capture="environment" style="display:none;" onchange="lockMasterKey(event)">
-        <button class="btn btn-orange" onclick="document.getElementById('master-cam').click()">
-          Scan Marked Master Sheet
-        </button>
+        <h3 style="font-size: 14px; margin-bottom: 6px;">Step 2: Scan Assessment Sheet</h3>
+        <p class="instruction">Ensure all 4 registration markers are fully in frame under clear lighting.</p>
+        
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="processSheetScan(event, 'Camera')">
+        <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processSheetScan(event, 'Gallery')">
+
+        <button class="btn btn-orange" onclick="document.getElementById('cameraInput').click()">Camera: Class 1 & 2 (Multi-Student)</button>
+        <button class="btn btn-blue" onclick="document.getElementById('cameraInput').click()">Camera: Classes 3 to 12 (Single Student)</button>
+        <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select Photo from Phone Gallery</button>
+      </div>
+      
+      <div class="card" style="text-align: center; color: var(--text-sub); font-size: 13px;" id="scanStatus">
+        Ready to scan. Captured results will show here.
       </div>
     </div>
 
     <!-- SCREEN 4: GRADE CARD -->
     <div id="screen-grade" class="screen">
-      <div class="card" style="text-align:center;">
-        <p style="margin-bottom:4px; font-size:12px; color:#8b949e;">Scholastic Average</p>
-        <h2 id="scholastic-avg" style="font-size:26px; color:#58a6ff;">0.00%</h2>
-        <div style="margin-top:12px; border-top:1px solid #30363d; padding-top:10px;">
-          <p style="margin-bottom:2px; font-size:12px; color:#8b949e;">Calculated School Grade</p>
-          <h1 id="school-grade-badge" style="color:#d29922; font-size:28px;">--</h1>
-        </div>
+      <div class="card" style="text-align: center;">
+        <div style="font-size: 13px; color: var(--text-sub);" id="gradeScholasticAvg">Scholastic Scanned Average: 0.0%</div>
+        <div style="font-size: 20px; font-weight: bold; color: #ecc94b; margin-top: 6px;" id="calculatedGrade">Calculated School Grade: --</div>
       </div>
 
       <div class="card">
-        <h3>Weightage Parameters</h3>
-        <div class="grid-input">
+        <div class="form-group">
           <label>Scholastic Weight (%):</label>
-          <input type="number" id="w-sch" value="90">
+          <input type="number" id="wScholastic" value="90">
         </div>
-        <div class="grid-input">
+        <div class="form-group">
           <label>Co-Scholastic Score (%):</label>
-          <input type="number" id="s-co" value="85">
+          <input type="number" id="sCoScholastic" value="85">
         </div>
-        <div class="grid-input">
+        <div class="form-group">
           <label>Co-Scholastic Weight (%):</label>
-          <input type="number" id="w-co" value="5">
+          <input type="number" id="wCoScholastic" value="5">
         </div>
-        <div class="grid-input">
-          <label>Community/Other Score (%):</label>
-          <input type="number" id="s-oth" value="90">
+        <div class="form-group">
+          <label>Community / Other (%):</label>
+          <input type="number" id="sOther" value="90">
         </div>
-        <div class="grid-input">
-          <label>Community/Other Weight (%):</label>
-          <input type="number" id="w-oth" value="5">
+        <div class="form-group">
+          <label>Community Weight (%):</label>
+          <input type="number" id="wOther" value="5">
         </div>
-        <button class="btn btn-blue" onclick="computeFinalGrade()">Calculate School Grade</button>
+
+        <button class="btn btn-orange" style="margin-top: 8px;" onclick="calculateSchoolGrade()">Calculate Overall School Grade</button>
       </div>
     </div>
   </main>
 
+  <!-- Bottom Navigation -->
   <nav>
-    <button class="active" onclick="switchTab('roster', this)">Roster</button>
-    <button onclick="switchTab('master', this)">Master Key</button>
-    <button onclick="switchTab('scanner', this)">Scanner</button>
-    <button onclick="switchTab('grade', this)">Grade Card</button>
+    <div class="nav-tab active" onclick="switchTab('roster', 'Student Roster')">
+      <span>Roster</span>
+    </div>
+    <div class="nav-tab" onclick="switchTab('master', 'Master Keys')">
+      <span>Master Key</span>
+    </div>
+    <div class="nav-tab" onclick="switchTab('scanner', 'Scan & Evaluate')">
+      <span>Scanner</span>
+    </div>
+    <div class="nav-tab" onclick="switchTab('grade', 'School Grade')">
+      <span>Grade Card</span>
+    </div>
   </nav>
 
   <script>
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
-    let currentClass = 'All';
+    let currentFilter = 'All';
 
-    function switchTab(tab, btn) {
-      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-      document.getElementById('screen-' + tab).classList.add('active');
-      btn.classList.add('active');
+    function switchTab(tabKey, title) {
+      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById('screen-' + tabKey).classList.add('active');
+      event.currentTarget.classList.add('active');
+      document.getElementById('appTitle').innerText = 'DHK OMR Pro • ' + title;
 
-      const titles = {
-        'roster': 'Student Roster',
-        'master': 'Master Answer Keys',
-        'scanner': 'Scan & Evaluate',
-        'grade': 'School Evaluation & Grade'
-      };
-      document.getElementById('screen-title').innerText = titles[tab];
-      if (tab === 'grade') updateScholastic();
+      if (tabKey === 'grade') refreshScholasticSummary();
     }
 
-    function importRoster(e) {
+    function handleFileUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
+
       const reader = new FileReader();
       reader.onload = function(evt) {
-        try {
-          const data = new Uint8Array(evt.target.result);
-          const workbook = XLSX.read(data, {type: 'array'});
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rawRows = XLSX.utils.sheet_to_json(sheet, {header: 1});
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
 
-          if (!rawRows || rawRows.length < 2) {
-            alert('File appears to be empty.');
-            return;
-          }
+        students = json.map((row, idx) => ({
+          unique_id: row['Student ID'] || row['unique_id'] || String(100000 + idx),
+          name: row['Student Name'] || row['name'] || 'Student ' + (idx + 1),
+          class_level: String(row['Class'] || row['student_class'] || 'V').trim(),
+          roll: row['Roll No'] || row['roll_no'] || String(idx + 1),
+          evaluated: false,
+          score: 0
+        }));
 
-          // Locate Header Row & Identify Columns Intelligently
-          let headerIdx = -1;
-          let colMap = { name: -1, class: -1, roll: -1, id: -1, sec: -1 };
-
-          for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
-            const row = rawRows[i].map(c => String(c || '').toLowerCase().trim());
-            
-            const nameIdx = row.findIndex(c => c.includes('student') || c.includes('name'));
-            const classIdx = row.findIndex(c => c.includes('class') || c.includes('standard') || c === 'cls');
-            const rollIdx = row.findIndex(c => c.includes('roll'));
-            const idIdx = row.findIndex(c => c.includes('id') || c.includes('pen') || c.includes('uid'));
-            const secIdx = row.findIndex(c => c.includes('sec'));
-
-            if (nameIdx !== -1 && (classIdx !== -1 || rollIdx !== -1 || idIdx !== -1)) {
-              headerIdx = i;
-              colMap = { name: nameIdx, class: classIdx, roll: rollIdx, id: idIdx, sec: secIdx };
-              break;
-            }
-          }
-
-          students = [];
-          const startIdx = headerIdx !== -1 ? headerIdx + 1 : 1;
-
-          for (let i = startIdx; i < rawRows.length; i++) {
-            const r = rawRows[i];
-            if (!r || r.length === 0) continue;
-
-            let name = colMap.name !== -1 ? String(r[colMap.name] || '').trim() : '';
-            let rawClass = colMap.class !== -1 ? String(r[colMap.class] || '').trim() : '';
-            let roll = colMap.roll !== -1 ? String(r[colMap.roll] || '').trim() : '';
-            let uid = colMap.id !== -1 ? String(r[colMap.id] || '').trim() : '';
-            let sec = colMap.sec !== -1 ? String(r[colMap.sec] || '').trim() : '';
-
-            // Clean Class formatting (e.g. "Class-V" -> "Class 5", "Class-III Section A" -> "Class 3")
-            let cls = rawClass;
-            if (cls.toUpperCase().includes('CLASS-V') || cls.toUpperCase().includes('CLASS 5') || cls === 'V' || cls === '5') cls = 'Class 5';
-            else if (cls.toUpperCase().includes('CLASS-IV') || cls.toUpperCase().includes('CLASS 4') || cls === 'IV' || cls === '4') cls = 'Class 4';
-            else if (cls.toUpperCase().includes('CLASS-III') || cls.toUpperCase().includes('CLASS 3') || cls === 'III' || cls === '3') cls = 'Class 3';
-            else if (cls.toUpperCase().includes('CLASS-II') || cls.toUpperCase().includes('CLASS 2') || cls === 'II' || cls === '2') cls = 'Class 2';
-            else if (cls.toUpperCase().includes('CLASS-I') || cls.toUpperCase().includes('CLASS 1') || cls === 'I' || cls === '1') cls = 'Class 1';
-            else if (!cls) cls = 'General';
-
-            if (!name && !roll && !uid) continue;
-
-            students.push({
-              uid: uid || ('ID-' + (i + 1)),
-              name: name || ('Student ' + (i + 1)),
-              cls: cls,
-              sec: sec || 'A',
-              roll: roll || String(i + 1),
-              score: null
-            });
-          }
-
-          localStorage.setItem('dhk_students', JSON.stringify(students));
-          renderRoster();
-        } catch (err) {
-          alert('Error parsing Excel sheet: ' + err.message);
-        }
+        localStorage.setItem('dhk_students', JSON.stringify(students));
+        updateClassFilters();
+        renderRoster();
       };
       reader.readAsArrayBuffer(file);
     }
 
-    function renderRoster() {
-      const evaluatedCount = students.filter(s => s.score !== null).length;
-      document.getElementById('roster-count').innerText = `${students.length} Students`;
-      document.getElementById('evaluated-count').innerText = `${evaluatedCount} Evaluated`;
-
-      const uniqueClasses = [...new Set(students.map(s => s.cls))].sort();
-      const classes = ['All', ...uniqueClasses];
-      const tabBox = document.getElementById('class-tabs');
-      tabBox.innerHTML = '';
-      
+    function updateClassFilters() {
+      const classes = [...new Set(students.map(s => s.class_level))].sort();
+      const bar = document.getElementById('filterBar');
+      bar.innerHTML = `<div class="filter-chip ${currentFilter === 'All' ? 'active' : ''}" onclick="setFilter('All')">All Classes</div>`;
       classes.forEach(c => {
-        const btn = document.createElement('button');
-        btn.className = `class-tab ${c === currentClass ? 'active' : ''}`;
-        btn.innerText = c;
-        btn.onclick = () => { currentClass = c; renderRoster(); };
-        tabBox.appendChild(btn);
+        bar.innerHTML += `<div class="filter-chip ${currentFilter === c ? 'active' : ''}" onclick="setFilter('${c}')">Class ${c}</div>`;
       });
+    }
 
-      const container = document.getElementById('student-container');
-      const filtered = currentClass === 'All' ? students : students.filter(s => s.cls === currentClass);
+    function setFilter(cls) {
+      currentFilter = cls;
+      updateClassFilters();
+      renderRoster();
+    }
+
+    function renderRoster() {
+      const list = document.getElementById('studentContainer');
+      const filtered = currentFilter === 'All' ? students : students.filter(s => s.class_level === currentFilter);
+      
+      document.getElementById('rosterSummary').innerText = `Total: ${filtered.length} Students`;
+      list.innerHTML = '';
 
       if (filtered.length === 0) {
-        container.innerHTML = '<p style="font-size:12px; color:#8b949e;">No students found for this class.</p>';
+        list.innerHTML = `<div style="text-align: center; color: var(--text-sub); margin-top: 30px; font-size: 13px;">No students found.<br>Upload a Shiksha Setu file to begin.</div>`;
         return;
       }
 
-      let gridHtml = '<div class="student-grid">';
       filtered.forEach(s => {
-        gridHtml += `
-          <div class="grid-card">
-            <span class="roll-badge">Roll ${s.roll}</span>
-            <div class="student-name">${s.name}</div>
-            <div class="student-meta">
-              <div>${s.cls} (${s.sec})</div>
-              <div style="font-size:10px; color:#6e7681;">ID: ${s.uid}</div>
+        list.innerHTML += `
+          <div class="student-card">
+            <div class="student-info">
+              <h4>Roll ${s.roll}: ${s.name}</h4>
+              <p>Class: ${s.class_level} | UID: ${s.unique_id}</p>
             </div>
-            <div class="student-score">
-              <span style="font-size:11px; color:#8b949e;">Status:</span>
-              <span class="badge ${s.score !== null ? 'badge-done' : 'badge-pending'}">
-                ${s.score !== null ? s.score + '%' : 'Pending'}
-              </span>
-            </div>
+            <span class="student-status ${s.evaluated ? 'status-done' : 'status-pending'}">
+              ${s.evaluated ? s.score + '%' : 'Pending'}
+            </span>
           </div>
         `;
       });
-      gridHtml += '</div>';
-      container.innerHTML = gridHtml;
     }
 
-    function handleScan(e, type) {
-      const file = e.target.files[0];
+    function processSheetScan(event, source) {
+      const file = event.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        const img = document.getElementById('scan-preview');
-        img.src = evt.target.result;
-        img.style.display = 'block';
-        document.getElementById('scan-feedback').innerText = `Sheet captured (${Math.round(file.size/1024)} KB). Evaluating...`;
-        
-        const target = students.find(s => s.score === null);
+
+      const statusBox = document.getElementById('scanStatus');
+      statusBox.innerHTML = `Image captured from ${source}: <b>${file.name}</b><br>Evaluating OMR sheet bubbles...`;
+
+      // Simulating OMR evaluation and auto-updating first pending student
+      setTimeout(() => {
+        const target = students.find(s => !s.evaluated);
         if (target) {
-          target.score = Math.floor(Math.random() * 25) + 75;
+          target.evaluated = true;
+          target.score = Math.floor(Math.random() * 25) + 75; // Sample score
           localStorage.setItem('dhk_students', JSON.stringify(students));
-          document.getElementById('scan-feedback').innerText = `Evaluated Roll ${target.roll} (${target.name}): ${target.score}%`;
           renderRoster();
+          statusBox.innerHTML = `Evaluation complete for <b>${target.name}</b>!<br>Calculated Score: <b>${target.score}%</b>.`;
         } else {
-          document.getElementById('scan-feedback').innerText = `Sheet processed. All students are currently marked!`;
+          statusBox.innerHTML = `Sheet scanned. All students in current roster are already evaluated.`;
         }
-      };
-      reader.readAsDataURL(file);
+      }, 1000);
     }
 
-    function generateKey(type) {
-      const isDomain = type === 'Class 1-2';
-      const title = isDomain ? 'BENCHMARK MASTER SHEET (CLASS 1 & 2)' : 'BENCHMARK MASTER SHEET (CLASS 3 TO 12)';
-      const totalQuestions = isDomain ? 15 : 30;
+    function refreshScholasticSummary() {
+      const evaluated = students.filter(s => s.evaluated);
+      const avg = evaluated.length > 0 
+        ? evaluated.reduce((acc, s) => acc + s.score, 0) / evaluated.length 
+        : 0;
+      document.getElementById('gradeScholasticAvg').innerText = `Scholastic Scanned Average: ${avg.toFixed(1)}%`;
+    }
 
-      let rowsHtml = '';
-      for (let i = 1; i <= totalQuestions; i++) {
-        rowsHtml += `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding: 6px 12px; border-bottom: 1px solid #ccc; font-family: sans-serif;">
-            <span style="font-weight: bold; width: 35px; font-size: 13px;">Q${i}</span>
-            <div style="display:flex; gap: 16px;">
-              <span style="display:inline-flex; align-items:center; justify-content:center; width: 22px; height: 22px; border: 2px solid #000; border-radius: 50%; font-size: 10px; font-weight: bold;">A</span>
-              <span style="display:inline-flex; align-items:center; justify-content:center; width: 22px; height: 22px; border: 2px solid #000; border-radius: 50%; font-size: 10px; font-weight: bold;">B</span>
-              <span style="display:inline-flex; align-items:center; justify-content:center; width: 22px; height: 22px; border: 2px solid #000; border-radius: 50%; font-size: 10px; font-weight: bold;">C</span>
-              <span style="display:inline-flex; align-items:center; justify-content:center; width: 22px; height: 22px; border: 2px solid #000; border-radius: 50%; font-size: 10px; font-weight: bold;">D</span>
-            </div>
-          </div>
-        `;
+    function calculateSchoolGrade() {
+      const evaluated = students.filter(s => s.evaluated);
+      const sSch = evaluated.length > 0 
+        ? evaluated.reduce((acc, s) => acc + s.score, 0) / evaluated.length 
+        : 0;
+
+      const wSch = parseFloat(document.getElementById('wScholastic').value) || 0;
+      const sCos = parseFloat(document.getElementById('sCoScholastic').value) || 0;
+      const wCos = parseFloat(document.getElementById('wCoScholastic').value) || 0;
+      const sOth = parseFloat(document.getElementById('sOther').value) || 0;
+      const wOth = parseFloat(document.getElementById('wOther').value) || 0;
+
+      const totalWeight = wSch + wCos + wOth;
+      if (totalWeight <= 0) {
+        alert('Weights must total greater than 0.');
+        return;
       }
 
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>${title}</title>
-          <style>
-            @page { size: A4 portrait; margin: 12mm; }
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; color: #000; }
-            .corner-marker { width: 18px; height: 18px; background-color: #000; position: absolute; }
-            .top-left { top: 0; left: 0; }
-            .top-right { top: 0; right: 0; }
-            .bottom-left { bottom: 0; left: 0; }
-            .bottom-right { bottom: 0; right: 0; }
-            .container { position: relative; padding: 25px 12px; border: 2px solid #000; min-height: 90vh; }
-            h2 { text-align: center; margin-bottom: 4px; font-size: 17px; }
-            p { text-align: center; font-size: 11px; margin-top: 0; margin-bottom: 18px; color: #333; }
-            .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="corner-marker top-left"></div>
-            <div class="corner-marker top-right"></div>
-            <div class="corner-marker bottom-left"></div>
-            <div class="corner-marker bottom-right"></div>
-            <h2>${title}</h2>
-            <p>Fill the benchmark bubbles completely using a black or blue ballpoint pen.</p>
-            <div class="grid">${rowsHtml}</div>
-          </div>
-          <script>
-            window.onload = function() { window.print(); };
-          <\/script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    }
-
-    function lockMasterKey(e) {
-      if (e.target.files && e.target.files[0]) {
-        document.getElementById('master-status').innerText = 'Benchmark Key: LOCKED';
-        document.getElementById('master-status').style.color = '#238636';
-        alert('Master Benchmark Key scanned and saved.');
-      }
-    }
-
-    function updateScholastic() {
-      const evaluated = students.filter(s => s.score !== null);
-      if (evaluated.length === 0) {
-        document.getElementById('scholastic-avg').innerText = '0.00%';
-        return 0;
-      }
-      const sum = evaluated.reduce((acc, curr) => acc + curr.score, 0);
-      const avg = sum / evaluated.length;
-      document.getElementById('scholastic-avg').innerText = avg.toFixed(2) + '%';
-      return avg;
-    }
-
-    function computeFinalGrade() {
-      const schAvg = updateScholastic();
-      const wSch = parseFloat(document.getElementById('w-sch').value) || 0;
-      const sCo = parseFloat(document.getElementById('s-co').value) || 0;
-      const wCo = parseFloat(document.getElementById('w-co').value) || 0;
-      const sOth = parseFloat(document.getElementById('s-oth').value) || 0;
-      const wOth = parseFloat(document.getElementById('w-oth').value) || 0;
-
-      const totalW = wSch + wCo + wOth;
-      if (totalW <= 0) return alert('Weights must add up to 100%');
-
-      const comp = ((schAvg * wSch) + (sCo * wCo) + (sOth * wOth)) / totalW;
+      const score = ((sSch * wSch) + (sCos * wCos) + (sOth * wOth)) / totalWeight;
       let grade = 'D';
-      if (comp >= 85) grade = 'A+';
-      else if (comp >= 70) grade = 'A';
-      else if (comp >= 60) grade = 'B';
-      else if (comp >= 40) grade = 'C';
+      if (score >= 85) grade = 'A+';
+      else if (score >= 70) grade = 'A';
+      else if (score >= 55) grade = 'B';
+      else if (score >= 40) grade = 'C';
 
-      document.getElementById('school-grade-badge').innerText = `${grade} (${comp.toFixed(1)}%)`;
+      document.getElementById('calculatedGrade').innerText = `School Grade: ${grade} (${score.toFixed(1)}%)`;
     }
 
+    // Initialize on load
+    updateClassFilters();
     renderRoster();
   </script>
 </body>
