@@ -14,6 +14,7 @@
       --accent-blue: #296bb2;
       --accent-green: #2e8556;
       --accent-orange: #d9731a;
+      --accent-red: #c53030;
       --text-main: #f0f4f8;
       --text-sub: #a0aec0;
       --border-color: #2d3748;
@@ -22,7 +23,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-    /* Top App Bar */
     header {
       background-color: var(--header-bg);
       padding: 14px 16px;
@@ -33,20 +33,12 @@
       align-items: center;
       border-bottom: 1px solid var(--border-color);
     }
-    .badge {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 12px;
-      background: #276749;
-      color: #9ae6b4;
-    }
+    .badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: #276749; color: #9ae6b4; }
 
-    /* Screen Views */
-    main { flex: 1; overflow-y: auto; padding: 14px; display: block; }
+    main { flex: 1; overflow-y: auto; padding: 14px; }
     .screen { display: none; }
     .screen.active { display: block; }
 
-    /* Buttons & Cards */
     .btn {
       width: 100%;
       padding: 12px;
@@ -56,32 +48,27 @@
       font-size: 14px;
       color: #fff;
       cursor: pointer;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       text-align: center;
       display: block;
     }
     .btn-green { background-color: var(--accent-green); }
     .btn-blue { background-color: var(--accent-blue); }
     .btn-orange { background-color: var(--accent-orange); }
+    .btn-red { background-color: var(--accent-red); }
     .btn-gray { background-color: #4a5568; }
 
     .card {
       background-color: var(--card-bg);
       border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
       border: 1px solid var(--border-color);
     }
-    .instruction { font-size: 12px; color: var(--text-sub); margin-bottom: 14px; line-height: 1.4; }
+    .instruction { font-size: 12px; color: var(--text-sub); margin-bottom: 12px; line-height: 1.4; }
 
-    /* Horizontal Filter Bar */
-    .filter-bar {
-      display: flex;
-      overflow-x: auto;
-      gap: 6px;
-      margin-bottom: 12px;
-      padding-bottom: 4px;
-    }
+    /* Filter Bar */
+    .filter-bar { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 12px; padding-bottom: 4px; }
     .filter-chip {
       background: var(--card-bg);
       border: 1px solid var(--border-color);
@@ -94,7 +81,7 @@
     }
     .filter-chip.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
 
-    /* Student List Cards */
+    /* Student Card */
     .student-card {
       display: flex;
       justify-content: space-between;
@@ -107,36 +94,37 @@
     }
     .student-info h4 { font-size: 14px; margin-bottom: 2px; }
     .student-info p { font-size: 11px; color: var(--text-sub); }
+    .student-actions { display: flex; align-items: center; gap: 8px; }
+    .btn-del {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: #fc8181;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     .student-status { font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
     .status-pending { background: #4a5568; color: #cbd5e0; }
     .status-done { background: #276749; color: #9ae6b4; }
 
-    /* Form Fields for Grade screen */
-    .form-group {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
+    .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .form-group label { font-size: 13px; color: var(--text-sub); }
-    .form-group input {
-      width: 70px;
-      padding: 8px;
+    .form-group input, .form-group select {
+      width: 140px;
+      padding: 6px 8px;
       background: var(--header-bg);
       border: 1px solid var(--border-color);
       border-radius: 6px;
       color: #fff;
-      text-align: right;
-      font-size: 14px;
+      font-size: 13px;
     }
 
-    /* Bottom Navigation Bar */
-    nav {
-      height: 56px;
-      background-color: var(--header-bg);
-      display: flex;
-      border-top: 1px solid var(--border-color);
-    }
+    nav { height: 56px; background-color: var(--header-bg); display: flex; border-top: 1px solid var(--border-color); }
     .nav-tab {
       flex: 1;
       display: flex;
@@ -146,27 +134,70 @@
       color: var(--text-sub);
       font-size: 11px;
       cursor: pointer;
-      text-decoration: none;
     }
     .nav-tab.active { color: #63b3ed; font-weight: bold; }
-    .nav-tab svg { width: 20px; height: 20px; margin-bottom: 2px; fill: currentColor; }
+
+    /* Answer Key Builder */
+    .key-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color); }
+    .opt-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-color); background: var(--header-bg); color: #fff; cursor: pointer; font-weight: bold; }
+    .opt-btn.selected { background: var(--accent-blue); border-color: #63b3ed; }
+
+    /* Printable Master Sheet (Visible on Print) */
+    #printArea { display: none; }
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: #fff;
+        color: #000;
+        padding: 25px;
+      }
+      .omr-sheet-box { border: 2.5px solid #000; padding: 20px; position: relative; }
+      .anchor { width: 24px; height: 24px; background: #000; position: absolute; }
+      .anchor.tl { top: 8px; left: 8px; }
+      .anchor.tr { top: 8px; right: 8px; }
+      .anchor.bl { bottom: 8px; left: 8px; }
+      .anchor.br { bottom: 8px; right: 8px; }
+      .sheet-header { text-align: center; margin-bottom: 14px; }
+      .name-box {
+        border: 2px dashed #000;
+        padding: 10px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        font-weight: bold;
+      }
+      .name-line {
+        height: 36px;
+        border-bottom: 1.5px solid #000;
+        margin-top: 6px;
+      }
+      .sheet-grid { display: flex; justify-content: space-between; gap: 20px; }
+      .omr-circle { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #000; text-align: center; line-height: 15px; font-size: 9px; font-weight: bold; margin: 0 2px; }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Top Title Bar -->
   <header>
     <span id="appTitle">DHK OMR Pro • Student Roster</span>
     <span class="badge" id="appStatus">Ready</span>
   </header>
 
-  <!-- Screens Container -->
   <main>
     <!-- SCREEN 1: ROSTER -->
     <div id="screen-roster" class="screen active">
       <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;" onchange="handleFileUpload(event)">
-      <button class="btn btn-green" onclick="document.getElementById('fileInput').click()">Upload Shiksha Setu (.xlsx)</button>
       
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-green" onclick="document.getElementById('fileInput').click()">Upload Shiksha Setu (.xlsx)</button>
+        <button class="btn btn-red" style="width: 140px;" onclick="confirmDeleteRoster()">Clear List</button>
+      </div>
+
       <div class="filter-bar" id="filterBar">
         <div class="filter-chip active" onclick="setFilter('All')">All Classes</div>
       </div>
@@ -175,104 +206,103 @@
       <div id="studentContainer"></div>
     </div>
 
-    <!-- SCREEN 2: MASTER KEYS -->
+    <!-- SCREEN 2: BLANK OMR GENERATOR & KEYS -->
     <div id="screen-master" class="screen">
       <div class="card">
-        <h3 style="font-size: 14px; margin-bottom: 6px;">Step 1: Set Benchmark Master Key</h3>
-        <p class="instruction">Download and print assessment templates. Darken correct benchmark answers, then scan to lock them into the app.</p>
-        <button class="btn btn-green" onclick="alert('Downloading Class 1 & 2 Template...')">Download Class 1 & 2 Master Sheet (A4)</button>
-        <button class="btn btn-blue" onclick="alert('Downloading Class 3-12 Template...')">Download Classes 3-12 Master Sheet (A4)</button>
-      </div>
-    </div>
-
-    <!-- SCREEN 3: SCANNER -->
-    <div id="screen-scanner" class="screen">
-      <div class="card">
-        <h3 style="font-size: 14px; margin-bottom: 6px;">Step 2: Scan Assessment Sheet</h3>
-        <p class="instruction">Ensure all 4 registration markers are fully in frame under clear lighting.</p>
+        <h3 style="font-size: 14px; margin-bottom: 6px;">1. Universal Blank Xerox Sheet (All Classes)</h3>
+        <p class="instruction">Generate and print 1 master copy to photocopy (Xerox). Students write their name in capital letters inside the box.</p>
         
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="processSheetScan(event, 'Camera')">
-        <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processSheetScan(event, 'Gallery')">
-
-        <button class="btn btn-orange" onclick="document.getElementById('cameraInput').click()">Camera: Class 1 & 2 (Multi-Student)</button>
-        <button class="btn btn-blue" onclick="document.getElementById('cameraInput').click()">Camera: Classes 3 to 12 (Single Student)</button>
-        <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select Photo from Phone Gallery</button>
+        <div class="form-group">
+          <label>Exam Subject/Title:</label>
+          <input type="text" id="omrTitle" value="Class Assessment">
+        </div>
+        <div class="form-group">
+          <label>Total Questions (N):</label>
+          <input type="number" id="omrCount" value="25" min="5" max="100" onchange="buildAnswerKeyInputs()">
+        </div>
+        <button class="btn btn-blue" onclick="printBlankSheet()">Print / Save Master Xerox Sheet (A4)</button>
       </div>
-      
-      <div class="card" style="text-align: center; color: var(--text-sub); font-size: 13px;" id="scanStatus">
-        Ready to scan. Captured results will show here.
+
+      <div class="card">
+        <h3 style="font-size: 14px; margin-bottom: 6px;">2. Set Teacher Answer Key</h3>
+        <p class="instruction">Select the benchmark answers up to question N. Unused questions will be ignored.</p>
+        <div id="keyBuilderContainer" style="max-height: 200px; overflow-y: auto; padding-right: 4px; margin-bottom: 10px;"></div>
+        
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-green" onclick="saveAnswerKey()">Save Key</button>
+          <button class="btn btn-red" onclick="clearAnswerKey()">Clear / Reset Key</button>
+        </div>
       </div>
     </div>
 
-    <!-- SCREEN 4: GRADE CARD -->
+    <!-- SCREEN 3: SCANNER PLACEHOLDER (Step 2 Implementation) -->
+    <div id="screen-scanner" class="screen">
+      <div class="card" style="text-align: center;">
+        <h3 style="font-size: 14px; margin-bottom: 6px;">Optical Scanner</h3>
+        <p class="instruction">Ready for Step 2: Optical scanning, handwriting name match, and automatic grading.</p>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: GRADE CARD PLACEHOLDER (Step 3 Implementation) -->
     <div id="screen-grade" class="screen">
       <div class="card" style="text-align: center;">
-        <div style="font-size: 13px; color: var(--text-sub);" id="gradeScholasticAvg">Scholastic Scanned Average: 0.0%</div>
-        <div style="font-size: 20px; font-weight: bold; color: #ecc94b; margin-top: 6px;" id="calculatedGrade">Calculated School Grade: --</div>
-      </div>
-
-      <div class="card">
-        <div class="form-group">
-          <label>Scholastic Weight (%):</label>
-          <input type="number" id="wScholastic" value="90">
-        </div>
-        <div class="form-group">
-          <label>Co-Scholastic Score (%):</label>
-          <input type="number" id="sCoScholastic" value="85">
-        </div>
-        <div class="form-group">
-          <label>Co-Scholastic Weight (%):</label>
-          <input type="number" id="wCoScholastic" value="5">
-        </div>
-        <div class="form-group">
-          <label>Community / Other (%):</label>
-          <input type="number" id="sOther" value="90">
-        </div>
-        <div class="form-group">
-          <label>Community Weight (%):</label>
-          <input type="number" id="wOther" value="5">
-        </div>
-
-        <button class="btn btn-orange" style="margin-top: 8px;" onclick="calculateSchoolGrade()">Calculate Overall School Grade</button>
+        <h3 style="font-size: 14px; margin-bottom: 6px;">School Grade Card</h3>
+        <p class="instruction">Ready for Step 3: Gunotsav institutional calculations and domain weight scoring.</p>
       </div>
     </div>
   </main>
 
-  <!-- Bottom Navigation -->
   <nav>
-    <div class="nav-tab active" onclick="switchTab('roster', 'Student Roster')">
-      <span>Roster</span>
-    </div>
-    <div class="nav-tab" onclick="switchTab('master', 'Master Keys')">
-      <span>Master Key</span>
-    </div>
-    <div class="nav-tab" onclick="switchTab('scanner', 'Scan & Evaluate')">
-      <span>Scanner</span>
-    </div>
-    <div class="nav-tab" onclick="switchTab('grade', 'School Grade')">
-      <span>Grade Card</span>
-    </div>
+    <div class="nav-tab active" onclick="switchTab('roster', 'Student Roster')"><span>Roster</span></div>
+    <div class="nav-tab" onclick="switchTab('master', 'Exam & Key')"><span>Exam & Key</span></div>
+    <div class="nav-tab" onclick="switchTab('scanner', 'Scan & Evaluate')"><span>Scanner</span></div>
+    <div class="nav-tab" onclick="switchTab('grade', 'School Grade')"><span>Grade Card</span></div>
   </nav>
+
+  <!-- PRINTABLE BLANK TEMPLATE (Universal Xerox Master) -->
+  <div id="printArea">
+    <div class="omr-sheet-box">
+      <div class="anchor tl"></div>
+      <div class="anchor tr"></div>
+      <div class="anchor bl"></div>
+      <div class="anchor br"></div>
+
+      <div class="sheet-header">
+        <h2 id="printTitle" style="margin: 0; font-size: 20px;">Class Assessment</h2>
+        <p style="font-size: 12px; margin-top: 2px;">DHK OMR Universal Assessment Sheet • Class 1 to 12</p>
+      </div>
+
+      <div class="name-box">
+        STUDENT NAME (IN CAPITAL LETTERS):
+        <div class="name-line"></div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 14px; font-size: 12px;">
+        <div><b>Class:</b> _________________</div>
+        <div><b>Section:</b> _____________</div>
+        <div><b>Date:</b> _________________</div>
+      </div>
+
+      <div class="sheet-grid" id="printQuestionGrid"></div>
+    </div>
+  </div>
 
   <script>
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
     let currentFilter = 'All';
+    let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
 
     function switchTab(tabKey, title) {
       document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-      
       document.getElementById('screen-' + tabKey).classList.add('active');
       event.currentTarget.classList.add('active');
       document.getElementById('appTitle').innerText = 'DHK OMR Pro • ' + title;
-
-      if (tabKey === 'grade') refreshScholasticSummary();
     }
 
     function handleFileUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = function(evt) {
         const data = new Uint8Array(evt.target.result);
@@ -281,10 +311,10 @@
         const json = XLSX.utils.sheet_to_json(sheet);
 
         students = json.map((row, idx) => ({
-          unique_id: row['Student ID'] || row['unique_id'] || String(100000 + idx),
-          name: row['Student Name'] || row['name'] || 'Student ' + (idx + 1),
+          unique_id: String(row['Student ID'] || row['unique_id'] || (100000 + idx)),
+          name: String(row['Student Name'] || row['name'] || ('Student ' + (idx + 1))).trim(),
           class_level: String(row['Class'] || row['student_class'] || 'V').trim(),
-          roll: row['Roll No'] || row['roll_no'] || String(idx + 1),
+          section: String(row['Section'] || row['section'] || 'A').trim(),
           evaluated: false,
           score: 0
         }));
@@ -314,7 +344,6 @@
     function renderRoster() {
       const list = document.getElementById('studentContainer');
       const filtered = currentFilter === 'All' ? students : students.filter(s => s.class_level === currentFilter);
-      
       document.getElementById('rosterSummary').innerText = `Total: ${filtered.length} Students`;
       list.innerHTML = '';
 
@@ -327,76 +356,125 @@
         list.innerHTML += `
           <div class="student-card">
             <div class="student-info">
-              <h4>Roll ${s.roll}: ${s.name}</h4>
-              <p>Class: ${s.class_level} | UID: ${s.unique_id}</p>
+              <h4>${s.name}</h4>
+              <p>Class: ${s.class_level} (${s.section}) | UID: ${s.unique_id}</p>
             </div>
-            <span class="student-status ${s.evaluated ? 'status-done' : 'status-pending'}">
-              ${s.evaluated ? s.score + '%' : 'Pending'}
-            </span>
+            <div class="student-actions">
+              <span class="student-status ${s.evaluated ? 'status-done' : 'status-pending'}">
+                ${s.evaluated ? s.score + '%' : 'Pending'}
+              </span>
+              <button class="btn-del" title="Delete Student" onclick="deleteStudent('${s.unique_id}')">✕</button>
+            </div>
           </div>
         `;
       });
     }
 
-    function processSheetScan(event, source) {
-      const file = event.target.files[0];
-      if (!file) return;
+    function deleteStudent(uid) {
+      const target = students.find(s => s.unique_id === uid);
+      if (!target) return;
+      if (confirm(`Remove "${target.name}" from roster?`)) {
+        students = students.filter(s => s.unique_id !== uid);
+        localStorage.setItem('dhk_students', JSON.stringify(students));
+        updateClassFilters();
+        renderRoster();
+      }
+    }
 
-      const statusBox = document.getElementById('scanStatus');
-      statusBox.innerHTML = `Image captured from ${source}: <b>${file.name}</b><br>Evaluating OMR sheet bubbles...`;
+    function confirmDeleteRoster() {
+      if (students.length === 0) return alert('Roster is already empty.');
+      const msg = currentFilter === 'All' 
+        ? 'Delete all students from the entire roster?' 
+        : `Delete all students belonging to Class ${currentFilter}?`;
 
-      // Simulating OMR evaluation and auto-updating first pending student
-      setTimeout(() => {
-        const target = students.find(s => !s.evaluated);
-        if (target) {
-          target.evaluated = true;
-          target.score = Math.floor(Math.random() * 25) + 75; // Sample score
-          localStorage.setItem('dhk_students', JSON.stringify(students));
-          renderRoster();
-          statusBox.innerHTML = `Evaluation complete for <b>${target.name}</b>!<br>Calculated Score: <b>${target.score}%</b>.`;
+      if (confirm(msg)) {
+        if (currentFilter === 'All') {
+          students = [];
         } else {
-          statusBox.innerHTML = `Sheet scanned. All students in current roster are already evaluated.`;
+          students = students.filter(s => s.class_level !== currentFilter);
         }
-      }, 1000);
+        localStorage.setItem('dhk_students', JSON.stringify(students));
+        updateClassFilters();
+        renderRoster();
+      }
     }
 
-    function refreshScholasticSummary() {
-      const evaluated = students.filter(s => s.evaluated);
-      const avg = evaluated.length > 0 
-        ? evaluated.reduce((acc, s) => acc + s.score, 0) / evaluated.length 
-        : 0;
-      document.getElementById('gradeScholasticAvg').innerText = `Scholastic Scanned Average: ${avg.toFixed(1)}%`;
+    /* Master Answer Key & Sheet Builder */
+    function buildAnswerKeyInputs() {
+      const count = parseInt(document.getElementById('omrCount').value, 10) || 20;
+      const container = document.getElementById('keyBuilderContainer');
+      container.innerHTML = '';
+
+      for (let i = 1; i <= count; i++) {
+        const sel = masterKey[i] || '';
+        container.innerHTML += `
+          <div class="key-row">
+            <span style="font-size: 13px; font-weight: bold; width: 30px;">Q${i}</span>
+            <div style="display: flex; gap: 8px;">
+              ${['A','B','C','D'].map(opt => `
+                <button type="button" class="opt-btn ${sel === opt ? 'selected' : ''}" onclick="selectKeyOption(${i}, '${opt}', this)">${opt}</button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
     }
 
-    function calculateSchoolGrade() {
-      const evaluated = students.filter(s => s.evaluated);
-      const sSch = evaluated.length > 0 
-        ? evaluated.reduce((acc, s) => acc + s.score, 0) / evaluated.length 
-        : 0;
+    function selectKeyOption(qNum, opt, btn) {
+      masterKey[qNum] = opt;
+      btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    }
 
-      const wSch = parseFloat(document.getElementById('wScholastic').value) || 0;
-      const sCos = parseFloat(document.getElementById('sCoScholastic').value) || 0;
-      const wCos = parseFloat(document.getElementById('wCoScholastic').value) || 0;
-      const sOth = parseFloat(document.getElementById('sOther').value) || 0;
-      const wOth = parseFloat(document.getElementById('wOther').value) || 0;
+    function saveAnswerKey() {
+      localStorage.setItem('dhk_master_key', JSON.stringify(masterKey));
+      alert('Answer key saved successfully!');
+    }
 
-      const totalWeight = wSch + wCos + wOth;
-      if (totalWeight <= 0) {
-        alert('Weights must total greater than 0.');
-        return;
+    function clearAnswerKey() {
+      if (confirm('Clear the current answer key?')) {
+        masterKey = {};
+        localStorage.removeItem('dhk_master_key');
+        buildAnswerKeyInputs();
+        alert('Answer key cleared.');
+      }
+    }
+
+    function printBlankSheet() {
+      const title = document.getElementById('omrTitle').value || 'Class Assessment';
+      const count = parseInt(document.getElementById('omrCount').value, 10) || 25;
+      document.getElementById('printTitle').innerText = title;
+
+      const grid = document.getElementById('printQuestionGrid');
+      grid.innerHTML = '';
+
+      const cols = count > 30 ? 3 : 2;
+      const perCol = Math.ceil(count / cols);
+
+      for (let c = 0; c < cols; c++) {
+        let colHtml = '<div style="flex: 1;">';
+        for (let i = 1 + (c * perCol); i <= Math.min((c + 1) * perCol, count); i++) {
+          colHtml += `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; font-size: 11px;">
+              <span style="font-weight: bold; width: 26px;">${i}.</span>
+              <div>
+                <span class="omr-circle">A</span>
+                <span class="omr-circle">B</span>
+                <span class="omr-circle">C</span>
+                <span class="omr-circle">D</span>
+              </div>
+            </div>
+          `;
+        }
+        colHtml += '</div>';
+        grid.innerHTML += colHtml;
       }
 
-      const score = ((sSch * wSch) + (sCos * wCos) + (sOth * wOth)) / totalWeight;
-      let grade = 'D';
-      if (score >= 85) grade = 'A+';
-      else if (score >= 70) grade = 'A';
-      else if (score >= 55) grade = 'B';
-      else if (score >= 40) grade = 'C';
-
-      document.getElementById('calculatedGrade').innerText = `School Grade: ${grade} (${score.toFixed(1)}%)`;
+      window.print();
     }
 
-    // Initialize on load
+    // Init
+    buildAnswerKeyInputs();
     updateClassFilters();
     renderRoster();
   </script>
