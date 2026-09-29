@@ -8,19 +8,20 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: kivy/buildozer:latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build with Buildozer Action
-        uses: ArtemSBulgakov/buildozer-action@v1
-        with:
-          workdir: .
-          buildozer_version: stable
+      - name: Build APK with Prebuilt Buildozer
+        run: |
+          buildozer android debug
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: DHK-OMR-Pro-APK
           path: bin/*.apk
+          
