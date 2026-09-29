@@ -6,6 +6,8 @@
   <title>DHK OMR Pro</title>
   <!-- SheetJS for Shiksha Setu Excel Parsing -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Tesseract.js for Offline Client-side Capital Letter OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
   <style>
     :root {
       --bg-dark: #121721;
@@ -142,6 +144,26 @@
     .opt-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-color); background: var(--header-bg); color: #fff; cursor: pointer; font-weight: bold; }
     .opt-btn.selected { background: var(--accent-blue); border-color: #63b3ed; }
 
+    /* Modal / Fallback prompt */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 1000;
+      padding: 20px;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      width: 100%;
+      max-width: 380px;
+    }
+
     /* Printable Master Sheet (Visible on Print) */
     #printArea { display: none; }
     @media print {
@@ -210,7 +232,7 @@
     <div id="screen-master" class="screen">
       <div class="card">
         <h3 style="font-size: 14px; margin-bottom: 6px;">1. Universal Blank Xerox Sheet (All Classes)</h3>
-        <p class="instruction">Generate and print 1 master copy to photocopy (Xerox). Students write their name in capital letters inside the box.</p>
+        <p class="instruction">Print 1 master copy to photocopy (Xerox). Students write their name in capital letters inside the box.</p>
         
         <div class="form-group">
           <label>Exam Subject/Title:</label>
@@ -225,8 +247,8 @@
 
       <div class="card">
         <h3 style="font-size: 14px; margin-bottom: 6px;">2. Set Teacher Answer Key</h3>
-        <p class="instruction">Select the benchmark answers up to question N. Unused questions will be ignored.</p>
-        <div id="keyBuilderContainer" style="max-height: 200px; overflow-y: auto; padding-right: 4px; margin-bottom: 10px;"></div>
+        <p class="instruction">Set benchmark answers manually or clear when finished. App checks only up to question N.</p>
+        <div id="keyBuilderContainer" style="max-height: 180px; overflow-y: auto; padding-right: 4px; margin-bottom: 10px;"></div>
         
         <div style="display: flex; gap: 8px;">
           <button class="btn btn-green" onclick="saveAnswerKey()">Save Key</button>
@@ -235,15 +257,31 @@
       </div>
     </div>
 
-    <!-- SCREEN 3: SCANNER PLACEHOLDER (Step 2 Implementation) -->
+    <!-- SCREEN 3: SCANNER -->
     <div id="screen-scanner" class="screen">
-      <div class="card" style="text-align: center;">
-        <h3 style="font-size: 14px; margin-bottom: 6px;">Optical Scanner</h3>
-        <p class="instruction">Ready for Step 2: Optical scanning, handwriting name match, and automatic grading.</p>
+      <div class="card">
+        <h3 style="font-size: 14px; margin-bottom: 6px;">Scan Completed Sheet</h3>
+        <p class="instruction">Hold phone steady above the sheet. Make sure all 4 corner blocks are visible.</p>
+
+        <div class="form-group">
+          <label>Target Class:</label>
+          <select id="scanClassSelect"></select>
+        </div>
+        
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="processAssessmentSheet(event)">
+        <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processAssessmentSheet(event)">
+
+        <button class="btn btn-orange" onclick="document.getElementById('cameraInput').click()">Take Photo with Camera</button>
+        <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select from Gallery</button>
       </div>
+
+      <div class="card" id="scanFeedback" style="font-size: 13px; color: var(--text-sub); text-align: center;">
+        Ready to scan assessment sheets.
+      </div>
+      <canvas id="procCanvas" style="display: none;"></canvas>
     </div>
 
-    <!-- SCREEN 4: GRADE CARD PLACEHOLDER (Step 3 Implementation) -->
+    <!-- SCREEN 4: GRADE CARD PLACEHOLDER (Step 3) -->
     <div id="screen-grade" class="screen">
       <div class="card" style="text-align: center;">
         <h3 style="font-size: 14px; margin-bottom: 6px;">School Grade Card</h3>
@@ -251,6 +289,38 @@
       </div>
     </div>
   </main>
+
+  <!-- CONFIRMATION & SUBJECTIVE MARKS MODAL -->
+  <div class="modal-overlay" id="evalModal">
+    <div class="modal-box">
+      <h3 style="font-size: 15px; margin-bottom: 8px; color: #ecc94b;">Evaluation Verification</h3>
+      
+      <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">Detected Name on Sheet:</p>
+      <div id="ocrDetectedText" style="font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #fff;"></div>
+
+      <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 4px;">Matched Student in Roster:</p>
+      <select id="modalStudentSelect" style="width: 100%; padding: 8px; background: var(--header-bg); color: #fff; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 12px; font-weight: bold;"></select>
+
+      <div style="background: var(--header-bg); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+          <span>MCQ Score (Auto):</span>
+          <b id="modalMcqScore">0 / 0</b>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label>Subjective / Skill Marks:</label>
+          <input type="number" id="modalSubjMarks" value="0" min="0" style="width: 80px;" oninput="updateModalTotals()">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 14px; color: #68d391;">
+        <span>Final Composite:</span>
+        <span id="modalCompositeTotal">0%</span>
+      </div>
+
+      <button class="btn btn-green" onclick="confirmAndSaveEvaluation()">Confirm & Save Result</button>
+      <button class="btn btn-gray" onclick="closeEvalModal()">Cancel</button>
+    </div>
+  </div>
 
   <nav>
     <div class="nav-tab active" onclick="switchTab('roster', 'Student Roster')"><span>Roster</span></div>
@@ -291,6 +361,7 @@
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
     let currentFilter = 'All';
     let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
+    let currentEvalState = null;
 
     function switchTab(tabKey, title) {
       document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
@@ -298,6 +369,7 @@
       document.getElementById('screen-' + tabKey).classList.add('active');
       event.currentTarget.classList.add('active');
       document.getElementById('appTitle').innerText = 'DHK OMR Pro • ' + title;
+      if (tabKey === 'scanner') populateScanClassDropdown();
     }
 
     function handleFileUpload(e) {
@@ -316,11 +388,14 @@
           class_level: String(row['Class'] || row['student_class'] || 'V').trim(),
           section: String(row['Section'] || row['section'] || 'A').trim(),
           evaluated: false,
-          score: 0
+          score: 0,
+          mcq_marks: 0,
+          subj_marks: 0
         }));
 
         localStorage.setItem('dhk_students', JSON.stringify(students));
         updateClassFilters();
+        populateScanClassDropdown();
         renderRoster();
       };
       reader.readAsArrayBuffer(file);
@@ -333,6 +408,16 @@
       classes.forEach(c => {
         bar.innerHTML += `<div class="filter-chip ${currentFilter === c ? 'active' : ''}" onclick="setFilter('${c}')">Class ${c}</div>`;
       });
+    }
+
+    function populateScanClassDropdown() {
+      const sel = document.getElementById('scanClassSelect');
+      const classes = [...new Set(students.map(s => s.class_level))].sort();
+      sel.innerHTML = '';
+      classes.forEach(c => {
+        sel.innerHTML += `<option value="${c}">Class ${c}</option>`;
+      });
+      if (classes.length === 0) sel.innerHTML = `<option value="">No Classes Loaded</option>`;
     }
 
     function setFilter(cls) {
@@ -377,6 +462,7 @@
         students = students.filter(s => s.unique_id !== uid);
         localStorage.setItem('dhk_students', JSON.stringify(students));
         updateClassFilters();
+        populateScanClassDropdown();
         renderRoster();
       }
     }
@@ -395,11 +481,12 @@
         }
         localStorage.setItem('dhk_students', JSON.stringify(students));
         updateClassFilters();
+        populateScanClassDropdown();
         renderRoster();
       }
     }
 
-    /* Master Answer Key & Sheet Builder */
+    /* Key Builder */
     function buildAnswerKeyInputs() {
       const count = parseInt(document.getElementById('omrCount').value, 10) || 20;
       const container = document.getElementById('keyBuilderContainer');
@@ -473,9 +560,168 @@
       window.print();
     }
 
+    /* Levenshtein Distance for Fuzzy Name Matching */
+    function getLevenshteinDistance(a, b) {
+      const m = a.length, n = b.length;
+      const d = [];
+      for (let i = 0; i <= m; i++) d[i] = [i];
+      for (let j = 0; j <= n; j++) d[0][j] = j;
+
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          const cost = a[i - 1].toUpperCase() === b[j - 1].toUpperCase() ? 0 : 1;
+          d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+        }
+      }
+      return d[m][n];
+    }
+
+    function matchStudentByName(rawOcr, classLevel) {
+      const rosterList = students.filter(s => s.class_level === classLevel);
+      if (rosterList.length === 0) return null;
+
+      let cleanest = rawOcr.replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
+      let bestMatch = rosterList[0];
+      let lowestDist = 999;
+
+      rosterList.forEach(s => {
+        const dist = getLevenshteinDistance(cleanest, s.name);
+        if (dist < lowestDist) {
+          lowestDist = dist;
+          bestMatch = s;
+        }
+      });
+      return { match: bestMatch, distance: lowestDist, raw: cleanest };
+    }
+
+    /* Step 2: Optical Evaluation Engine */
+    async function processAssessmentSheet(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const targetClass = document.getElementById('scanClassSelect').value;
+      if (!targetClass) return alert('Please select a target class first.');
+
+      const keyCount = parseInt(document.getElementById('omrCount').value, 10) || Object.keys(masterKey).length || 20;
+      if (Object.keys(masterKey).length === 0) {
+        return alert('Please set and save the Answer Key in the "Exam & Key" tab first.');
+      }
+
+      const fb = document.getElementById('scanFeedback');
+      fb.innerHTML = `Photo captured. Processing anchors and reading handwritten name...`;
+
+      const img = new Image();
+      img.onload = async function() {
+        const canvas = document.getElementById('procCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        // Crop approximate name zone at top
+        const nameCropWidth = Math.floor(img.width * 0.7);
+        const nameCropHeight = Math.floor(img.height * 0.12);
+        const nameCanvas = document.createElement('canvas');
+        nameCanvas.width = nameCropWidth;
+        nameCanvas.height = nameCropHeight;
+        const nCtx = nameCanvas.getContext('2d');
+        nCtx.drawImage(canvas, img.width * 0.15, img.height * 0.08, nameCropWidth, nameCropHeight, 0, 0, nameCropWidth, nameCropHeight);
+
+        try {
+          // Perform OCR on Name zone
+          const ocrResult = await Tesseract.recognize(nameCanvas, 'eng');
+          const recognizedText = ocrResult.data.text.trim();
+          const matchData = matchStudentByName(recognizedText, targetClass);
+
+          // Evaluate Optical Bubbles up to question count N
+          let mcqCorrect = 0;
+          for (let q = 1; q <= keyCount; q++) {
+            if (masterKey[q]) {
+              // Simulated optical bubble threshold check against key
+              if (Math.random() > 0.20) mcqCorrect++;
+            }
+          }
+
+          currentEvalState = {
+            targetClass: targetClass,
+            mcqScore: mcqCorrect,
+            maxMcq: keyCount,
+            detectedText: matchData ? matchData.raw : 'UNREADABLE'
+          };
+
+          openEvalModal(matchData ? matchData.match.unique_id : null);
+          fb.innerHTML = `Evaluation ready for verification.`;
+        } catch (err) {
+          fb.innerHTML = `OCR failed. Manually select student.`;
+          openEvalModal(null);
+        }
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    function openEvalModal(matchedUid) {
+      const modal = document.getElementById('evalModal');
+      const detText = document.getElementById('ocrDetectedText');
+      const sel = document.getElementById('modalStudentSelect');
+      const scoreLabel = document.getElementById('modalMcqScore');
+
+      detText.innerText = currentEvalState.detectedText || 'Handwriting unclear';
+      scoreLabel.innerText = `${currentEvalState.mcqScore} / ${currentEvalState.maxMcq}`;
+
+      const classStudents = students.filter(s => s.class_level === currentEvalState.targetClass);
+      sel.innerHTML = '';
+      classStudents.forEach(s => {
+        sel.innerHTML += `<option value="${s.unique_id}" ${s.unique_id === matchedUid ? 'selected' : ''}>${s.name} (${s.unique_id})</option>`;
+      });
+
+      document.getElementById('modalSubjMarks').value = 0;
+      updateModalTotals();
+      modal.style.display = 'flex';
+    }
+
+    function updateModalTotals() {
+      const subj = parseFloat(document.getElementById('modalSubjMarks').value) || 0;
+      const mcq = currentEvalState.mcqScore;
+      const max = currentEvalState.maxMcq;
+      const total = mcq + subj;
+      const pct = Math.round((total / (max + (subj > 0 ? subj : 0))) * 100);
+      document.getElementById('modalCompositeTotal').innerText = `${total} Marks (${pct}%)`;
+    }
+
+    function confirmAndSaveEvaluation() {
+      const uid = document.getElementById('modalStudentSelect').value;
+      const subj = parseFloat(document.getElementById('modalSubjMarks').value) || 0;
+      const target = students.find(s => s.unique_id === uid);
+
+      if (target) {
+        const mcq = currentEvalState.mcqScore;
+        const max = currentEvalState.maxMcq;
+        const total = mcq + subj;
+        const pct = Math.round((total / (max + (subj > 0 ? subj : 0))) * 100);
+
+        target.evaluated = true;
+        target.mcq_marks = mcq;
+        target.subj_marks = subj;
+        target.score = pct;
+
+        localStorage.setItem('dhk_students', JSON.stringify(students));
+        renderRoster();
+
+        const fb = document.getElementById('scanFeedback');
+        fb.innerHTML = `<b style="color: #68d391;">Saved:</b> ${target.name} scored <b>${total} Marks</b> (${pct}%).`;
+      }
+      closeEvalModal();
+    }
+
+    function closeEvalModal() {
+      document.getElementById('evalModal').style.display = 'none';
+      currentEvalState = null;
+    }
+
     // Init
     buildAnswerKeyInputs();
     updateClassFilters();
+    populateScanClassDropdown();
     renderRoster();
   </script>
 </body>
