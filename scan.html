@@ -60,7 +60,6 @@
       color: #9ae6b4; font-size: 12px; font-weight: bold; text-shadow: 0 1px 3px #000;
     }
 
-    /* Modal */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0, 0, 0, 0.85); z-index: 1000; padding: 16px;
@@ -111,7 +110,6 @@
         <select id="scanClassSelect"></select>
       </div>
 
-      <!-- Live Stream Viewfinder for Camera Auto-Scan -->
       <div id="standardScanBlock">
         <div class="viewfinder-box" id="viewfinderWrapper">
           <video id="cameraStream" playsinline autoplay></video>
@@ -125,7 +123,6 @@
         <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processAssessmentSheet(event)">
       </div>
 
-      <!-- Class 1 & 2 Multi-Student Trigger -->
       <div id="multiStudentBlock" style="display: none;">
         <p class="instruction">For Class 1 & 2: Fill or review teacher evaluations (0, 1, 2, 3) across reading, writing, and numeracy competencies for all students in one grid.</p>
         <button class="btn btn-blue" onclick="openMultiStudentModal()">Open Multi-Student Scoring Grid</button>
@@ -172,7 +169,7 @@
     </div>
   </div>
 
-  <!-- SCHOOL EVALUATION (24 INDICATORS) VERIFICATION MODAL -->
+  <!-- SCHOOL EVALUATION (24 INDICATORS) MODAL -->
   <div class="modal-overlay" id="schoolEvalModal">
     <div class="modal-box">
       <h3 style="font-size: 15px; margin-bottom: 8px; color: #81e6d9;">School Evaluation Sheet Scanned</h3>
@@ -227,12 +224,41 @@
 
     function populateClassDropdown() {
       const sel = document.getElementById('scanClassSelect');
-      const classes = [...new Set(students.map(s => s.class_level))].sort();
+      const mode = document.getElementById('examTrackSelect').value;
+      const allClasses = [...new Set(students.map(s => s.class_level))].sort();
+
+      let filteredClasses = allClasses;
+
+      if (mode === 'gunotsav_lower') {
+        // Only show Balbatika, Ka-Shreni, Class 1, and Class 2
+        filteredClasses = allClasses.filter(c => {
+          const lower = c.toLowerCase();
+          const isLowerGrade = lower.includes('ka-') || lower.includes('balbatika') || 
+                               lower.includes('class-i ') || lower.endsWith('class-i') || 
+                               lower.includes('class-ii ') || lower.endsWith('class-ii') ||
+                               lower.includes('class 1') || lower.includes('class 2');
+          const isClassThreeOrHigher = lower.includes('class-iii') || lower.includes('class-iv') || lower.includes('class-v') || lower.includes('class 3');
+          return isLowerGrade && !isClassThreeOrHigher;
+        });
+      } else if (mode === 'gunotsav_upper') {
+        // Only show Class 3 and above
+        filteredClasses = allClasses.filter(c => {
+          const lower = c.toLowerCase();
+          const isLowerGrade = lower.includes('ka-') || lower.includes('balbatika') || 
+                               lower.endsWith('class-i') || lower.endsWith('class-ii') || 
+                               lower.includes('class-i ') || lower.includes('class-ii ');
+          return !isLowerGrade;
+        });
+      }
+
       sel.innerHTML = '';
-      classes.forEach(c => {
+      filteredClasses.forEach(c => {
         sel.innerHTML += `<option value="${c}">${c}</option>`;
       });
-      if (classes.length === 0) sel.innerHTML = `<option value="">No Classes Loaded</option>`;
+
+      if (filteredClasses.length === 0) {
+        sel.innerHTML = `<option value="">No matching classes</option>`;
+      }
     }
 
     function toggleExamTrackMode() {
@@ -241,6 +267,8 @@
       const multiBlock = document.getElementById('multiStudentBlock');
       const classRow = document.getElementById('classSelectRow');
       const targetLabel = document.getElementById('targetFrameLabel');
+
+      populateClassDropdown();
 
       if (mode === 'gunotsav_lower') {
         stopLiveCamera();
@@ -417,10 +445,8 @@
 
     /* Process 24-Indicator School Evaluation Sheet */
     async function evaluateSchoolSheet(sourceCanvas) {
-      // Optical scan across 24 indicators
       scannedSchoolScores = [];
       for (let i = 0; i < 24; i++) {
-        // Read darkened bubble ratings (3, 2, 1, or 0)
         const rating = Math.random() > 0.15 ? 3 : 2;
         scannedSchoolScores.push(rating);
       }
@@ -438,7 +464,6 @@
 
     function applyScannedSchoolIndicators() {
       if (indicators.length === 0) {
-        // Initialize default indicators if not already loaded
         const defaultNames = [
           "Morning Assembly", "Student Uniform", "Safe Drinking Water", "Toilets", "Handwashing",
           "MDM Quality", "Poshan Vatika", "Electricity & Light", "Textbook & Uniform", "Library Corner",
@@ -560,7 +585,7 @@
       currentEvalState = null;
     }
 
-    /* Gunotsav Class 1 & 2 */
+    /* Gunotsav Class 1 & 2 Scoring */
     function openMultiStudentModal() {
       const cls = document.getElementById('scanClassSelect').value;
       const list = students.filter(s => s.class_level === cls);
@@ -614,7 +639,14 @@
       document.getElementById('multiStudentModal').style.display = 'none';
     }
 
-    populateClassDropdown();
+    // Check if coming from Grade Card shortcut
+    const pendingMode = localStorage.getItem('dhk_target_scan_mode');
+    if (pendingMode) {
+      document.getElementById('examTrackSelect').value = pendingMode;
+      localStorage.removeItem('dhk_target_scan_mode');
+    }
+
+    toggleExamTrackMode();
   </script>
 </body>
 </html>
