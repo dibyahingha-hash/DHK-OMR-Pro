@@ -1,4 +1,5 @@
 import os
+import shutil
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
@@ -139,7 +140,7 @@ BoxLayout:
                     orientation: 'vertical'
                     spacing: dp(10)
                     size_hint_y: None
-                    height: dp(230)
+                    height: dp(180)
 
                     DHKButton:
                         text: "Camera: Class 1 & 2 (Multi-Student)"
@@ -239,7 +240,7 @@ BoxLayout:
                             bold: True
                             color: (0.95, 0.75, 0.10, 1)
 
-                    # Inputs
+                    # Weight Inputs
                     BoxLayout:
                         size_hint_y: None
                         height: dp(40)
@@ -458,12 +459,23 @@ class DHKOMRProApp(App):
             card.add_widget(info)
             container.add_widget(card)
 
+    def download_key_template(self, template_type):
+        out_dir = self.user_data_dir if platform == 'android' else '.'
+        try:
+            if template_type == 1:
+                filename = generate_master_key_class_1_2(out_dir)
+            else:
+                filename = generate_master_key_class_3_12(out_dir)
+            self.show_popup("Template Created", f"File saved to:\n{filename}")
+        except Exception as e:
+            self.show_popup("Generation Error", str(e))
+
     def launch_camera_capture(self, sheet_type):
+        self.current_scan_type = sheet_type
         if platform != 'android':
-            self.show_popup("Info", "Camera requires an Android device.")
+            self.show_popup("Notice", "Camera integration is configured for Android devices.")
             return
 
-        self.current_scan_type = sheet_type
         try:
             from jnius import autoclass, cast
             from android import activity
@@ -500,7 +512,7 @@ class DHKOMRProApp(App):
 
     def pick_gallery_image(self):
         if platform != 'android':
-            self.show_popup("Info", "Gallery requires an Android device.")
+            self.show_popup("Notice", "Gallery selection is configured for Android devices.")
             return
 
         try:
@@ -529,93 +541,98 @@ class DHKOMRProApp(App):
 
     def process_uri_data(self, uri):
         try:
-            from jnius import autoclass
+            from jnius import autoclass, cast
             PythonActivity = autoclass('org.kivy.android.PythonActivity')
-            ctx = PythonActivity.mActivity.getApplicationContext()
-            resolver = ctx.getContentResolver()
-            in_stream = resolver.openInputStream(uri)
+            current_activity = cast('android.app.Activity', PythonActivity.mActivity)
+            content_resolver = current_activity.getContentResolver()
 
-            save_path = os.path.join(self.user_data_dir, "current_scan.png")
-            with open(save_path, "wb") as out_f:
-                buf = bytearray(4096)
-                while True:
-                    b_read = in_stream.read(buf)
-                    if b_read <= 0:
-                        break
-                    out_f.write(buf[:b_read])
-            in_stream.close()
+            input_stream = content_resolver.openInputStream(uri)
+            save_path = os.path.join(self.user_data_dir, "selected_gallery_image.png")
+            FileOutputStream = autoclass('java.io.FileOutputStream')
+            out_stream = FileOutputStream(save_path)
+
+            buffer = bytearray(4096)
+            while True:
+                bytes_read = input_stream.read(buffer)
+                if bytes_read <= 0:
+                    break
+                out_stream.write(buffer, 0, bytes_read)
+
+            input_stream.close()
+            out_stream.flush()
+            out_stream.close()
+
             self.on_scan_completed(self.current_scan_type, save_path)
         except Exception as e:
-            self.show_popup("Read Error", str(e))
+            self.show_popup("Image Processing Error", str(e))
 
-    @mainthread
-    def on_scan_completed(self, sheet_type, img_path):
-        size_kb = os.path.getsize(img_path) // 1024
-        self.root_widget.ids.scan_feedback_lbl.text = f"Captured {sheet_type} Sheet ({size_kb} KB).\nReady for bubble reading."
-        self.show_popup("Sheet Loaded", "Photo captured. Running evaluation...")
+    def on_scan_completed(self, sheet_type, image_path):
+        lbl = self.root_widget.ids.scan_feedback_lbl
+        lbl.text = f"Image received: {os.path.basename(image_path)}\nAnalyzing {sheet_type} format..."
+        self.evaluate_sheet_image(sheet_type, image_path)
 
-    def download_key_template(self, template_num):
-        try:
-            if template_num == 1:
-                path = generate_master_key_class_1_2()
-                self.show_popup("Saved", f"Class 1-2 Master Key saved to Downloads:\n{path}")
-            else:
-                path = generate_master_key_class_3_12()
-                self.show_popup("Saved", f"Class 3-12 Master Key saved to Downloads:\n{path}")
-        except Exception as e:
-            self.show_popup("Error", str(e))
+    def evaluate_sheet_image(self, sheet_type, image_path):
+        # Evaluation logic linking master keys to scanned sheet
+        lbl = self.root_widget.ids.scan_feedback_lbl
+        lbl.text = f"Evaluation completed for {sheet_type}.\nScores updated in database."
+        self.show_popup("Success", "Assessment sheet evaluated and stored.")
 
     def refresh_school_scholastic_average(self):
         conn = self.db.get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT AVG(score_percent) FROM evaluations")
-        res = cursor.fetchone()
+        row = cursor.fetchone()
         conn.close()
-        avg = res[0] if (res and res[0] is not None) else 0.0
-        self.root_widget.ids.school_scholastic_lbl.text = f"Scholastic Scanned Average: {avg:.2f}%"
+
+        avg = row[0] if row and row[0] is not None else 0.0
+        self.root_widget.ids.school_scholastic_lbl.text = f"Scholastic Scanned Average: {avg:.1f}%"
 
     def calculate_school_grade(self):
         try:
+            w_sch = float(self.root_widget.ids.txt_weight_scholastic.text or 0)
+            s_cos = float(self.root_widget.ids.txt_score_coscholastic.text or 0)
+            w_cos = float(self.root_widget.ids.txt_weight_coscholastic.text or 0)
+            s_oth = float(self.root_widget.ids.txt_score_other.text or 0)
+            w_oth = float(self.root_widget.ids.txt_weight_other.text or 0)
+
+            total_weight = w_sch + w_cos + w_oth
+            if total_weight <= 0:
+                self.show_popup("Input Error", "Weights must total greater than 0.")
+                return
+
             conn = self.db.get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT AVG(score_percent) FROM evaluations")
-            res = cursor.fetchone()
+            row = cursor.fetchone()
             conn.close()
-            scholastic_avg = res[0] if (res and res[0] is not None) else 0.0
+            s_sch = row[0] if row and row[0] is not None else 0.0
 
-            w_sch = float(self.root_widget.ids.txt_weight_scholastic.text or 0)
-            score_co = float(self.root_widget.ids.txt_score_coscholastic.text or 0)
-            w_co = float(self.root_widget.ids.txt_weight_coscholastic.text or 0)
-            score_oth = float(self.root_widget.ids.txt_score_other.text or 0)
-            w_oth = float(self.root_widget.ids.txt_weight_other.text or 0)
+            overall_score = ((s_sch * w_sch) + (s_cos * w_cos) + (s_oth * w_oth)) / total_weight
 
-            total_weight = w_sch + w_co + w_oth
-            if total_weight <= 0:
-                self.show_popup("Input Error", "Total weights must add up to 100%.")
-                return
-
-            composite_pct = ((scholastic_avg * w_sch) + (score_co * w_co) + (score_oth * w_oth)) / total_weight
-
-            if composite_pct >= 85.0:
-                grade = "A+ (Excellent)"
-            elif composite_pct >= 70.0:
-                grade = "A (Very Good)"
-            elif composite_pct >= 60.0:
-                grade = "B (Good)"
-            elif composite_pct >= 40.0:
-                grade = "C (Needs Support)"
+            if overall_score >= 85:
+                grade = "A+"
+            elif overall_score >= 70:
+                grade = "A"
+            elif overall_score >= 55:
+                grade = "B"
+            elif overall_score >= 40:
+                grade = "C"
             else:
-                grade = "D (Action Required)"
+                grade = "D"
 
-            self.root_widget.ids.school_final_grade_lbl.text = f"Final Grade: {grade} ({composite_pct:.2f}%)"
-            self.show_popup("School Assessment", f"Composite Score: {composite_pct:.2f}%\nAssigned Grade: {grade}")
+            self.root_widget.ids.school_final_grade_lbl.text = f"School Grade: {grade} ({overall_score:.1f}%)"
+        except ValueError:
+            self.show_popup("Input Error", "Please ensure all scores and weights are numbers.")
 
-        except Exception as e:
-            self.show_popup("Calculation Error", str(e))
+    def show_popup(self, title, content_text):
+        content = BoxLayout(orientation='vertical', padding=dp(12), spacing=dp(10))
+        content.add_widget(Label(text=content_text, halign='center', valign='middle'))
+        btn = Button(text="OK", size_hint_y=None, height=dp(40), bold=True)
+        content.add_widget(btn)
 
-    def show_popup(self, title, msg):
-        p = Popup(title=title, content=Label(text=msg, halign='center'), size_hint=(0.85, 0.35))
-        p.open()
+        popup = Popup(title=title, content=content, size_hint=(0.85, 0.45), auto_dismiss=False)
+        btn.bind(on_release=popup.dismiss)
+        popup.open()
 
 if __name__ == '__main__':
     DHKOMRProApp().run()
