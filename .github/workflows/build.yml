@@ -10,15 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: kivy/buildozer:latest
+      options: --user root
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Force Compatible Cython & Clean Cache
-        run: |
-          pip install --upgrade "Cython<3.0.0"
-          buildozer appclean
 
       - name: Build APK with Prebuilt Buildozer
         run: |
