@@ -55,7 +55,10 @@ jobs:
           ACLOCAL_PATH: /usr/share/aclocal
           ANDROID_NDK_HOME: ""
           ANDROID_NDK_LATEST_HOME: ""
+          PIP_NO_BINARY: ""
         run: |
+          unset PIP_NO_BINARY || true
+          export PIP_NO_BINARY=""
           rm -rf ~/.buildozer/android/platform/build-* || true
           yes | buildozer -v android debug
 
