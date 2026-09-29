@@ -1,1 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DHK OMR Pro • Exam & Key</title>
+  <style>
+    :root {
+      --bg: #121721; --card: #1e2635; --header: #1a2230;
+      --blue: #296bb2; --green: #2e8556; --red: #c53030;
+      --text: #f0f4f8; --sub: #a0aec0; --border: #2d3748;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 30px; }
+
+    /* Top Navigation Bar */
+    header { background: var(--header); padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .app-name { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .nav-links { display: flex; gap: 6px; overflow-x: auto; }
+    .nav-btn {
+      flex: 1; text-align: center; padding: 8px 10px; border-radius: 6px;
+      font-size: 12px; font-weight: bold; text-decoration: none;
+      background: var(--card); color: var(--sub); border: 1px solid var(--border); white-space: nowrap;
+    }
+    .nav-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    /* Container & Cards */
+    .container { padding: 14px; max-width: 600px; margin: 0 auto; }
+    .card { background: var(--card); border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid var(--border); }
+    .card h3 { font-size: 15px; margin-bottom: 6px; }
+    .instruction { font-size: 12px; color: var(--sub); margin-bottom: 12px; line-height: 1.4; }
+
+    .btn {
+      width: 100%; padding: 12px; border-radius: 8px; border: none;
+      font-weight: bold; font-size: 14px; color: #fff; cursor: pointer; margin-bottom: 8px;
+    }
+    .btn-green { background: var(--green); }
+    .btn-blue { background: var(--blue); }
+    .btn-red { background: var(--red); }
+
+    .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .form-group label { font-size: 13px; color: var(--sub); }
+    .form-group input {
+      width: 140px; padding: 6px 10px; background: var(--header);
+      border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
+    }
+
+    /* Key Builder */
+    .key-grid { max-height: 260px; overflow-y: auto; padding-right: 4px; margin-bottom: 12px; }
+    .key-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .opt-btn {
+      width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--header); color: #fff; cursor: pointer; font-weight: bold; font-size: 13px;
+    }
+    .opt-btn.selected { background: var(--blue); border-color: #63b3ed; }
+
+    /* Printable Master Xerox Sheet */
+    #printArea { display: none; }
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea {
+        display: block !important; position: absolute; left: 0; top: 0; width: 100%;
+        background: #fff; color: #000; padding: 25px;
+      }
+      .omr-sheet-box { border: 2.5px solid #000; padding: 20px; position: relative; }
+      .anchor { width: 24px; height: 24px; background: #000; position: absolute; }
+      .anchor.tl { top: 8px; left: 8px; }
+      .anchor.tr { top: 8px; right: 8px; }
+      .anchor.bl { bottom: 8px; left: 8px; }
+      .anchor.br { bottom: 8px; right: 8px; }
+      .sheet-header { text-align: center; margin-bottom: 14px; }
+      .name-box { border: 2px dashed #000; padding: 10px; margin-bottom: 16px; font-size: 13px; font-weight: bold; }
+      .name-line { height: 36px; border-bottom: 1.5px solid #000; margin-top: 6px; }
+      .sheet-grid { display: flex; justify-content: space-between; gap: 20px; }
+      .omr-circle {
+        display: inline-block; width: 16px; height: 16px; border-radius: 50%;
+        border: 1.5px solid #000; text-align: center; line-height: 15px; font-size: 9px;
+        font-weight: bold; margin: 0 2px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="app-name">
+      <span>DHK OMR Pro</span>
+      <span style="font-size: 12px; color: #ecc94b;">Exam & Key</span>
+    </div>
+    <div class="nav-links">
+      <a href="index.html" class="nav-btn">👥 Roster</a>
+      <a href="exam.html" class="nav-btn active">📝 Exam & Key</a>
+      <a href="scan.html" class="nav-btn">📷 Scanner</a>
+      <a href="grade.html" class="nav-btn">🏆 Grade Card</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Card 1: Xerox Sheet Generator -->
+    <div class="card">
+      <h3>1. Universal Xerox Sheet Generator</h3>
+      <p class="instruction">If you have printing access, print 1 master copy to photocopy for the whole school. Students write their name in capital letters inside the box.</p>
+      
+      <div class="form-group">
+        <label>Exam Subject/Title:</label>
+        <input type="text" id="omrTitle" value="Class Assessment">
+      </div>
+      <div class="form-group">
+        <label>Total Questions (N):</label>
+        <input type="number" id="omrCount" value="25" min="5" max="100" onchange="buildAnswerKeyInputs()">
+      </div>
+      <button class="btn btn-blue" onclick="printBlankSheet()">Print / Save Master Sheet (A4)</button>
+    </div>
+
+    <!-- Card 2: Manual Answer Key Builder -->
+    <div class="card">
+      <h3>2. Set Benchmark Answer Key</h3>
+      <p class="instruction">No printer needed to set keys. Tap the benchmark answers below. The scanner checks strictly up to question N and ignores unused bubbles.</p>
+
+      <div class="key-grid" id="keyBuilderContainer"></div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-green" onclick="saveAnswerKey()">Save Key</button>
+        <button class="btn btn-red" onclick="clearAnswerKey()">Clear / Reset Key</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRINTABLE MASTER TEMPLATE -->
+  <div id="printArea">
+    <div class="omr-sheet-box">
+      <div class="anchor tl"></div>
+      <div class="anchor tr"></div>
+      <div class="anchor bl"></div>
+      <div class="anchor br"></div>
+
+      <div class="sheet-header">
+        <h2 id="printTitle" style="margin: 0; font-size: 20px;">Class Assessment</h2>
+        <p style="font-size: 12px; margin-top: 2px;">DHK OMR Universal Assessment Sheet • All Classes</p>
+      </div>
+
+      <div class="name-box">
+        STUDENT NAME (IN CAPITAL LETTERS):
+        <div class="name-line"></div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 14px; font-size: 12px;">
+        <div><b>Class:</b> _________________</div>
+        <div><b>Section:</b> _____________</div>
+        <div><b>Date:</b> _________________</div>
+      </div>
+
+      <div class="sheet-grid" id="printQuestionGrid"></div>
+    </div>
+  </div>
+
+  <script>
+    let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
+
+    function buildAnswerKeyInputs() {
+      const count = parseInt(document.getElementById('omrCount').value, 10) || 20;
+      const container = document.getElementById('keyBuilderContainer');
+      container.innerHTML = '';
+
+      for (let i = 1; i <= count; i++) {
+        const sel = masterKey[i] || '';
+        container.innerHTML += `
+          <div class="key-row">
+            <span style="font-size: 13px; font-weight: bold; width: 36px;">Q${i}</span>
+            <div style="display: flex; gap: 8px;">
+              ${['A','B','C','D'].map(opt => `
+                <button type="button" class="opt-btn ${sel === opt ? 'selected' : ''}" onclick="selectKeyOption(${i}, '${opt}', this)">${opt}</button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function selectKeyOption(qNum, opt, btn) {
+      masterKey[qNum] = opt;
+      btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    }
+
+    function saveAnswerKey() {
+      const count = parseInt(document.getElementById('omrCount').value, 10) || 20;
+      localStorage.setItem('dhk_master_key', JSON.stringify(masterKey));
+      localStorage.setItem('dhk_key_count', count);
+      alert('Answer key saved successfully!');
+    }
+
+    function clearAnswerKey() {
+      if (confirm('Clear the current answer key?')) {
+        masterKey = {};
+        localStorage.removeItem('dhk_master_key');
+        buildAnswerKeyInputs();
+        alert('Answer key reset.');
+      }
+    }
+
+    function printBlankSheet() {
+      const title = document.getElementById('omrTitle').value || 'Class Assessment';
+      const count = parseInt(document.getElementById('omrCount').value, 10) || 25;
+      document.getElementById('printTitle').innerText = title;
+
+      const grid = document.getElementById('printQuestionGrid');
+      grid.innerHTML = '';
+
+      const cols = count > 30 ? 3 : 2;
+      const perCol = Math.ceil(count / cols);
+
+      for (let c = 0; c < cols; c++) {
+        let colHtml = '<div style="flex: 1;">';
+        for (let i = 1 + (c * perCol); i <= Math.min((c + 1) * perCol, count); i++) {
+          colHtml += `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; font-size: 11px;">
+              <span style="font-weight: bold; width: 26px;">${i}.</span>
+              <div>
+                <span class="omr-circle">A</span>
+                <span class="omr-circle">B</span>
+                <span class="omr-circle">C</span>
+                <span class="omr-circle">D</span>
+              </div>
+            </div>
+          `;
+        }
+        colHtml += '</div>';
+        grid.innerHTML += colHtml;
+      }
+
+      window.print();
+    }
+
+    // Restore saved question count if available
+    const savedCount = localStorage.getItem('dhk_key_count');
+    if (savedCount) document.getElementById('omrCount').value = savedCount;
+
+    buildAnswerKeyInputs();
+  </script>
+</body>
+</html>
 
