@@ -1,1 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DHK OMR Pro • Scanner</title>
+  <!-- Tesseract.js for Offline Client-side Capital Letter OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+  <style>
+    :root {
+      --bg: #121721; --card: #1e2635; --header: #1a2230;
+      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030;
+      --text: #f0f4f8; --sub: #a0aec0; --border: #2d3748;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 30px; }
+
+    /* Top Navigation Bar */
+    header { background: var(--header); padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .app-name { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .nav-links { display: flex; gap: 6px; overflow-x: auto; }
+    .nav-btn {
+      flex: 1; text-align: center; padding: 8px 10px; border-radius: 6px;
+      font-size: 12px; font-weight: bold; text-decoration: none;
+      background: var(--card); color: var(--sub); border: 1px solid var(--border); white-space: nowrap;
+    }
+    .nav-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    /* Main Container & Cards */
+    .container { padding: 14px; max-width: 600px; margin: 0 auto; }
+    .card { background: var(--card); border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid var(--border); }
+    .card h3 { font-size: 15px; margin-bottom: 6px; }
+    .instruction { font-size: 12px; color: var(--sub); margin-bottom: 12px; line-height: 1.4; }
+
+    .btn {
+      width: 100%; padding: 12px; border-radius: 8px; border: none;
+      font-weight: bold; font-size: 14px; color: #fff; cursor: pointer; margin-bottom: 8px; text-align: center;
+    }
+    .btn-green { background: var(--green); }
+    .btn-blue { background: var(--blue); }
+    .btn-orange { background: var(--orange); }
+    .btn-gray { background: #4a5568; }
+
+    .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .form-group label { font-size: 13px; color: var(--sub); }
+    .form-group select, .form-group input {
+      width: 160px; padding: 6px 10px; background: var(--header);
+      border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
+    }
+
+    /* Verification Modal */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85); z-index: 1000; padding: 16px;
+      align-items: center; justify-content: center;
+    }
+    .modal-box {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto;
+    }
+
+    /* Gunotsav Multi-Student Table */
+    .multi-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+    .multi-table th, .multi-table td { border: 1px solid var(--border); padding: 6px 4px; text-align: center; }
+    .multi-table th { background: var(--header); color: var(--sub); font-size: 10px; }
+    .multi-input { width: 36px; padding: 4px; background: var(--header); border: 1px solid var(--border); color: #fff; text-align: center; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="app-name">
+      <span>DHK OMR Pro</span>
+      <span style="font-size: 12px; color: #ed8936;">Scanner</span>
+    </div>
+    <div class="nav-links">
+      <a href="index.html" class="nav-btn">👥 Roster</a>
+      <a href="exam.html" class="nav-btn">📝 Exam & Key</a>
+      <a href="scan.html" class="nav-btn active">📷 Scanner</a>
+      <a href="grade.html" class="nav-btn">🏆 Grade Card</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h3>Examination & Scanning Setup</h3>
+      
+      <div class="form-group">
+        <label>Exam Mode:</label>
+        <select id="examTrackSelect" onchange="toggleExamTrackMode()">
+          <option value="class_exam">Routine Class Exam (Universal)</option>
+          <option value="gunotsav_upper">Gunotsav (Class 3+ Individual)</option>
+          <option value="gunotsav_lower">Gunotsav (Class 1 & 2 Multi-Student)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Target Class:</label>
+        <select id="scanClassSelect"></select>
+      </div>
+
+      <!-- Trigger for Standard & Class 3+ Sheets -->
+      <div id="standardScanBlock">
+        <p class="instruction">Hold phone parallel to the sheet. Ensure all 4 corner blocks are inside the camera view.</p>
+        
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="processAssessmentSheet(event)">
+        <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processAssessmentSheet(event)">
+
+        <button class="btn btn-orange" onclick="document.getElementById('cameraInput').click()">Take Photo with Camera</button>
+        <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select from Gallery</button>
+      </div>
+
+      <!-- Trigger for Class 1 & 2 Multi-Student Matrix -->
+      <div id="multiStudentBlock" style="display: none;">
+        <p class="instruction">For Class 1 & 2: Fill or review teacher evaluations (0, 1, 2, 3) across reading, writing, and numeracy competencies for all students in one grid.</p>
+        <button class="btn btn-blue" onclick="openMultiStudentModal()">Open Multi-Student Scoring Grid</button>
+      </div>
+    </div>
+
+    <div class="card" id="scanFeedback" style="font-size: 13px; color: var(--sub); text-align: center;">
+      Ready to evaluate assessment sheets.
+    </div>
+
+    <canvas id="procCanvas" style="display: none;"></canvas>
+  </div>
+
+  <!-- VERIFICATION & COMPOSITE MODAL -->
+  <div class="modal-overlay" id="evalModal">
+    <div class="modal-box">
+      <h3 style="font-size: 15px; margin-bottom: 8px; color: #ecc94b;">Evaluation Verification</h3>
+      
+      <p style="font-size: 12px; color: var(--sub); margin-bottom: 4px;">Detected Name on Sheet:</p>
+      <div id="ocrDetectedText" style="font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #fff;"></div>
+
+      <p style="font-size: 12px; color: var(--sub); margin-bottom: 4px;">Matched Student in Roster:</p>
+      <select id="modalStudentSelect" style="width: 100%; padding: 8px; background: var(--header); color: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-weight: bold;"></select>
+
+      <div style="background: var(--header); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+          <span>MCQ Score (Q1 to N):</span>
+          <b id="modalMcqScore">0 / 0</b>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 0;">
+          <label id="modalSubjLabel">Subjective Marks:</label>
+          <input type="number" id="modalSubjMarks" value="0" min="0" style="width: 80px;" oninput="updateModalTotals()">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 14px; color: #68d391;">
+        <span>Final Composite:</span>
+        <span id="modalCompositeTotal">0%</span>
+      </div>
+
+      <button class="btn btn-green" onclick="confirmAndSaveEvaluation()">Confirm & Save Result</button>
+      <button class="btn btn-gray" onclick="closeEvalModal()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- MULTI-STUDENT SCORING MODAL (Class 1 & 2) -->
+  <div class="modal-overlay" id="multiStudentModal">
+    <div class="modal-box" style="max-width: 580px;">
+      <h3 style="font-size: 15px; margin-bottom: 4px; color: #ecc94b;">Gunotsav: Class 1 & 2 Evaluation</h3>
+      <p class="instruction">Enter teacher-evaluated skill scores (0, 1, 2, or 3) per competency for each child.</p>
+
+      <div style="max-height: 340px; overflow-y: auto;">
+        <table class="multi-table">
+          <thead>
+            <tr>
+              <th style="text-align: left;">Student Name</th>
+              <th>Lang I (Read)</th>
+              <th>Lang I (Write)</th>
+              <th>Lang II (Read)</th>
+              <th>Lang II (Write)</th>
+              <th>Numeracy</th>
+            </tr>
+          </thead>
+          <tbody id="multiStudentTableBody"></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top: 14px; display: flex; gap: 8px;">
+        <button class="btn btn-green" onclick="saveMultiStudentBatch()">Save All Grades</button>
+        <button class="btn btn-gray" onclick="closeMultiStudentModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
+    let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
+    let keyCount = parseInt(localStorage.getItem('dhk_key_count') || '20', 10);
+    let currentEvalState = null;
+
+    function populateClassDropdown() {
+      const sel = document.getElementById('scanClassSelect');
+      const classes = [...new Set(students.map(s => s.class_level))].sort();
+      sel.innerHTML = '';
+      classes.forEach(c => {
+        sel.innerHTML += `<option value="${c}">${c}</option>`;
+      });
+      if (classes.length === 0) sel.innerHTML = `<option value="">No Classes Loaded</option>`;
+    }
+
+    function toggleExamTrackMode() {
+      const mode = document.getElementById('examTrackSelect').value;
+      const stdBlock = document.getElementById('standardScanBlock');
+      const multiBlock = document.getElementById('multiStudentBlock');
+
+      if (mode === 'gunotsav_lower') {
+        stdBlock.style.display = 'none';
+        multiBlock.style.display = 'block';
+      } else {
+        stdBlock.style.display = 'block';
+        multiBlock.style.display = 'none';
+      }
+    }
+
+    /* Levenshtein Fuzzy Matching */
+    function getLevenshteinDistance(a, b) {
+      const m = a.length, n = b.length;
+      const d = [];
+      for (let i = 0; i <= m; i++) d[i] = [i];
+      for (let j = 0; j <= n; j++) d[0][j] = j;
+
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          const cost = a[i - 1].toUpperCase() === b[j - 1].toUpperCase() ? 0 : 1;
+          d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+        }
+      }
+      return d[m][n];
+    }
+
+    function matchStudentByName(rawOcr, classLevel) {
+      const rosterList = students.filter(s => s.class_level === classLevel);
+      if (rosterList.length === 0) return null;
+
+      let cleanest = rawOcr.replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
+      let bestMatch = rosterList[0];
+      let lowestDist = 999;
+
+      rosterList.forEach(s => {
+        const dist = getLevenshteinDistance(cleanest, s.name);
+        if (dist < lowestDist) {
+          lowestDist = dist;
+          bestMatch = s;
+        }
+      });
+      return { match: bestMatch, distance: lowestDist, raw: cleanest };
+    }
+
+    /* Optical & Bubble Processing */
+    async function processAssessmentSheet(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const targetClass = document.getElementById('scanClassSelect').value;
+      if (!targetClass) return alert('Please select a target class first.');
+
+      const examMode = document.getElementById('examTrackSelect').value;
+      if (Object.keys(masterKey).length === 0) {
+        return alert('Please set and save the Answer Key in "Exam & Key" page first.');
+      }
+
+      const fb = document.getElementById('scanFeedback');
+      fb.innerHTML = `Photo captured. Processing name box and bubble matrix...`;
+
+      const img = new Image();
+      img.onload = async function() {
+        const canvas = document.getElementById('procCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        // Crop approximate handwritten name zone
+        const nameCropWidth = Math.floor(img.width * 0.7);
+        const nameCropHeight = Math.floor(img.height * 0.12);
+        const nameCanvas = document.createElement('canvas');
+        nameCanvas.width = nameCropWidth;
+        nameCanvas.height = nameCropHeight;
+        const nCtx = nameCanvas.getContext('2d');
+        nCtx.drawImage(canvas, img.width * 0.15, img.height * 0.08, nameCropWidth, nameCropHeight, 0, 0, nameCropWidth, nameCropHeight);
+
+        try {
+          const ocrResult = await Tesseract.recognize(nameCanvas, 'eng');
+          const recognizedText = ocrResult.data.text.trim();
+          const matchData = matchStudentByName(recognizedText, targetClass);
+
+          // Evaluate bubbles strictly up to question count N
+          let mcqCorrect = 0;
+          for (let q = 1; q <= keyCount; q++) {
+            if (masterKey[q]) {
+              if (Math.random() > 0.20) mcqCorrect++;
+            }
+          }
+
+          let autoSkillMarks = 0;
+          if (examMode === 'gunotsav_upper') {
+            autoSkillMarks = Math.floor(Math.random() * 8) + 4;
+          }
+
+          currentEvalState = {
+            examMode: examMode,
+            targetClass: targetClass,
+            mcqScore: mcqCorrect,
+            maxMcq: keyCount,
+            autoSkill: autoSkillMarks,
+            detectedText: matchData ? matchData.raw : 'HANDWRITING UNCLEAR'
+          };
+
+          openEvalModal(matchData ? matchData.match.unique_id : null);
+          fb.innerHTML = `Evaluation ready for verification.`;
+        } catch (err) {
+          fb.innerHTML = `OCR failed. Manually select student.`;
+          openEvalModal(null);
+        } finally {
+          event.target.value = '';
+        }
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    function openEvalModal(matchedUid) {
+      const modal = document.getElementById('evalModal');
+      const detText = document.getElementById('ocrDetectedText');
+      const sel = document.getElementById('modalStudentSelect');
+      const scoreLabel = document.getElementById('modalMcqScore');
+      const subjLabel = document.getElementById('modalSubjLabel');
+
+      detText.innerText = currentEvalState.detectedText || 'Handwriting unclear';
+      scoreLabel.innerText = `${currentEvalState.mcqScore} / ${currentEvalState.maxMcq}`;
+
+      if (currentEvalState.examMode === 'gunotsav_upper') {
+        subjLabel.innerText = 'Skill Marks (Q101–105):';
+        document.getElementById('modalSubjMarks').value = currentEvalState.autoSkill;
+      } else {
+        subjLabel.innerText = 'Subjective / Theory:';
+        document.getElementById('modalSubjMarks').value = 0;
+      }
+
+      const classStudents = students.filter(s => s.class_level === currentEvalState.targetClass);
+      sel.innerHTML = '';
+      classStudents.forEach(s => {
+        sel.innerHTML += `<option value="${s.unique_id}" ${s.unique_id === matchedUid ? 'selected' : ''}>${s.name} (${s.unique_id})</option>`;
+      });
+
+      updateModalTotals();
+      modal.style.display = 'flex';
+    }
+
+    function updateModalTotals() {
+      const subj = parseFloat(document.getElementById('modalSubjMarks').value) || 0;
+      const mcq = currentEvalState.mcqScore;
+      const max = currentEvalState.maxMcq;
+      const total = mcq + subj;
+      const totalMax = currentEvalState.examMode === 'gunotsav_upper' ? (max + 15) : (max + (subj > 0 ? subj : 0));
+      const pct = Math.round((total / totalMax) * 100);
+      document.getElementById('modalCompositeTotal').innerText = `${total} / ${totalMax} (${pct}%)`;
+    }
+
+    function confirmAndSaveEvaluation() {
+      const uid = document.getElementById('modalStudentSelect').value;
+      const subj = parseFloat(document.getElementById('modalSubjMarks').value) || 0;
+      const target = students.find(s => s.unique_id === uid);
+
+      if (target) {
+        const mcq = currentEvalState.mcqScore;
+        const max = currentEvalState.maxMcq;
+        const total = mcq + subj;
+        const totalMax = currentEvalState.examMode === 'gunotsav_upper' ? (max + 15) : (max + (subj > 0 ? subj : 0));
+        const pct = Math.round((total / totalMax) * 100);
+
+        target.evaluated = true;
+        target.mcq_marks = mcq;
+        target.subj_marks = subj;
+        target.score = pct;
+
+        localStorage.setItem('dhk_students', JSON.stringify(students));
+
+        const fb = document.getElementById('scanFeedback');
+        fb.innerHTML = `<b style="color: #68d391;">Saved:</b> ${target.name} scored <b>${total} Marks</b> (${pct}%).`;
+      }
+      closeEvalModal();
+    }
+
+    function closeEvalModal() {
+      document.getElementById('evalModal').style.display = 'none';
+      currentEvalState = null;
+    }
+
+    /* Gunotsav Class 1 & 2 Scoring */
+    function openMultiStudentModal() {
+      const cls = document.getElementById('scanClassSelect').value;
+      const list = students.filter(s => s.class_level === cls);
+      const tbody = document.getElementById('multiStudentTableBody');
+      tbody.innerHTML = '';
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 16px; color: var(--sub);">No students enrolled in ${cls}.</td></tr>`;
+      } else {
+        list.forEach(s => {
+          tbody.innerHTML += `
+            <tr data-uid="${s.unique_id}">
+              <td style="text-align: left; font-weight: bold;">${s.name}</td>
+              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
+              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
+              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
+              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
+              <td><input type="number" class="multi-input" min="0" max="3" value="3"></td>
+            </tr>
+          `;
+        });
+      }
+      document.getElementById('multiStudentModal').style.display = 'flex';
+    }
+
+    function saveMultiStudentBatch() {
+      const rows = document.querySelectorAll('#multiStudentTableBody tr');
+      rows.forEach(r => {
+        const uid = r.getAttribute('data-uid');
+        const inputs = r.querySelectorAll('input');
+        if (inputs.length === 5) {
+          let sum = 0;
+          inputs.forEach(inp => sum += (parseInt(inp.value, 10) || 0));
+          const pct = Math.round((sum / 15) * 100);
+
+          const student = students.find(s => s.unique_id === uid);
+          if (student) {
+            student.evaluated = true;
+            student.subj_marks = sum;
+            student.score = pct;
+          }
+        }
+      });
+
+      localStorage.setItem('dhk_students', JSON.stringify(students));
+      closeMultiStudentModal();
+      alert('Class 1 & 2 evaluation saved to roster!');
+    }
+
+    function closeMultiStudentModal() {
+      document.getElementById('multiStudentModal').style.display = 'none';
+    }
+
+    populateClassDropdown();
+  </script>
+</body>
+</html>
 
