@@ -20,7 +20,8 @@ version = 0.1
 
 # (list) Application requirements
 # Pinning python3==3.11.9 prevents the Python 3.14 cp314 unsupported wheel error
-requirements = python3==3.11.9,kivy==2.3.0,pillow
+requirements = python3,kivy==2.3.0,pillow
+
 
 # (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
 orientation = portrait
