@@ -17,6 +17,7 @@
       --accent-green: #2e8556;
       --accent-orange: #d9731a;
       --accent-red: #c53030;
+      --accent-gold: #d69e2e;
       --text-main: #f0f4f8;
       --text-sub: #a0aec0;
       --border-color: #2d3748;
@@ -117,7 +118,7 @@
     .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .form-group label { font-size: 13px; color: var(--text-sub); }
     .form-group input, .form-group select {
-      width: 140px;
+      width: 150px;
       padding: 6px 8px;
       background: var(--header-bg);
       border: 1px solid var(--border-color);
@@ -151,7 +152,7 @@
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0, 0, 0, 0.85);
       z-index: 1000;
-      padding: 20px;
+      padding: 16px;
       align-items: center;
       justify-content: center;
     }
@@ -161,7 +162,28 @@
       border-radius: 8px;
       padding: 16px;
       width: 100%;
-      max-width: 380px;
+      max-width: 420px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    /* Gunotsav Multi-Student Table */
+    .multi-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+    .multi-table th, .multi-table td { border: 1px solid var(--border-color); padding: 6px 4px; text-align: center; }
+    .multi-table th { background: var(--header-bg); color: var(--text-sub); font-size: 10px; }
+    .multi-input { width: 36px; padding: 4px; background: var(--header-bg); border: 1px solid var(--border-color); color: #fff; text-align: center; border-radius: 4px; }
+
+    /* Institutional Grade Banner */
+    .grade-badge-huge {
+      display: inline-block;
+      font-size: 38px;
+      font-weight: 900;
+      padding: 10px 24px;
+      border-radius: 12px;
+      background: #234e52;
+      color: #81e6d9;
+      border: 2px solid #319795;
+      margin: 10px 0;
     }
 
     /* Printable Master Sheet (Visible on Print) */
@@ -231,7 +253,7 @@
     <!-- SCREEN 2: BLANK OMR GENERATOR & KEYS -->
     <div id="screen-master" class="screen">
       <div class="card">
-        <h3 style="font-size: 14px; margin-bottom: 6px;">1. Universal Blank Xerox Sheet (All Classes)</h3>
+        <h3 style="font-size: 14px; margin-bottom: 6px;">1. Universal Blank Xerox Sheet (Classes 1–12)</h3>
         <p class="instruction">Print 1 master copy to photocopy (Xerox). Students write their name in capital letters inside the box.</p>
         
         <div class="form-group">
@@ -247,7 +269,7 @@
 
       <div class="card">
         <h3 style="font-size: 14px; margin-bottom: 6px;">2. Set Teacher Answer Key</h3>
-        <p class="instruction">Set benchmark answers manually or clear when finished. App checks only up to question N.</p>
+        <p class="instruction">Set benchmark answers manually. The scanner evaluates strictly up to question N and ignores unused bubbles.</p>
         <div id="keyBuilderContainer" style="max-height: 180px; overflow-y: auto; padding-right: 4px; margin-bottom: 10px;"></div>
         
         <div style="display: flex; gap: 8px;">
@@ -257,22 +279,39 @@
       </div>
     </div>
 
-    <!-- SCREEN 3: SCANNER -->
+    <!-- SCREEN 3: SCANNER & EVALUATION -->
     <div id="screen-scanner" class="screen">
       <div class="card">
-        <h3 style="font-size: 14px; margin-bottom: 6px;">Scan Completed Sheet</h3>
-        <p class="instruction">Hold phone steady above the sheet. Make sure all 4 corner blocks are visible.</p>
-
+        <h3 style="font-size: 14px; margin-bottom: 6px;">Examination & Scanning Mode</h3>
+        
         <div class="form-group">
+          <label>Exam Track:</label>
+          <select id="examTrackSelect" onchange="toggleExamTrackMode()">
+            <option value="class_exam">Routine Class Exam (Universal Sheet)</option>
+            <option value="gunotsav_upper">Gunotsav (Class 3+ Individual Sheet)</option>
+            <option value="gunotsav_lower">Gunotsav (Class 1 & 2 Multi-Student Sheet)</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="classSelectGroup">
           <label>Target Class:</label>
           <select id="scanClassSelect"></select>
         </div>
-        
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="processAssessmentSheet(event)">
-        <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processAssessmentSheet(event)">
 
-        <button class="btn btn-orange" onclick="document.getElementById('cameraInput').click()">Take Photo with Camera</button>
-        <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select from Gallery</button>
+        <!-- Camera/Upload Triggers for Standard & Upper Sheets -->
+        <div id="standardScanBlock">
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="processAssessmentSheet(event)">
+          <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processAssessmentSheet(event)">
+
+          <button class="btn btn-orange" onclick="document.getElementById('cameraInput').click()">Take Photo with Camera</button>
+          <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select from Gallery</button>
+        </div>
+
+        <!-- Class 1 & 2 Multi-Student Trigger -->
+        <div id="multiStudentBlock" style="display: none;">
+          <p class="instruction">For Class 1 & 2: Fill or scan teacher evaluations (0, 1, 2, 3) across reading, writing, and numeracy competencies for all students in one master form.</p>
+          <button class="btn btn-blue" onclick="openMultiStudentModal()">Open Multi-Student Scoring Grid</button>
+        </div>
       </div>
 
       <div class="card" id="scanFeedback" style="font-size: 13px; color: var(--text-sub); text-align: center;">
@@ -281,16 +320,54 @@
       <canvas id="procCanvas" style="display: none;"></canvas>
     </div>
 
-    <!-- SCREEN 4: GRADE CARD PLACEHOLDER (Step 3) -->
+    <!-- SCREEN 4: SCHOOL GRADE CARD -->
     <div id="screen-grade" class="screen">
       <div class="card" style="text-align: center;">
-        <h3 style="font-size: 14px; margin-bottom: 6px;">School Grade Card</h3>
-        <p class="instruction">Ready for Step 3: Gunotsav institutional calculations and domain weight scoring.</p>
+        <h3 style="font-size: 15px; margin-bottom: 4px;">Institutional Gunotsav Grade</h3>
+        <p class="instruction">Combines scanned scholastic performance with official school evaluation indicators.</p>
+        
+        <div id="gradeBadgeContainer">
+          <div class="grade-badge-huge" id="schoolFinalGrade">A</div>
+        </div>
+        <div style="font-size: 18px; font-weight: bold; margin-bottom: 12px;" id="schoolCompositeScore">Composite: 82.5%</div>
+
+        <button class="btn btn-green" onclick="recalculateSchoolGrade()">Recalculate Grade</button>
+      </div>
+
+      <div class="card">
+        <h4 style="font-size: 13px; margin-bottom: 8px;">Domain Weightings & Indicators</h4>
+        
+        <div class="form-group">
+          <label>Scholastic Avg (Auto-Scanned):</label>
+          <span id="labelScholasticAvg" style="font-weight: bold; font-size: 13px;">0%</span>
+        </div>
+        <div class="form-group">
+          <label>Scholastic Weight (%):</label>
+          <input type="number" id="weightScholastic" value="90">
+        </div>
+
+        <div class="form-group">
+          <label>Co-Scholastic Score (%):</label>
+          <input type="number" id="scoreCoScholastic" value="85">
+        </div>
+        <div class="form-group">
+          <label>Co-Scholastic Weight (%):</label>
+          <input type="number" id="weightCoScholastic" value="5">
+        </div>
+
+        <div class="form-group">
+          <label>Community / Other Score (%):</label>
+          <input type="number" id="scoreCommunity" value="90">
+        </div>
+        <div class="form-group">
+          <label>Community Weight (%):</label>
+          <input type="number" id="weightCommunity" value="5">
+        </div>
       </div>
     </div>
   </main>
 
-  <!-- CONFIRMATION & SUBJECTIVE MARKS MODAL -->
+  <!-- CONFIRMATION & SUBJECTIVE MARKS MODAL (Single Student & Upper Classes) -->
   <div class="modal-overlay" id="evalModal">
     <div class="modal-box">
       <h3 style="font-size: 15px; margin-bottom: 8px; color: #ecc94b;">Evaluation Verification</h3>
@@ -302,12 +379,13 @@
       <select id="modalStudentSelect" style="width: 100%; padding: 8px; background: var(--header-bg); color: #fff; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 12px; font-weight: bold;"></select>
 
       <div style="background: var(--header-bg); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
-          <span>MCQ Score (Auto):</span>
+        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+          <span>MCQ Score (Q1 to N):</span>
           <b id="modalMcqScore">0 / 0</b>
         </div>
+        
         <div class="form-group" style="margin-bottom: 0;">
-          <label>Subjective / Skill Marks:</label>
+          <label id="modalSubjLabel">Subjective Marks:</label>
           <input type="number" id="modalSubjMarks" value="0" min="0" style="width: 80px;" oninput="updateModalTotals()">
         </div>
       </div>
@@ -319,6 +397,35 @@
 
       <button class="btn btn-green" onclick="confirmAndSaveEvaluation()">Confirm & Save Result</button>
       <button class="btn btn-gray" onclick="closeEvalModal()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- MULTI-STUDENT SCORING MODAL (Gunotsav Class 1 & 2) -->
+  <div class="modal-overlay" id="multiStudentModal">
+    <div class="modal-box" style="max-width: 580px;">
+      <h3 style="font-size: 15px; margin-bottom: 4px; color: #ecc94b;">Gunotsav: Class 1 & 2 Evaluation</h3>
+      <p class="instruction">Enter teacher-evaluated skill scores (0, 1, 2, or 3) per competency for each child.</p>
+
+      <div style="max-height: 340px; overflow-y: auto;">
+        <table class="multi-table">
+          <thead>
+            <tr>
+              <th style="text-align: left;">Student Name</th>
+              <th>Lang I (Read)</th>
+              <th>Lang I (Write)</th>
+              <th>Lang II (Read)</th>
+              <th>Lang II (Write)</th>
+              <th>Numeracy</th>
+            </tr>
+          </thead>
+          <tbody id="multiStudentTableBody"></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top: 14px; display: flex; gap: 8px;">
+        <button class="btn btn-green" onclick="saveMultiStudentBatch()">Save All Grades</button>
+        <button class="btn btn-gray" onclick="closeMultiStudentModal()">Close</button>
+      </div>
     </div>
   </div>
 
@@ -370,359 +477,10 @@
       event.currentTarget.classList.add('active');
       document.getElementById('appTitle').innerText = 'DHK OMR Pro • ' + title;
       if (tabKey === 'scanner') populateScanClassDropdown();
+      if (tabKey === 'grade') recalculateSchoolGrade();
     }
 
-    function handleFileUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, {type: 'array'});
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
-
-        students = json.map((row, idx) => ({
-          unique_id: String(row['Student ID'] || row['unique_id'] || (100000 + idx)),
-          name: String(row['Student Name'] || row['name'] || ('Student ' + (idx + 1))).trim(),
-          class_level: String(row['Class'] || row['student_class'] || 'V').trim(),
-          section: String(row['Section'] || row['section'] || 'A').trim(),
-          evaluated: false,
-          score: 0,
-          mcq_marks: 0,
-          subj_marks: 0
-        }));
-
-        localStorage.setItem('dhk_students', JSON.stringify(students));
-        updateClassFilters();
-        populateScanClassDropdown();
-        renderRoster();
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    function updateClassFilters() {
-      const classes = [...new Set(students.map(s => s.class_level))].sort();
-      const bar = document.getElementById('filterBar');
-      bar.innerHTML = `<div class="filter-chip ${currentFilter === 'All' ? 'active' : ''}" onclick="setFilter('All')">All Classes</div>`;
-      classes.forEach(c => {
-        bar.innerHTML += `<div class="filter-chip ${currentFilter === c ? 'active' : ''}" onclick="setFilter('${c}')">Class ${c}</div>`;
-      });
-    }
-
-    function populateScanClassDropdown() {
-      const sel = document.getElementById('scanClassSelect');
-      const classes = [...new Set(students.map(s => s.class_level))].sort();
-      sel.innerHTML = '';
-      classes.forEach(c => {
-        sel.innerHTML += `<option value="${c}">Class ${c}</option>`;
-      });
-      if (classes.length === 0) sel.innerHTML = `<option value="">No Classes Loaded</option>`;
-    }
-
-    function setFilter(cls) {
-      currentFilter = cls;
-      updateClassFilters();
-      renderRoster();
-    }
-
-    function renderRoster() {
-      const list = document.getElementById('studentContainer');
-      const filtered = currentFilter === 'All' ? students : students.filter(s => s.class_level === currentFilter);
-      document.getElementById('rosterSummary').innerText = `Total: ${filtered.length} Students`;
-      list.innerHTML = '';
-
-      if (filtered.length === 0) {
-        list.innerHTML = `<div style="text-align: center; color: var(--text-sub); margin-top: 30px; font-size: 13px;">No students found.<br>Upload a Shiksha Setu file to begin.</div>`;
-        return;
-      }
-
-      filtered.forEach(s => {
-        list.innerHTML += `
-          <div class="student-card">
-            <div class="student-info">
-              <h4>${s.name}</h4>
-              <p>Class: ${s.class_level} (${s.section}) | UID: ${s.unique_id}</p>
-            </div>
-            <div class="student-actions">
-              <span class="student-status ${s.evaluated ? 'status-done' : 'status-pending'}">
-                ${s.evaluated ? s.score + '%' : 'Pending'}
-              </span>
-              <button class="btn-del" title="Delete Student" onclick="deleteStudent('${s.unique_id}')">✕</button>
-            </div>
-          </div>
-        `;
-      });
-    }
-
-    function deleteStudent(uid) {
-      const target = students.find(s => s.unique_id === uid);
-      if (!target) return;
-      if (confirm(`Remove "${target.name}" from roster?`)) {
-        students = students.filter(s => s.unique_id !== uid);
-        localStorage.setItem('dhk_students', JSON.stringify(students));
-        updateClassFilters();
-        populateScanClassDropdown();
-        renderRoster();
-      }
-    }
-
-    function confirmDeleteRoster() {
-      if (students.length === 0) return alert('Roster is already empty.');
-      const msg = currentFilter === 'All' 
-        ? 'Delete all students from the entire roster?' 
-        : `Delete all students belonging to Class ${currentFilter}?`;
-
-      if (confirm(msg)) {
-        if (currentFilter === 'All') {
-          students = [];
-        } else {
-          students = students.filter(s => s.class_level !== currentFilter);
-        }
-        localStorage.setItem('dhk_students', JSON.stringify(students));
-        updateClassFilters();
-        populateScanClassDropdown();
-        renderRoster();
-      }
-    }
-
-    /* Key Builder */
-    function buildAnswerKeyInputs() {
-      const count = parseInt(document.getElementById('omrCount').value, 10) || 20;
-      const container = document.getElementById('keyBuilderContainer');
-      container.innerHTML = '';
-
-      for (let i = 1; i <= count; i++) {
-        const sel = masterKey[i] || '';
-        container.innerHTML += `
-          <div class="key-row">
-            <span style="font-size: 13px; font-weight: bold; width: 30px;">Q${i}</span>
-            <div style="display: flex; gap: 8px;">
-              ${['A','B','C','D'].map(opt => `
-                <button type="button" class="opt-btn ${sel === opt ? 'selected' : ''}" onclick="selectKeyOption(${i}, '${opt}', this)">${opt}</button>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }
-    }
-
-    function selectKeyOption(qNum, opt, btn) {
-      masterKey[qNum] = opt;
-      btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-    }
-
-    function saveAnswerKey() {
-      localStorage.setItem('dhk_master_key', JSON.stringify(masterKey));
-      alert('Answer key saved successfully!');
-    }
-
-    function clearAnswerKey() {
-      if (confirm('Clear the current answer key?')) {
-        masterKey = {};
-        localStorage.removeItem('dhk_master_key');
-        buildAnswerKeyInputs();
-        alert('Answer key cleared.');
-      }
-    }
-
-    function printBlankSheet() {
-      const title = document.getElementById('omrTitle').value || 'Class Assessment';
-      const count = parseInt(document.getElementById('omrCount').value, 10) || 25;
-      document.getElementById('printTitle').innerText = title;
-
-      const grid = document.getElementById('printQuestionGrid');
-      grid.innerHTML = '';
-
-      const cols = count > 30 ? 3 : 2;
-      const perCol = Math.ceil(count / cols);
-
-      for (let c = 0; c < cols; c++) {
-        let colHtml = '<div style="flex: 1;">';
-        for (let i = 1 + (c * perCol); i <= Math.min((c + 1) * perCol, count); i++) {
-          colHtml += `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; font-size: 11px;">
-              <span style="font-weight: bold; width: 26px;">${i}.</span>
-              <div>
-                <span class="omr-circle">A</span>
-                <span class="omr-circle">B</span>
-                <span class="omr-circle">C</span>
-                <span class="omr-circle">D</span>
-              </div>
-            </div>
-          `;
-        }
-        colHtml += '</div>';
-        grid.innerHTML += colHtml;
-      }
-
-      window.print();
-    }
-
-    /* Levenshtein Distance for Fuzzy Name Matching */
-    function getLevenshteinDistance(a, b) {
-      const m = a.length, n = b.length;
-      const d = [];
-      for (let i = 0; i <= m; i++) d[i] = [i];
-      for (let j = 0; j <= n; j++) d[0][j] = j;
-
-      for (let i = 1; i <= m; i++) {
-        for (let j = 1; j <= n; j++) {
-          const cost = a[i - 1].toUpperCase() === b[j - 1].toUpperCase() ? 0 : 1;
-          d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
-        }
-      }
-      return d[m][n];
-    }
-
-    function matchStudentByName(rawOcr, classLevel) {
-      const rosterList = students.filter(s => s.class_level === classLevel);
-      if (rosterList.length === 0) return null;
-
-      let cleanest = rawOcr.replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
-      let bestMatch = rosterList[0];
-      let lowestDist = 999;
-
-      rosterList.forEach(s => {
-        const dist = getLevenshteinDistance(cleanest, s.name);
-        if (dist < lowestDist) {
-          lowestDist = dist;
-          bestMatch = s;
-        }
-      });
-      return { match: bestMatch, distance: lowestDist, raw: cleanest };
-    }
-
-    /* Step 2: Optical Evaluation Engine */
-    async function processAssessmentSheet(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const targetClass = document.getElementById('scanClassSelect').value;
-      if (!targetClass) return alert('Please select a target class first.');
-
-      const keyCount = parseInt(document.getElementById('omrCount').value, 10) || Object.keys(masterKey).length || 20;
-      if (Object.keys(masterKey).length === 0) {
-        return alert('Please set and save the Answer Key in the "Exam & Key" tab first.');
-      }
-
-      const fb = document.getElementById('scanFeedback');
-      fb.innerHTML = `Photo captured. Processing anchors and reading handwritten name...`;
-
-      const img = new Image();
-      img.onload = async function() {
-        const canvas = document.getElementById('procCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-
-        // Crop approximate name zone at top
-        const nameCropWidth = Math.floor(img.width * 0.7);
-        const nameCropHeight = Math.floor(img.height * 0.12);
-        const nameCanvas = document.createElement('canvas');
-        nameCanvas.width = nameCropWidth;
-        nameCanvas.height = nameCropHeight;
-        const nCtx = nameCanvas.getContext('2d');
-        nCtx.drawImage(canvas, img.width * 0.15, img.height * 0.08, nameCropWidth, nameCropHeight, 0, 0, nameCropWidth, nameCropHeight);
-
-        try {
-          // Perform OCR on Name zone
-          const ocrResult = await Tesseract.recognize(nameCanvas, 'eng');
-          const recognizedText = ocrResult.data.text.trim();
-          const matchData = matchStudentByName(recognizedText, targetClass);
-
-          // Evaluate Optical Bubbles up to question count N
-          let mcqCorrect = 0;
-          for (let q = 1; q <= keyCount; q++) {
-            if (masterKey[q]) {
-              // Simulated optical bubble threshold check against key
-              if (Math.random() > 0.20) mcqCorrect++;
-            }
-          }
-
-          currentEvalState = {
-            targetClass: targetClass,
-            mcqScore: mcqCorrect,
-            maxMcq: keyCount,
-            detectedText: matchData ? matchData.raw : 'UNREADABLE'
-          };
-
-          openEvalModal(matchData ? matchData.match.unique_id : null);
-          fb.innerHTML = `Evaluation ready for verification.`;
-        } catch (err) {
-          fb.innerHTML = `OCR failed. Manually select student.`;
-          openEvalModal(null);
-        }
-      };
-      img.src = URL.createObjectURL(file);
-    }
-
-    function openEvalModal(matchedUid) {
-      const modal = document.getElementById('evalModal');
-      const detText = document.getElementById('ocrDetectedText');
-      const sel = document.getElementById('modalStudentSelect');
-      const scoreLabel = document.getElementById('modalMcqScore');
-
-      detText.innerText = currentEvalState.detectedText || 'Handwriting unclear';
-      scoreLabel.innerText = `${currentEvalState.mcqScore} / ${currentEvalState.maxMcq}`;
-
-      const classStudents = students.filter(s => s.class_level === currentEvalState.targetClass);
-      sel.innerHTML = '';
-      classStudents.forEach(s => {
-        sel.innerHTML += `<option value="${s.unique_id}" ${s.unique_id === matchedUid ? 'selected' : ''}>${s.name} (${s.unique_id})</option>`;
-      });
-
-      document.getElementById('modalSubjMarks').value = 0;
-      updateModalTotals();
-      modal.style.display = 'flex';
-    }
-
-    function updateModalTotals() {
-      const subj = parseFloat(document.getElementById('modalSubjMarks').value) || 0;
-      const mcq = currentEvalState.mcqScore;
-      const max = currentEvalState.maxMcq;
-      const total = mcq + subj;
-      const pct = Math.round((total / (max + (subj > 0 ? subj : 0))) * 100);
-      document.getElementById('modalCompositeTotal').innerText = `${total} Marks (${pct}%)`;
-    }
-
-    function confirmAndSaveEvaluation() {
-      const uid = document.getElementById('modalStudentSelect').value;
-      const subj = parseFloat(document.getElementById('modalSubjMarks').value) || 0;
-      const target = students.find(s => s.unique_id === uid);
-
-      if (target) {
-        const mcq = currentEvalState.mcqScore;
-        const max = currentEvalState.maxMcq;
-        const total = mcq + subj;
-        const pct = Math.round((total / (max + (subj > 0 ? subj : 0))) * 100);
-
-        target.evaluated = true;
-        target.mcq_marks = mcq;
-        target.subj_marks = subj;
-        target.score = pct;
-
-        localStorage.setItem('dhk_students', JSON.stringify(students));
-        renderRoster();
-
-        const fb = document.getElementById('scanFeedback');
-        fb.innerHTML = `<b style="color: #68d391;">Saved:</b> ${target.name} scored <b>${total} Marks</b> (${pct}%).`;
-      }
-      closeEvalModal();
-    }
-
-    function closeEvalModal() {
-      document.getElementById('evalModal').style.display = 'none';
-      currentEvalState = null;
-    }
-
-    // Init
-    buildAnswerKeyInputs();
-    updateClassFilters();
-    populateScanClassDropdown();
-    renderRoster();
-  </script>
-</body>
-</html>
+    function toggleExamTrackMode() {
+      const mode = document.getElementById('examTrackSelect').value;
+      const stdBlock = document.getElementById('standardScanBlock');
+    
