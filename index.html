@@ -492,7 +492,7 @@
       }
     }
 
-    /* ROBUST SHIKSHA SETU INGESTION */
+    /* PRECISE SHIKSHA SETU INGESTION */
     function handleFileUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -514,7 +514,7 @@
           let headerIdx = 0;
           for (let i = 0; i < Math.min(10, rawSheetData.length); i++) {
             const rowStr = (rawSheetData[i] || []).join(' ').toLowerCase();
-            if (rowStr.includes('name') || rowStr.includes('class') || rowStr.includes('student')) {
+            if (rowStr.includes('uniqueid') || (rowStr.includes('student') && rowStr.includes('name'))) {
               headerIdx = i;
               break;
             }
@@ -530,7 +530,7 @@
             const keys = Object.keys(row);
             for (let t of targets) {
               const cleanTarget = t.toLowerCase().replace(/[^a-z0-9]/g, '');
-              const foundKey = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cleanTarget));
+              const foundKey = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanTarget);
               if (foundKey && String(row[foundKey]).trim() !== '') {
                 return String(row[foundKey]).trim();
               }
@@ -540,12 +540,21 @@
 
           const parsedStudents = [];
           rows.forEach((row, idx) => {
-            const name = findField(row, ['studentname', 'name', 'candidatename', 'student']);
-            const classLvl = findField(row, ['class', 'grade', 'standard']) || 'V';
-            const uid = findField(row, ['studentid', 'studentcode', 'uid', 'roll', 'id']) || String(100000 + idx);
-            const sec = findField(row, ['section', 'sec']) || 'A';
+            const name = findField(row, ['Student Name', 'student_name', 'StudentName', 'Name']);
+            const classAndSec = findField(row, ['Class & Section', 'Class', 'student_class', 'Grade']) || 'Class-V';
+            const uid = findField(row, ['Student UniqueId', 'Student ID', 'student_id', 'UID']) || String(100000 + idx);
 
-            if (name && name.toLowerCase() !== 'student name' && name.toLowerCase() !== 'name') {
+            if (name && name.toLowerCase() !== 'student name') {
+              // Parse out Class and Section from 'Class-III Section A' or 'Class-V'
+              let classLvl = classAndSec;
+              let sec = 'A';
+
+              if (classAndSec.includes('Section')) {
+                const parts = classAndSec.split(/Section/i);
+                classLvl = parts[0].trim();
+                sec = parts[1].trim() || 'A';
+              }
+
               parsedStudents.push({
                 unique_id: uid,
                 name: name,
@@ -567,10 +576,11 @@
           students = parsedStudents;
           localStorage.setItem('dhk_students', JSON.stringify(students));
           
+          currentFilter = 'All';
           updateClassFilters();
           populateScanClassDropdown();
           renderRoster();
-          alert(`Successfully loaded ${students.length} students into roster.`);
+          alert(`Successfully loaded ${students.length} students across all classes!`);
         } catch (err) {
           alert("Error reading file: " + err.message);
         } finally {
@@ -585,7 +595,7 @@
       const bar = document.getElementById('filterBar');
       bar.innerHTML = `<div class="filter-chip ${currentFilter === 'All' ? 'active' : ''}" onclick="setFilter('All')">All Classes</div>`;
       classes.forEach(c => {
-        bar.innerHTML += `<div class="filter-chip ${currentFilter === c ? 'active' : ''}" onclick="setFilter('${c}')">Class ${c}</div>`;
+        bar.innerHTML += `<div class="filter-chip ${currentFilter === c ? 'active' : ''}" onclick="setFilter('${c}')">${c}</div>`;
       });
     }
 
@@ -594,7 +604,7 @@
       const classes = [...new Set(students.map(s => s.class_level))].sort();
       sel.innerHTML = '';
       classes.forEach(c => {
-        sel.innerHTML += `<option value="${c}">Class ${c}</option>`;
+        sel.innerHTML += `<option value="${c}">${c}</option>`;
       });
       if (classes.length === 0) sel.innerHTML = `<option value="">No Classes Loaded</option>`;
     }
@@ -621,7 +631,7 @@
           <div class="student-card">
             <div class="student-info">
               <h4>${s.name}</h4>
-              <p>Class: ${s.class_level} (${s.section}) | UID: ${s.unique_id}</p>
+              <p>${s.class_level} (Sec ${s.section}) | UID: ${s.unique_id}</p>
             </div>
             <div class="student-actions">
               <span class="student-status ${s.evaluated ? 'status-done' : 'status-pending'}">
@@ -650,7 +660,7 @@
       if (students.length === 0) return alert('Roster is already empty.');
       const msg = currentFilter === 'All' 
         ? 'Delete all students from the entire roster?' 
-        : `Delete all students belonging to Class ${currentFilter}?`;
+        : `Delete all students belonging to ${currentFilter}?`;
 
       if (confirm(msg)) {
         if (currentFilter === 'All') {
@@ -920,7 +930,7 @@
       tbody.innerHTML = '';
 
       if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="padding: 16px; color: var(--text-sub);">No students enrolled in Class ${cls}.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 16px; color: var(--text-sub);">No students enrolled in ${cls}.</td></tr>`;
       } else {
         list.forEach(s => {
           tbody.innerHTML += `
