@@ -7,7 +7,7 @@
   <style>
     :root {
       --bg: #121721; --card: #1e2635; --header: #1a2230;
-      --blue: #296bb2; --green: #2e8556; --red: #c53030; --gold: #d69e2e;
+      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030; --gold: #d69e2e;
       --text: #f0f4f8; --sub: #a0aec0; --border: #2d3748;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -33,6 +33,7 @@
     }
     .btn-green { background: var(--green); }
     .btn-blue { background: var(--blue); }
+    .btn-orange { background: var(--orange); }
     .btn-gray { background: #4a5568; }
 
     .grade-display-box {
@@ -54,22 +55,26 @@
       border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px; text-align: right;
     }
 
-    /* Indicators List */
+    /* Indicator Items */
     .indicator-item {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 9px 0; border-bottom: 1px solid var(--border); gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid var(--border); gap: 10px;
     }
-    .indicator-item.skipped { opacity: 0.4; text-decoration: line-through; }
+    .indicator-item.skipped { opacity: 0.35; text-decoration: line-through; }
     .indicator-title { font-size: 13px; flex: 1; line-height: 1.3; }
-    .indicator-controls { display: flex; align-items: center; gap: 6px; }
-    .score-select {
-      background: var(--header); color: #fff; border: 1px solid var(--border);
-      padding: 5px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;
+    .indicator-controls { display: flex; align-items: center; gap: 8px; }
+    
+    .score-badge {
+      background: var(--header); color: #81e6d9; border: 1px solid var(--border);
+      padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; min-width: 58px; text-align: center;
     }
-    .btn-skip {
-      background: transparent; border: 1px solid var(--border); color: #fc8181;
-      width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 11px;
+
+    .btn-toggle-skip {
+      padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;
+      border: 1px solid var(--border); cursor: pointer; text-decoration: none;
     }
+    .btn-toggle-skip.active-state { background: transparent; color: #fc8181; }
+    .btn-toggle-skip.skip-state { background: #2c5282; color: #bee3f8; border-color: #3182ce; }
 
     @media print {
       body * { visibility: hidden; }
@@ -77,7 +82,7 @@
       #printableCard { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; color: #000 !important; padding: 25px; }
       .grade-badge-huge { color: #000 !important; border-color: #000 !important; background: transparent !important; }
       .composite-text, .status-text { color: #000 !important; }
-      .btn, header { display: none; }
+      .btn, header, .btn-toggle-skip { display: none !important; }
     }
   </style>
 </head>
@@ -97,14 +102,14 @@
   </header>
 
   <div class="container" id="printableCard">
-    <!-- Grade Display -->
+    <!-- Big Final Grade Banner -->
     <div class="grade-display-box">
       <div class="grade-badge-huge" id="finalGradeBadge">A</div>
       <div class="composite-text" id="compositeScoreText">Composite: 82.5%</div>
       <div class="status-text" id="evaluationProgressText">Based on live scholastic average & 24 indicators</div>
     </div>
 
-    <!-- Domain Weights -->
+    <!-- Domain Allocations -->
     <div class="card">
       <h3 style="font-size: 14px; margin-bottom: 8px;">Domain Allocations</h3>
       <div class="form-group">
@@ -124,17 +129,19 @@
     <!-- 24 Indicators Section -->
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <h3 style="font-size: 14px;">School Evaluation Indicators</h3>
+        <h3 style="font-size: 14px;">School Evaluation (24 Indicators)</h3>
         <span style="font-size: 11px; color: #68d391;" id="activeIndicatorCount">24 Active</span>
       </div>
-      <p class="instruction">Rate each point from 0 to 3. Tap ✕ to skip or exclude non-applicable criteria.</p>
+      <p class="instruction">No manual typing needed. Just scan the External Evaluator's filled OMR sheet to mark all indicators automatically.</p>
 
-      <div id="indicatorsContainer"></div>
+      <!-- Instant Scanner Shortcut -->
+      <button class="btn btn-orange" onclick="goToSchoolOmrScan()">📷 Scan School Evaluation OMR</button>
 
-      <button class="btn btn-gray" style="margin-top: 10px;" onclick="addCustomIndicator()">+ Add Custom Indicator</button>
+      <div id="indicatorsContainer" style="margin-top: 10px;"></div>
+
+      <button class="btn btn-gray" style="margin-top: 10px;" onclick="addCustomIndicator()">+ Add Indicator (For Future Criteria)</button>
     </div>
 
-    <button class="btn btn-green" onclick="calculateFinalGrade()">Save & Recalculate</button>
     <button class="btn btn-blue" onclick="window.print()">Print Official Report Card</button>
   </div>
 
@@ -168,13 +175,36 @@
       "24. Regular Parent-Teacher Meetings (PTM) Conduct"
     ];
 
-    let indicators = JSON.parse(localStorage.getItem('dhk_indicators')) || default24Indicators.map((title, id) => ({
-      id: id + 1,
-      title: title,
-      score: 3,
-      max: 3,
-      skipped: false
-    }));
+    // Load indicators ensuring existing 24 are permanent and non-deletable
+    let savedIndicators = JSON.parse(localStorage.getItem('dhk_indicators') || '[]');
+    let indicators = [];
+
+    if (savedIndicators.length === 0) {
+      indicators = default24Indicators.map((title, id) => ({
+        id: id + 1,
+        title: title,
+        score: 3,
+        max: 3,
+        skipped: false
+      }));
+    } else {
+      // Guarantee all standard indicators remain intact
+      indicators = default24Indicators.map((title, id) => {
+        const found = savedIndicators.find(item => item.id === (id + 1));
+        return {
+          id: id + 1,
+          title: title,
+          score: found ? found.score : 3,
+          max: 3,
+          skipped: found ? !!found.skipped : false
+        };
+      });
+
+      // Preserve any custom added ones
+      savedIndicators.filter(item => item.id > 24).forEach(item => {
+        indicators.push(item);
+      });
+    }
 
     function renderIndicators() {
       const container = document.getElementById('indicatorsContainer');
@@ -184,17 +214,12 @@
       indicators.forEach((ind, index) => {
         if (!ind.skipped) activeCount++;
         container.innerHTML += `
-          <div class="indicator-item ${ind.skipped ? 'skipped' : ''}" id="ind-row-${index}">
+          <div class="indicator-item ${ind.skipped ? 'skipped' : ''}">
             <span class="indicator-title">${ind.title}</span>
             <div class="indicator-controls">
-              <select class="score-select" ${ind.skipped ? 'disabled' : ''} onchange="updateIndicatorScore(${index}, this.value)">
-                <option value="3" ${ind.score == 3 ? 'selected' : ''}>3 (Excellent)</option>
-                <option value="2" ${ind.score == 2 ? 'selected' : ''}>2 (Good)</option>
-                <option value="1" ${ind.score == 1 ? 'selected' : ''}>1 (Average)</option>
-                <option value="0" ${ind.score == 0 ? 'selected' : ''}>0 (Poor)</option>
-              </select>
-              <button class="btn-skip" title="${ind.skipped ? 'Restore' : 'Skip'}" onclick="toggleSkipIndicator(${index})">
-                ${ind.skipped ? '↩' : '✕'}
+              <span class="score-badge">${ind.skipped ? 'Skipped' : ind.score + ' / 3'}</span>
+              <button class="btn-toggle-skip ${ind.skipped ? 'skip-state' : 'active-state'}" onclick="toggleSkipIndicator(${index})">
+                ${ind.skipped ? 'Include' : 'Skip'}
               </button>
             </div>
           </div>
@@ -202,14 +227,10 @@
       });
 
       document.getElementById('activeIndicatorCount').innerText = `${activeCount} Active`;
-    }
-
-    function updateIndicatorScore(index, val) {
-      indicators[index].score = parseInt(val, 10);
       localStorage.setItem('dhk_indicators', JSON.stringify(indicators));
-      calculateFinalGrade();
     }
 
+    // Never deletes - only toggles skipped status
     function toggleSkipIndicator(index) {
       indicators[index].skipped = !indicators[index].skipped;
       localStorage.setItem('dhk_indicators', JSON.stringify(indicators));
@@ -218,7 +239,7 @@
     }
 
     function addCustomIndicator() {
-      const title = prompt("Enter new indicator title / criteria:");
+      const title = prompt("Enter new indicator criteria (e.g., Digital Classroom Utilization):");
       if (title && title.trim() !== "") {
         indicators.push({
           id: indicators.length + 1,
@@ -233,6 +254,12 @@
       }
     }
 
+    function goToSchoolOmrScan() {
+      // Sets scanner mode directly to the School Evaluation Sheet
+      localStorage.setItem('dhk_target_scan_mode', 'school_eval');
+      window.location.href = 'scan.html';
+    }
+
     function calculateFinalGrade() {
       const evaluatedList = students.filter(s => s.evaluated);
       const evalCount = evaluatedList.length;
@@ -243,7 +270,6 @@
 
       document.getElementById('statScholasticAvg').innerText = `${scholasticAvg}%`;
 
-      // Calculate School Evaluation Percentage
       const activeInds = indicators.filter(i => !i.skipped);
       let evalPercent = 85;
       if (activeInds.length > 0) {
@@ -253,7 +279,6 @@
       }
       document.getElementById('statEvalPercent').innerText = `${evalPercent}%`;
 
-      // Weighted Composite
       const wScholastic = parseFloat(document.getElementById('weightScholastic').value) || 90;
       const wEval = parseFloat(document.getElementById('weightEvaluation').value) || 10;
       const composite = Math.round(((scholasticAvg * wScholastic) + (evalPercent * wEval)) / (wScholastic + wEval));
