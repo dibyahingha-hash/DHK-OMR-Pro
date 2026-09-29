@@ -17,11 +17,10 @@ jobs:
 
       - name: Build APK with Prebuilt Buildozer
         run: |
-          buildozer android debug
+          yes | buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: DHK-OMR-Pro-APK
           path: bin/*.apk
-          
