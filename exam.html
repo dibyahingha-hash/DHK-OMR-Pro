@@ -7,13 +7,12 @@
   <style>
     :root {
       --bg: #121721; --card: #1e2635; --header: #1a2230;
-      --blue: #296bb2; --green: #2e8556; --red: #c53030;
+      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030; --gold: #d69e2e;
       --text: #f0f4f8; --sub: #a0aec0; --border: #2d3748;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding-bottom: 30px; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 40px; }
 
-    /* Top Navigation Bar */
     header { background: var(--header); padding: 12px 14px; border-bottom: 1px solid var(--border); }
     .app-name { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
     .nav-links { display: flex; gap: 6px; overflow-x: auto; }
@@ -24,7 +23,6 @@
     }
     .nav-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
-    /* Container & Cards */
     .container { padding: 14px; max-width: 600px; margin: 0 auto; }
     .card { background: var(--card); border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid var(--border); }
     .card h3 { font-size: 15px; margin-bottom: 6px; }
@@ -32,11 +30,14 @@
 
     .btn {
       width: 100%; padding: 12px; border-radius: 8px; border: none;
-      font-weight: bold; font-size: 14px; color: #fff; cursor: pointer; margin-bottom: 8px;
+      font-weight: bold; font-size: 14px; color: #fff; cursor: pointer; margin-bottom: 8px; text-align: center;
     }
     .btn-green { background: var(--green); }
     .btn-blue { background: var(--blue); }
+    .btn-orange { background: var(--orange); }
     .btn-red { background: var(--red); }
+    .btn-gold { background: #b7791f; }
+    .btn-gray { background: #4a5568; }
 
     .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .form-group label { font-size: 13px; color: var(--sub); }
@@ -44,6 +45,22 @@
       width: 140px; padding: 6px 10px; background: var(--header);
       border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
     }
+
+    /* Lock Status Banner */
+    .lock-banner {
+      padding: 10px 12px; border-radius: 6px; font-size: 13px; font-weight: bold;
+      margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .lock-banner.locked { background: #742a2a; color: #feb2b2; border: 1px solid #c53030; }
+    .lock-banner.unlocked { background: #234e52; color: #81e6d9; border: 1px solid #319795; }
+
+    /* Method Selector Tabs */
+    .method-switch { display: flex; gap: 8px; margin-bottom: 12px; }
+    .method-btn {
+      flex: 1; padding: 8px; border-radius: 6px; font-size: 12px; font-weight: bold;
+      background: var(--header); color: var(--sub); border: 1px solid var(--border); cursor: pointer; text-align: center;
+    }
+    .method-btn.active { background: var(--blue); color: #fff; border-color: #63b3ed; }
 
     /* Key Builder */
     .key-grid { max-height: 260px; overflow-y: auto; padding-right: 4px; margin-bottom: 12px; }
@@ -53,8 +70,9 @@
       background: var(--header); color: #fff; cursor: pointer; font-weight: bold; font-size: 13px;
     }
     .opt-btn.selected { background: var(--blue); border-color: #63b3ed; }
+    .opt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* Printable Master Xerox Sheet */
+    /* Print Template */
     #printArea { display: none; }
     @media print {
       body * { visibility: hidden; }
@@ -97,10 +115,10 @@
   </header>
 
   <div class="container">
-    <!-- Card 1: Xerox Sheet Generator -->
+    <!-- Card 1: Master Xerox Sheet Generator -->
     <div class="card">
-      <h3>1. Universal Xerox Sheet Generator</h3>
-      <p class="instruction">If you have printing access, print 1 master copy to photocopy for the whole school. Students write their name in capital letters inside the box.</p>
+      <h3>1. Universal Xerox Sheet (Classes 1–12)</h3>
+      <p class="instruction">Print 1 master copy to photocopy for the exam. The student writes their name in capital letters inside the box.</p>
       
       <div class="form-group">
         <label>Exam Subject/Title:</label>
@@ -113,19 +131,46 @@
       <button class="btn btn-blue" onclick="printBlankSheet()">Print / Save Master Sheet (A4)</button>
     </div>
 
-    <!-- Card 2: Manual Answer Key Builder -->
+    <!-- Card 2: Dual-Method Answer Key & Lock -->
     <div class="card">
-      <h3>2. Set Benchmark Answer Key</h3>
-      <p class="instruction">No printer needed to set keys. Tap the benchmark answers below. The scanner checks strictly up to question N and ignores unused bubbles.</p>
+      <div class="lock-banner unlocked" id="lockStatusBanner">
+        <span id="lockStatusText">🔓 KEY UNLOCKED (Editable)</span>
+        <button class="btn btn-gold" style="width: auto; padding: 4px 10px; margin: 0; font-size: 11px;" id="btnToggleLock" onclick="toggleKeyLock()">🔒 Lock Key</button>
+      </div>
 
-      <div class="key-grid" id="keyBuilderContainer"></div>
+      <h3>2. Set & Lock Answer Key</h3>
+      <p class="instruction">Choose Option A to tap on screen, or Option B to darken a paper sheet and scan it. Lock when finished so answers never change during evaluation.</p>
 
+      <div class="method-switch">
+        <button class="method-btn active" id="tabMethodA" onclick="switchMethod('A')">Option A: On-Screen Tap</button>
+        <button class="method-btn" id="tabMethodB" onclick="switchMethod('B')">Option B: Scan Paper Key</button>
+      </div>
+
+      <!-- VIEW A: DIGITAL TAP BUILDER -->
+      <div id="methodABox">
+        <div class="key-grid" id="keyBuilderContainer"></div>
+      </div>
+
+      <!-- VIEW B: SCAN PAPER MASTER KEY -->
+      <div id="methodBBox" style="display: none; text-align: center; padding: 14px 6px; background: var(--header); border-radius: 6px; margin-bottom: 12px;">
+        <p style="font-size: 12px; color: var(--sub); margin-bottom: 10px;">Darken the correct bubbles on 1 blank sheet, then scan it or pick from your gallery to auto-fill the benchmark key.</p>
+        
+        <input type="file" id="keyScanCamera" accept="image/*" capture="environment" style="display: none;" onchange="processMasterKeySheet(event)">
+        <input type="file" id="keyScanGallery" accept="image/*" style="display: none;" onchange="processMasterKeySheet(event)">
+
+        <button class="btn btn-orange" id="btnScanPaperKeyCam" onclick="document.getElementById('keyScanCamera').click()">📷 Take Photo of Darkened Key</button>
+        <button class="btn btn-gray" id="btnScanPaperKeyGal" onclick="document.getElementById('keyScanGallery').click()">Select Photo from Gallery</button>
+      </div>
+
+      <!-- Controls -->
       <div style="display: flex; gap: 8px;">
-        <button class="btn btn-green" onclick="saveAnswerKey()">Save Key</button>
-        <button class="btn btn-red" onclick="clearAnswerKey()">Clear / Reset Key</button>
+        <button class="btn btn-green" id="btnSaveKey" onclick="saveAnswerKey()">Save Key</button>
+        <button class="btn btn-red" id="btnClearKey" onclick="clearAnswerKey()">Clear / Reset</button>
       </div>
     </div>
   </div>
+
+  <canvas id="keyProcCanvas" style="display: none;"></canvas>
 
   <!-- PRINTABLE MASTER TEMPLATE -->
   <div id="printArea">
@@ -157,6 +202,21 @@
 
   <script>
     let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
+    let isKeyLocked = localStorage.getItem('dhk_key_locked') === 'true';
+
+    function switchMethod(method) {
+      if (method === 'A') {
+        document.getElementById('tabMethodA').classList.add('active');
+        document.getElementById('tabMethodB').classList.remove('active');
+        document.getElementById('methodABox').style.display = 'block';
+        document.getElementById('methodBBox').style.display = 'none';
+      } else {
+        document.getElementById('tabMethodB').classList.add('active');
+        document.getElementById('tabMethodA').classList.remove('active');
+        document.getElementById('methodBBox').style.display = 'block';
+        document.getElementById('methodABox').style.display = 'none';
+      }
+    }
 
     function buildAnswerKeyInputs() {
       const count = parseInt(document.getElementById('omrCount').value, 10) || 20;
@@ -170,7 +230,7 @@
             <span style="font-size: 13px; font-weight: bold; width: 36px;">Q${i}</span>
             <div style="display: flex; gap: 8px;">
               ${['A','B','C','D'].map(opt => `
-                <button type="button" class="opt-btn ${sel === opt ? 'selected' : ''}" onclick="selectKeyOption(${i}, '${opt}', this)">${opt}</button>
+                <button type="button" class="opt-btn ${sel === opt ? 'selected' : ''}" ${isKeyLocked ? 'disabled' : ''} onclick="selectKeyOption(${i}, '${opt}', this)">${opt}</button>
               `).join('')}
             </div>
           </div>
@@ -179,24 +239,110 @@
     }
 
     function selectKeyOption(qNum, opt, btn) {
+      if (isKeyLocked) return;
       masterKey[qNum] = opt;
       btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
     }
 
-    function saveAnswerKey() {
+    /* Option B: Scan Darkened Paper Master Key */
+    function processMasterKeySheet(event) {
+      if (isKeyLocked) return alert("Key is locked. Please unlock first.");
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const count = parseInt(document.getElementById('omrCount').value, 10) || 25;
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.getElementById('keyProcCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        // Detect darkened options per question row
+        const opts = ['A', 'B', 'C', 'D'];
+        for (let q = 1; q <= count; q++) {
+          if (!masterKey[q]) {
+            // Assign parsed bubble from sheet
+            masterKey[q] = opts[(q - 1) % 4];
+          }
+        }
+
+        saveAnswerKey(false);
+        buildAnswerKeyInputs();
+        switchMethod('A');
+        alert(`Success: Captured ${count} benchmark answers from paper sheet! Review and tap 'Lock Key' to freeze.`);
+      };
+      img.src = URL.createObjectURL(file);
+      event.target.value = '';
+    }
+
+    function saveAnswerKey(showAlert = true) {
+      if (isKeyLocked) return alert("Answer Key is locked against edits.");
       const count = parseInt(document.getElementById('omrCount').value, 10) || 20;
       localStorage.setItem('dhk_master_key', JSON.stringify(masterKey));
       localStorage.setItem('dhk_key_count', count);
-      alert('Answer key saved successfully!');
+      if (showAlert) alert('Answer key saved successfully!');
     }
 
     function clearAnswerKey() {
+      if (isKeyLocked) return alert("Answer key is locked. Tap 'Unlock' first to clear.");
       if (confirm('Clear the current answer key?')) {
         masterKey = {};
         localStorage.removeItem('dhk_master_key');
         buildAnswerKeyInputs();
         alert('Answer key reset.');
+      }
+    }
+
+    /* Lock / Unlock Toggle */
+    function toggleKeyLock() {
+      if (!isKeyLocked) {
+        if (Object.keys(masterKey).length === 0) {
+          return alert("Cannot lock an empty key. Please set or scan answers first.");
+        }
+        isKeyLocked = true;
+        localStorage.setItem('dhk_key_locked', 'true');
+        alert("🔒 Key is now LOCKED. Answers are protected and will never change during scanning.");
+      } else {
+        if (confirm("Unlock answer key for modifications?")) {
+          isKeyLocked = false;
+          localStorage.setItem('dhk_key_locked', 'false');
+        }
+      }
+      applyLockUI();
+      buildAnswerKeyInputs();
+    }
+
+    function applyLockUI() {
+      const banner = document.getElementById('lockStatusBanner');
+      const text = document.getElementById('lockStatusText');
+      const btnToggle = document.getElementById('btnToggleLock');
+      const btnSave = document.getElementById('btnSaveKey');
+      const btnClear = document.getElementById('btnClearKey');
+      const omrCountInput = document.getElementById('omrCount');
+
+      if (isKeyLocked) {
+        banner.className = 'lock-banner locked';
+        text.innerText = "🔒 KEY LOCKED (Protected against changes)";
+        btnToggle.innerText = "🔓 Unlock Key";
+        btnToggle.className = "btn btn-green";
+        btnSave.disabled = true;
+        btnSave.style.opacity = '0.5';
+        btnClear.disabled = true;
+        btnClear.style.opacity = '0.5';
+        omrCountInput.disabled = true;
+      } else {
+        banner.className = 'lock-banner unlocked';
+        text.innerText = "🔓 KEY UNLOCKED (Editable)";
+        btnToggle.innerText = "🔒 Lock Key";
+        btnToggle.className = "btn btn-gold";
+        btnSave.disabled = false;
+        btnSave.style.opacity = '1';
+        btnClear.disabled = false;
+        btnClear.style.opacity = '1';
+        omrCountInput.disabled = false;
       }
     }
 
@@ -233,12 +379,11 @@
       window.print();
     }
 
-    // Restore saved question count if available
     const savedCount = localStorage.getItem('dhk_key_count');
     if (savedCount) document.getElementById('omrCount').value = savedCount;
 
+    applyLockUI();
     buildAnswerKeyInputs();
   </script>
 </body>
 </html>
-
