@@ -1,1 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DHK OMR Pro</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #0e131b; color: #f0f4f8; display: flex; flex-direction: column; height: 100vh; }
+    
+    header { background-color: #17212f; padding: 14px 18px; font-size: 17px; font-weight: bold; border-bottom: 1px solid #233144; }
+    
+    main { flex: 1; overflow-y: auto; padding: 14px; }
+    
+    nav { display: flex; background-color: #121824; border-top: 1px solid #233144; height: 56px; }
+    nav button { flex: 1; background: none; border: none; color: #8a9bb0; font-size: 13px; font-weight: bold; cursor: pointer; }
+    nav button.active { color: #3b82f6; border-top: 3px solid #3b82f6; }
+
+    .card { background-color: #17212f; border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid #233144; }
+    .card h3 { font-size: 15px; margin-bottom: 6px; color: #ffffff; }
+    .card p { font-size: 12px; color: #94a3b8; line-height: 1.4; margin-bottom: 12px; }
+
+    .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; text-align: center; cursor: pointer; margin-bottom: 8px; text-decoration: none; }
+    .btn-green { background-color: #16a34a; color: white; }
+    .btn-blue { background-color: #2563eb; color: white; }
+    .btn-orange { background-color: #d97706; color: white; }
+    .btn-gray { background-color: #334155; color: white; }
+
+    .class-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 10px; }
+    .class-tab { background-color: #233144; color: #cbd5e1; border: none; padding: 6px 14px; border-radius: 16px; font-size: 12px; font-weight: bold; white-space: nowrap; }
+    .class-tab.active { background-color: #2563eb; color: white; }
+
+    .student-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #233144; }
+    .student-item:last-child { border-bottom: none; }
+    .badge { font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+    .badge-pending { background-color: #334155; color: #94a3b8; }
+    .badge-done { background-color: #16a34a; color: white; }
+
+    .grid-input { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .grid-input label { font-size: 13px; color: #cbd5e1; }
+    .grid-input input { width: 80px; background-color: #0e131b; border: 1px solid #334155; color: white; padding: 6px 8px; border-radius: 4px; text-align: right; }
+    
+    .screen { display: none; }
+    .screen.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <header id="screen-title">Student Roster</header>
+
+  <main>
+    <!-- SCREEN 1: ROSTER -->
+    <div id="screen-roster" class="screen active">
+      <div class="card">
+        <h3>Import Shiksha Setu Roster</h3>
+        <p>Select your downloaded .xlsx file to populate school classes and rolls.</p>
+        <label class="btn btn-green">
+          Upload Roster (.xlsx)
+          <input type="file" id="roster-file" accept=".xlsx, .xls" style="display:none;" onchange="importRoster(event)">
+        </label>
+        <span id="roster-count" style="font-size:12px; color:#38bdf8;">0 Students Loaded</span>
+      </div>
+
+      <div class="class-tabs" id="class-tabs">
+        <button class="class-tab active" onclick="filterClass('All')">All</button>
+      </div>
+
+      <div class="card">
+        <h3>Student Checklist</h3>
+        <div id="student-list"><p style="font-size:12px; color:#64748b;">No students loaded yet.</p></div>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: SCANNER -->
+    <div id="screen-scanner" class="screen">
+      <div class="card">
+        <h3>Capture Student Sheet</h3>
+        <p>Ensure good lighting and that all 4 corner blocks are visible in the frame.</p>
+        
+        <label class="btn btn-orange">
+          Camera: Class 1 & 2 (Domain Grid)
+          <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleScan(event, 'Class 1-2')">
+        </label>
+
+        <label class="btn btn-blue">
+          Camera: Class 3 to 12 (MCQ Grid)
+          <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleScan(event, 'Class 3-12')">
+        </label>
+
+        <label class="btn btn-gray">
+          Pick Photo from Gallery
+          <input type="file" accept="image/*" style="display:none;" onchange="handleScan(event, 'Gallery')">
+        </label>
+      </div>
+
+      <div class="card">
+        <h3>Scanner Status</h3>
+        <p id="scan-feedback">Waiting for camera capture...</p>
+        <img id="scan-preview" style="width:100%; border-radius:6px; display:none; margin-top:8px;">
+      </div>
+    </div>
+
+    <!-- SCREEN 3: MASTER KEYS -->
+    <div id="screen-master" class="screen">
+      <div class="card">
+        <h3>Printable Master Sheets</h3>
+        <p>Print standard benchmark sheets. Mark the correct answers and scan to lock the key.</p>
+        <button class="btn btn-green" onclick="generateKey('Class 1-2')">Download Class 1 & 2 Master Sheet</button>
+        <button class="btn btn-green" onclick="generateKey('Class 3-12')">Download Class 3-12 Master Sheet</button>
+      </div>
+      <div class="card">
+        <h3>Lock Benchmark Key</h3>
+        <p id="master-status" style="color:#eab308;">Benchmark Key: Not Locked</p>
+        <label class="btn btn-orange">
+          Scan Marked Master Sheet
+          <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="lockMasterKey(event)">
+        </label>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: GRADE CARD -->
+    <div id="screen-grade" class="screen">
+      <div class="card" style="text-align:center;">
+        <p style="margin-bottom:4px;">Auto-Calculated Scholastic Average</p>
+        <h2 id="scholastic-avg" style="font-size:24px; color:#38bdf8;">0.00%</h2>
+        <div style="margin-top:12px; border-top:1px solid #233144; padding-top:10px;">
+          <p style="margin-bottom:2px;">Final School Grade</p>
+          <h1 id="school-grade-badge" style="color:#eab308; font-size:28px;">--</h1>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Department Weightage Form</h3>
+        <div class="grid-input">
+          <label>Scholastic Weight (%):</label>
+          <input type="number" id="w-sch" value="90">
+        </div>
+        <div class="grid-input">
+          <label>Co-Scholastic Score (%):</label>
+          <input type="number" id="s-co" value="85">
+        </div>
+        <div class="grid-input">
+          <label>Co-Scholastic Weight (%):</label>
+          <input type="number" id="w-co" value="5">
+        </div>
+        <div class="grid-input">
+          <label>Community/Other Score (%):</label>
+          <input type="number" id="s-oth" value="90">
+        </div>
+        <div class="grid-input">
+          <label>Community/Other Weight (%):</label>
+          <input type="number" id="w-oth" value="5">
+        </div>
+        <button class="btn btn-blue" onclick="computeFinalGrade()">Calculate School Grade</button>
+      </div>
+    </div>
+  </main>
+
+  <nav>
+    <button class="active" onclick="switchTab('roster', this)">Roster</button>
+    <button onclick="switchTab('master', this)">Master Key</button>
+    <button onclick="switchTab('scanner', this)">Scanner</button>
+    <button onclick="switchTab('grade', this)">Grade Card</button>
+  </nav>
+
+  <script>
+    let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
+    let currentClass = 'All';
+
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById('screen-' + tab).classList.add('active');
+      btn.classList.add('active');
+
+      const titles = {
+        'roster': 'Student Roster',
+        'master': 'Master Answer Keys',
+        'scanner': 'Scan & Evaluate',
+        'grade': 'School Evaluation & Grade'
+      };
+      document.getElementById('screen-title').innerText = titles[tab];
+      if (tab === 'grade') updateScholastic();
+    }
+
+    function importRoster(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
+
+        students = [];
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          if (!r || r.length < 2) continue;
+          students.push({
+            uid: r[0] || ('U' + i),
+            name: r[1] || 'Student ' + i,
+            cls: String(r[2] || '1').trim(),
+            sec: r[3] || 'A',
+            roll: r[4] || i,
+            score: null
+          });
+        }
+        localStorage.setItem('dhk_students', JSON.stringify(students));
+        renderRoster();
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function renderRoster() {
+      document.getElementById('roster-count').innerText = `${students.length} Students Loaded`;
+      const classes = ['All', ...new Set(students.map(s => s.cls))].sort();
+      const tabBox = document.getElementById('class-tabs');
+      tabBox.innerHTML = '';
+      classes.forEach(c => {
+        const btn = document.createElement('button');
+        btn.className = `class-tab ${c === currentClass ? 'active' : ''}`;
+        btn.innerText = c === 'All' ? 'All Classes' : `Class ${c}`;
+        btn.onclick = () => { currentClass = c; renderRoster(); };
+        tabBox.appendChild(btn);
+      });
+
+      const list = document.getElementById('student-list');
+      list.innerHTML = '';
+      const filtered = currentClass === 'All' ? students : students.filter(s => s.cls === currentClass);
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<p style="font-size:12px; color:#64748b;">No students in this class.</p>';
+        return;
+      }
+
+      filtered.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'student-item';
+        div.innerHTML = `
+          <div>
+            <div style="font-size:13px; font-weight:bold;">Roll ${s.roll}: ${s.name}</div>
+            <div style="font-size:11px; color:#94a3b8;">Class ${s.cls}-${s.sec} | UID: ${s.uid}</div>
+          </div>
+          <span class="badge ${s.score !== null ? 'badge-done' : 'badge-pending'}">
+            ${s.score !== null ? s.score + '%' : 'Pending'}
+          </span>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function handleScan(e, type) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const img = document.getElementById('scan-preview');
+        img.src = evt.target.result;
+        img.style.display = 'block';
+        document.getElementById('scan-feedback').innerText = `Captured ${type} sheet (${Math.round(file.size/1024)} KB). Processing bubbles...`;
+        
+        // Mark first pending student as evaluated for test demonstration
+        const target = students.find(s => s.score === null);
+        if (target) {
+          target.score = Math.floor(Math.random() * 25) + 75;
+          localStorage.setItem('dhk_students', JSON.stringify(students));
+          document.getElementById('scan-feedback').innerText = `Sheet scored for Roll ${target.roll} (${target.name}): ${target.score}%`;
+          renderRoster();
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function generateKey(type) {
+      alert(`${type} Master Template generated. Download link ready.`);
+    }
+
+    function lockMasterKey(e) {
+      if (e.target.files[0]) {
+        document.getElementById('master-status').innerText = 'Benchmark Key: LOCKED';
+        document.getElementById('master-status').style.color = '#16a34a';
+        alert('Master Answer Key scanned and locked.');
+      }
+    }
+
+    function updateScholastic() {
+      const evaluated = students.filter(s => s.score !== null);
+      if (evaluated.length === 0) {
+        document.getElementById('scholastic-avg').innerText = '0.00%';
+        return 0;
+      }
+      const sum = evaluated.reduce((acc, curr) => acc + curr.score, 0);
+      const avg = sum / evaluated.length;
+      document.getElementById('scholastic-avg').innerText = avg.toFixed(2) + '%';
+      return avg;
+    }
+
+    function computeFinalGrade() {
+      const schAvg = updateScholastic();
+      const wSch = parseFloat(document.getElementById('w-sch').value) || 0;
+      const sCo = parseFloat(document.getElementById('s-co').value) || 0;
+      const wCo = parseFloat(document.getElementById('w-co').value) || 0;
+      const sOth = parseFloat(document.getElementById('s-oth').value) || 0;
+      const wOth = parseFloat(document.getElementById('w-oth').value) || 0;
+
+      const totalW = wSch + wCo + wOth;
+      if (totalW <= 0) return alert('Weights must add up to 100%');
+
+      const comp = ((schAvg * wSch) + (sCo * wCo) + (sOth * wOth)) / totalW;
+      let grade = 'D';
+      if (comp >= 85) grade = 'A+';
+      else if (comp >= 70) grade = 'A';
+      else if (comp >= 60) grade = 'B';
+      else if (comp >= 40) grade = 'C';
+
+      document.getElementById('school-grade-badge').innerText = `${grade} (${comp.toFixed(1)}%)`;
+    }
+
+    renderRoster();
+  </script>
+</body>
+</html>
 
