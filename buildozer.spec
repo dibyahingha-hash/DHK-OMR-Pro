@@ -1,58 +1,67 @@
 [app]
 
-# Title of your application
+# (str) Title of your application
 title = DHK OMR Pro
 
-# Package name
+# (str) Package name
 package.name = dhkomrpro
 
-# Package domain (needed for android packaging)
+# (str) Package domain (needed for android packaging)
 package.domain = org.dhk
 
-# Source code where the main.py lives
+# (str) Source code where the main.py lives
 source.dir = .
 
-# Source files to include
+# (list) Source files to include (let empty to include all the files)
 source.include_exts = py,png,jpg,kv,atlas,json
 
-# Application versioning
+# (str) Application versioning
 version = 0.1
 
-# Application requirements
-requirements = python3,kivy,pillow
+# (list) Application requirements
+# Pinning python3==3.11.9 prevents the Python 3.14 cp314 unsupported wheel error
+requirements = python3==3.11.9,kivy==2.3.0,pillow
 
-# Supported orientation
+# (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
 orientation = portrait
 
-# Fullscreen toggle
+# (bool) Indicate if the application should be fullscreen to not
 fullscreen = 0
 
-# Android permissions needed for camera & storage
+# (list) Permissions
 android.permissions = CAMERA,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
 
-# Android API targeting
+# (int) Target Android API
 android.api = 33
+
+# (int) Minimum API your APK will support
 android.minapi = 24
 
-# Let Buildozer auto-match the compatible NDK
-# android.ndk = 
+# (str) Android NDK version to use
+android.ndk = 25b
 
-# Skip SDK update prompt
+# (int) Android NDK API to use
+android.ndk_api = 24
+
+# (bool) Skip trying to update the Android SDK
 android.skip_update = False
 
-# Automatically accept SDK licenses
+# (bool) Automatically accept SDK license
 android.accept_sdk_license = True
 
-# Target modern 64-bit Android architecture
+# (str) The Android arch to build for
 android.archs = arm64-v8a
 
-# Allow Android backup
+# (str) python-for-android branch to use
+p4a.branch = master
+
+# (bool) Enable Android auto backup feature
 android.allow_backup = True
 
 [buildozer]
 
-# Log level (2 = debug info)
+# (int) Log level (2 = debug info)
 log_level = 2
 
-# Warn on root
-warn_on_root = 1
+# (int) Warn on root (0 = don't prompt interactively)
+warn_on_root = 0
