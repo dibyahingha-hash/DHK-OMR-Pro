@@ -44,7 +44,7 @@
       background: var(--card); border: 1px solid var(--border); border-radius: 8px;
       padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
     }
-    .st-name { font-size: 14px; font-weight: bold; text-transform: capitalize; margin-bottom: 3px; color: #fff; }
+    .st-name { font-size: 15px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #fff; }
     .st-meta { font-size: 11px; color: var(--sub); }
     .badge {
       padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold;
@@ -79,7 +79,6 @@
       <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleExcelUpload(event)">
     </div>
 
-    <!-- Dynamic Class Tabs (Ka, Class-I, Class-II, Class-III, etc.) -->
     <div class="class-tabs" id="classTabsContainer"></div>
 
     <div style="font-size: 13px; color: var(--sub); margin-bottom: 10px; display: flex; justify-content: space-between;">
@@ -94,34 +93,29 @@
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
     let activeClassFilter = 'ALL';
 
-    function normalizeClassName(raw) {
-      if (!raw) return 'Class-I';
-      let val = String(raw).trim().toLowerCase();
+    function parseClassField(val) {
+      if (!val) return 'Class-I';
+      let s = String(val).toLowerCase().trim();
 
-      // Check Pre-primary / Ka-Shreni / Balvatika
-      if (val === '0' || val.includes('ka') || val.includes('balvatika') || val.includes('pre') || val.includes('nursery') || val.includes('kg')) {
+      if (s.includes('ka') || s.includes('balbatika') || s.includes('pre') || s.includes('nursery') || s.includes('kg')) {
         return 'Ka-Shreni';
       }
-
-      // Check Roman Numerals & Numbers strictly
-      if (val === '1' || val === 'i' || val.includes('class-i ') || val.includes('class 1') || val.includes('class-1') || val.endsWith('class-i') || val.endsWith('class i') || val === 'class i') {
+      if (s.includes('class-i ') || s.includes('class 1') || s.includes('class-1') || s.endsWith('class-i') || s === 'class-i' || s === 'class i') {
         return 'Class-I';
       }
-      if (val === '2' || val === 'ii' || val.includes('class-ii ') || val.includes('class 2') || val.includes('class-2') || val.endsWith('class-ii') || val.endsWith('class ii') || val === 'class ii') {
+      if (s.includes('class-ii ') || s.includes('class 2') || s.includes('class-2') || s.endsWith('class-ii') || s === 'class-ii' || s === 'class ii') {
         return 'Class-II';
       }
-      if (val === '3' || val === 'iii' || val.includes('class-iii ') || val.includes('class 3') || val.includes('class-3') || val.endsWith('class-iii') || val.endsWith('class iii') || val === 'class iii') {
+      if (s.includes('class-iii') || s.includes('class 3') || s.includes('class-3') || s.endsWith('class-iii') || s === 'class-iii' || s === 'class iii') {
         return 'Class-III';
       }
-      if (val === '4' || val === 'iv' || val.includes('class-iv ') || val.includes('class 4') || val.includes('class-4') || val.endsWith('class-iv') || val.endsWith('class iv') || val === 'class iv') {
+      if (s.includes('class-iv') || s.includes('class 4') || s.includes('class-4') || s.endsWith('class-iv') || s === 'class-iv' || s === 'class iv') {
         return 'Class-IV';
       }
-      if (val === '5' || val === 'v' || val.includes('class-v ') || val.includes('class 5') || val.includes('class-5') || val.endsWith('class-v') || val.endsWith('class v') || val === 'class v') {
+      if (s.includes('class-v') || s.includes('class 5') || s.includes('class-5') || s.endsWith('class-v') || s === 'class-v' || s === 'class v') {
         return 'Class-V';
       }
-
-      // Preserve formatted label if already clean
-      return String(raw).trim();
+      return String(val).trim();
     }
 
     function handleExcelUpload(event) {
@@ -135,49 +129,54 @@
           const workbook = XLSX.read(data, { type: 'array' });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-          // Convert to 2D array matrix to locate true header row
-          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-          if (rows.length < 2) return alert("The uploaded file does not contain enough data.");
+          const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+          if (rawRows.length < 2) return alert("The Excel file has no student data.");
 
-          // Find the header row containing "name" or "student"
-          let headerIdx = -1;
-          for (let r = 0; r < Math.min(rows.length, 10); r++) {
-            const rowStr = rows[r].map(c => String(c).toLowerCase().trim()).join(' ');
-            if (rowStr.includes('name') || rowStr.includes('student') || rowStr.includes('child')) {
-              headerIdx = r;
+          // Find header row containing 'student' or 'name'
+          let headerRowIndex = 0;
+          for (let r = 0; r < Math.min(rawRows.length, 10); r++) {
+            const rowText = rawRows[r].map(c => String(c).toLowerCase()).join(' ');
+            if (rowText.includes('student name') || rowText.includes('student') || rowText.includes('name')) {
+              headerRowIndex = r;
               break;
             }
           }
-          if (headerIdx === -1) headerIdx = 0;
 
-          const headers = rows[headerIdx].map(h => String(h).trim().toLowerCase());
+          const header = rawRows[headerRowIndex].map(c => String(c).trim().toLowerCase());
 
-          // Identify column indices intelligently
-          let nameCol = headers.findIndex(h => h.includes('student name') || h.includes('name of the student') || h === 'name' || h.includes('student') || h.includes('child name'));
-          let classCol = headers.findIndex(h => h.includes('present class') || h.includes('current class') || h.includes('class/grade') || h.includes('standard') || h === 'class' || h.includes('class'));
-          let idCol = headers.findIndex(h => h.includes('student code') || h.includes('student id') || h.includes('child id') || h.includes('pen') || h.includes('unique id') || h.includes('code') || h.includes('roll'));
-          let secCol = headers.findIndex(h => h.includes('section') || h === 'sec');
+          // Identify columns specifically
+          let nameCol = header.findIndex(h => h.includes('student name') || h === 'name');
+          if (nameCol === -1) nameCol = 2; // Default for Shiksha Setu is Column C (index 2)
 
-          if (nameCol === -1) nameCol = 1; // Fallback to column B
+          let idCol = header.findIndex(h => h.includes('uniqueid') || h.includes('student code') || h.includes('student id') || h.includes('pen'));
+          if (idCol === -1) idCol = 1;
 
-          const parsedStudents = [];
-          for (let r = headerIdx + 1; r < rows.length; r++) {
-            const row = rows[r];
-            const name = String(row[nameCol] || '').trim();
-            if (!name || name.toLowerCase().includes('total') || name.toLowerCase().includes('school')) continue;
+          let classCol = header.findIndex(h => h.includes('class') || h.includes('standard') || h.includes('grade'));
+          if (classCol === -1) classCol = 4; // Default for Shiksha Setu is Column E (index 4)
 
-            const rawClass = classCol !== -1 ? row[classCol] : '';
-            const normalizedClass = normalizeClassName(rawClass);
+          const parsedList = [];
 
-            const rawId = idCol !== -1 ? String(row[idCol]).trim() : '';
-            const uniqueId = (rawId && rawId.length >= 4) ? rawId : String(100000 + parsedStudents.length);
-            const section = secCol !== -1 && row[secCol] ? String(row[secCol]).trim().toUpperCase() : 'A';
+          for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
+            const row = rawRows[r];
+            if (!row || row.length === 0) continue;
 
-            parsedStudents.push({
-              unique_id: uniqueId,
-              name: name,
-              class_level: normalizedClass,
-              section: section,
+            // Student Name (Col 2)
+            let sName = String(row[nameCol] || '').trim();
+            if (!sName || sName.toLowerCase() === 'student name') continue;
+
+            // Class (Col 4)
+            let sClassRaw = String(row[classCol] || '').trim();
+            let finalClass = parseClassField(sClassRaw);
+
+            // Student ID (Col 1 or fallback generated UID)
+            let rawId = String(row[idCol] || '').replace(/\D/g, '').trim();
+            let finalId = (rawId.length >= 6) ? rawId : String(1815030280000000 + (r));
+
+            parsedList.push({
+              unique_id: finalId,
+              name: sName.toUpperCase(),
+              class_level: finalClass,
+              section: 'A',
               evaluated: false,
               score: null,
               mcq_marks: 0,
@@ -185,17 +184,18 @@
             });
           }
 
-          if (parsedStudents.length === 0) {
-            return alert("Could not extract student rows. Please check the Excel format.");
+          if (parsedList.length === 0) {
+            return alert("Could not read students from this file. Please verify the format.");
           }
 
-          students = parsedStudents;
+          students = parsedList;
           localStorage.setItem('dhk_students', JSON.stringify(students));
+          activeClassFilter = 'ALL';
           renderClassTabs();
           renderStudents();
-          alert(`Successfully imported ${students.length} students across all classes!`);
+          alert(`Successfully loaded ${students.length} students across all classes!`);
         } catch (err) {
-          alert("Error processing Excel file: " + err.message);
+          alert("Error parsing file: " + err.message);
         }
       };
       reader.readAsArrayBuffer(file);
@@ -204,10 +204,13 @@
 
     function renderClassTabs() {
       const container = document.getElementById('classTabsContainer');
-      const classes = ['ALL', ...new Set(students.map(s => s.class_level))].sort();
+      const standardOrder = ['ALL', 'Ka-Shreni', 'Class-I', 'Class-II', 'Class-III', 'Class-IV', 'Class-V'];
+      const presentClasses = [...new Set(students.map(s => s.class_level))];
+
+      const tabsToRender = standardOrder.filter(c => c === 'ALL' || presentClasses.includes(c));
 
       container.innerHTML = '';
-      classes.forEach(c => {
+      tabsToRender.forEach(c => {
         const label = c === 'ALL' ? 'All Classes' : c;
         const isActive = activeClassFilter === c ? 'active' : '';
         container.innerHTML += `<button class="tab-btn ${isActive}" onclick="filterByClass('${c}')">${label}</button>`;
@@ -237,12 +240,12 @@
         return;
       }
 
-      filtered.forEach((st, idx) => {
+      filtered.forEach((st) => {
         container.innerHTML += `
           <div class="student-card">
             <div>
               <div class="st-name">${st.name}</div>
-              <div class="st-meta">${st.class_level} (Sec ${st.section}) | UID: ${st.unique_id}</div>
+              <div class="st-meta">${st.class_level} (Sec ${st.section}) | ID: ${st.unique_id}</div>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span class="badge ${st.evaluated ? 'badge-evaluated' : 'badge-pending'}">
