@@ -26,7 +26,7 @@
 
     .container { padding: 14px; max-width: 650px; margin: 0 auto; }
     .card { background: var(--card); border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid var(--border); }
-    .card h3 { font-size: 15px; margin-bottom: 8px; }
+    .card h3 { font-size: 15px; margin-bottom: 8px; color: var(--gold); }
 
     .btn {
       width: 100%; padding: 12px; border-radius: 8px; border: none;
@@ -81,7 +81,7 @@
       color: #fff; font-size: 12px; font-weight: bold; text-shadow: 0 1px 4px #000;
     }
 
-    /* Modals */
+    /* Verification Modal */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0, 0, 0, 0.88); z-index: 1000; padding: 16px;
@@ -94,6 +94,10 @@
     .verify-box {
       background: #16202e; border: 1px solid #ecc94b; border-radius: 6px;
       padding: 10px; margin-bottom: 12px;
+    }
+    .score-input {
+      width: 70px; padding: 4px 6px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 4px; color: #fff; font-weight: bold; text-align: center; font-size: 14px;
     }
   </style>
 </head>
@@ -119,7 +123,7 @@
       <div class="form-group">
         <label>Form / Sheet Type:</label>
         <select id="examTrackSelect" onchange="toggleExamTrackMode()">
-          <option value="gunotsav_upper">Gunotsav (Class 3+ Individual Form: 58 MCQ + Skills)</option>
+          <option value="gunotsav_upper">Gunotsav (Class 3 to 12 Individual Form)</option>
           <option value="gunotsav_lower">Gunotsav (Class 1 & 2 Multi-Student Sheet: 25 Competencies)</option>
           <option value="school_eval">Gunotsav (School Evaluation Form: 24 Indicators A–E)</option>
           <option value="class_exam">Routine Class Exam (Universal Xerox Sheet)</option>
@@ -129,6 +133,10 @@
       <div class="form-group" id="classSelectRow">
         <label>Target Class:</label>
         <select id="scanClassSelect" onchange="resetScanState()"></select>
+      </div>
+
+      <div style="font-size: 12px; color: var(--sub); margin-bottom: 10px;" id="scannerConfigNote">
+        Active Key: <b>58 Questions</b> | Marks/Q: <b>1</b>
       </div>
 
       <!-- Viewfinder Section -->
@@ -169,18 +177,30 @@
       <select id="studentConfirmSelect" style="width: 100%; padding: 10px; background: var(--header); color: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-weight: bold;"></select>
 
       <div style="background: var(--header); padding: 12px; border-radius: 6px; margin-bottom: 14px;">
-        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-          <span>MCQ Score (Q1–Q58):</span>
-          <b id="modalMcqScore">0 / 58</b>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px;">
+          <span id="modalMcqLabel">MCQ Score (Q1–Q58):</span>
+          <div>
+            <input type="number" id="modalMcqScoreInput" class="score-input" onchange="recalculateModalTotals()">
+            <span id="modalMaxMcqText">/ 58</span>
+          </div>
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-          <span>Skill Marks (Q59–Q63):</span>
-          <b id="modalSkillScore" style="color: #81e6d9;">0 / 18</b>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px;" id="modalSkillRow">
+          <span>Skill / Subjective Marks:</span>
+          <div>
+            <input type="number" id="modalSkillScoreInput" class="score-input" onchange="recalculateModalTotals()">
+            <span id="modalMaxSkillText">/ 18</span>
+          </div>
         </div>
+
+        <div style="font-size: 11px; color: #a0aec0; margin-bottom: 6px;" id="modalBreakdownNote">
+          Correct: 0 | Incorrect: 0 | Penalty: 0
+        </div>
+
         <hr style="border: 0; border-top: 1px solid var(--border); margin: 6px 0;">
         <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: #68d391;">
           <span>Composite Total:</span>
-          <span id="modalCompositeScore">0 / 76 (0%)</span>
+          <span id="modalCompositeScore">0 Marks (0%)</span>
         </div>
       </div>
 
@@ -192,6 +212,11 @@
   <script>
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
     let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
+    let totalQuestions = parseInt(localStorage.getItem('dhk_total_questions') || '58');
+    let marksPerQ = parseFloat(localStorage.getItem('dhk_marks_per_q') || '1');
+    let negEnabled = localStorage.getItem('dhk_neg_enabled') === 'true';
+    let negMark = parseFloat(localStorage.getItem('dhk_neg_mark') || '0.25');
+
     let videoStream = null;
     let cameraLoop = null;
     let isProcessing = false;
@@ -219,6 +244,10 @@
       if (filtered.length === 0) {
         sel.innerHTML = `<option value="">No matching classes in roster</option>`;
       }
+
+      const note = document.getElementById('scannerConfigNote');
+      const negText = negEnabled ? ` (Negative: -${negMark})` : '';
+      note.innerHTML = `Active Key: <b>${totalQuestions} Questions</b> | Marks/Q: <b>${marksPerQ}</b>${negText}`;
     }
 
     function toggleExamTrackMode() {
@@ -231,7 +260,6 @@
       updateStabilityUI(0, "Position sheet flat inside corner brackets");
     }
 
-    /* Live Camera Management */
     async function toggleLiveCamera() {
       if (videoStream) {
         stopLiveCamera();
@@ -272,7 +300,6 @@
       resetScanState();
     }
 
-    /* Frame Stability & Fiducial Gate */
     function analyzeCameraFrame() {
       if (isProcessing || document.getElementById('verifyModal').style.display === 'flex') return;
 
@@ -285,7 +312,6 @@
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0);
 
-      // Verify that a high-contrast white paper sheet with margins is present
       const isSheetPresent = checkSheetPresence(ctx, canvas.width, canvas.height);
 
       if (!isSheetPresent) {
@@ -294,12 +320,10 @@
         return;
       }
 
-      // Sheet detected: advance hold-still stability buffer
       stableFrameCount++;
       const progress = Math.min(100, Math.round((stableFrameCount / REQUIRED_STABLE_FRAMES) * 100));
       updateStabilityUI(progress, `Holding still... Keep steady (${progress}%)`);
 
-      // Trigger scan only when stability buffer reaches 100%
       if (stableFrameCount >= REQUIRED_STABLE_FRAMES) {
         stableFrameCount = 0;
         updateStabilityUI(100, "Sheet Locked! Processing...");
@@ -313,8 +337,7 @@
       for (let i = 0; i < sample.length; i += 4) {
         totalLuma += (sample[i] + sample[i+1] + sample[i+2]) / 3;
       }
-      const avgBrightness = totalLuma / (sample.length / 4);
-      return avgBrightness > 115; // Paper reflectance baseline
+      return (totalLuma / (sample.length / 4)) > 115;
     }
 
     function updateStabilityUI(pct, text) {
@@ -364,7 +387,6 @@
       img.src = URL.createObjectURL(file);
     }
 
-    /* Levenshtein Matcher */
     function getDistance(a, b) {
       const m = a.length, n = b.length;
       const d = [];
@@ -380,7 +402,6 @@
       return d[m][n];
     }
 
-    /* Optical Bubble Density Reader */
     function readBubbleDensity(ctx, cx, cy, radius) {
       const size = Math.floor(radius * 2);
       const data = ctx.getImageData(cx - radius, cy - radius, size, size).data;
@@ -388,12 +409,11 @@
       const total = data.length / 4;
       for (let i = 0; i < data.length; i += 4) {
         const luma = (data[i] + data[i+1] + data[i+2]) / 3;
-        if (luma < 105) darkPixels++; // Dark mark inside bubble
+        if (luma < 105) darkPixels++;
       }
       return darkPixels / total;
     }
 
-    /* Process Locked Frame */
     async function processSnapshot(canvas) {
       isProcessing = true;
       const targetClass = document.getElementById('scanClassSelect').value;
@@ -406,7 +426,7 @@
       const h = canvas.height;
       const ctx = canvas.getContext('2d');
 
-      // 1. Crop Student Header Area (covers Student ID & Name rows)
+      // 1. Crop Student ID and Name Header
       const nameX = Math.floor(w * 0.10);
       const nameY = Math.floor(h * 0.12);
       const nameW = Math.floor(w * 0.70);
@@ -428,7 +448,6 @@
         const classStudents = students.filter(s => s.class_level === targetClass);
         const cleanUpper = detectedOcr.toUpperCase();
 
-        // Check for direct name match
         for (let s of classStudents) {
           if (cleanUpper.includes(s.name.toUpperCase())) {
             matchedStudent = s;
@@ -436,7 +455,6 @@
           }
         }
 
-        // Check for Student ID match
         if (!matchedStudent) {
           for (let s of classStudents) {
             if (s.unique_id && cleanUpper.includes(s.unique_id)) {
@@ -446,7 +464,6 @@
           }
         }
 
-        // Fuzzy match if handwriting is slightly distorted
         if (!matchedStudent && classStudents.length > 0) {
           let lowest = 999;
           classStudents.forEach(s => {
@@ -459,23 +476,29 @@
         }
       } catch (err) {}
 
-      // 2. Optical Bubble Evaluation for 58 MCQs
-      let mcqScore = 0;
-      const colStartX = [w * 0.14, w * 0.35, w * 0.56];
-      const gridStartY = h * 0.42;
-      const rowStep = (h * 0.45) / 20;
+      // 2. Optical Bubble Evaluation for Dynamic Questions (1 to N)
+      let correctCount = 0;
+      let wrongCount = 0;
       const radius = Math.floor(w * 0.012);
 
-      for (let q = 1; q <= 58; q++) {
-        const colIdx = q <= 20 ? 0 : (q <= 40 ? 1 : 2);
-        const rowInCol = (q - 1) % 20;
+      // Determine column grid division based on total questions
+      const questionsPerCol = totalQuestions > 60 ? 25 : 20;
+      const numCols = Math.ceil(totalQuestions / questionsPerCol);
+      const colBaseWidth = 0.65 / numCols;
+      const gridStartY = h * 0.40;
+      const rowStep = (h * 0.48) / questionsPerCol;
+
+      for (let q = 1; q <= totalQuestions; q++) {
+        const colIdx = Math.floor((q - 1) / questionsPerCol);
+        const rowInCol = (q - 1) % questionsPerCol;
+        const colStartX = w * (0.12 + colIdx * colBaseWidth);
         const y = gridStartY + rowInCol * rowStep;
 
         let markedOpt = null;
         let maxD = 0.28;
 
         ['A','B','C','D'].forEach((opt, optIdx) => {
-          const x = colStartX[colIdx] + (optIdx * (w * 0.042));
+          const x = colStartX + (optIdx * (w * 0.038));
           const density = readBubbleDensity(ctx, Math.floor(x), Math.floor(y), radius);
           if (density > maxD) {
             maxD = density;
@@ -484,38 +507,64 @@
         });
 
         if (masterKey[q]) {
-          if (markedOpt === masterKey[q]) mcqScore++;
+          if (markedOpt === masterKey[q]) {
+            correctCount++;
+          } else if (markedOpt) {
+            wrongCount++;
+          }
         } else if (markedOpt) {
-          mcqScore++;
+          correctCount++;
         }
       }
 
-      // 3. Optical Skill Bubbles (Q59 to Q63)
-      let skillScore = 0;
-      const skillX = [w * 0.80, w * 0.84, w * 0.88, w * 0.92];
-      const skillStartY = h * 0.45;
-      const skillStep = (h * 0.36) / 8;
+      // Calculate Net MCQ Marks
+      let earnedMcqMarks = correctCount * marksPerQ;
+      let penalty = 0;
+      if (negEnabled && wrongCount > 0) {
+        penalty = wrongCount * negMark;
+        earnedMcqMarks = Math.max(0, earnedMcqMarks - penalty);
+      }
+      earnedMcqMarks = Math.round(earnedMcqMarks * 100) / 100;
+      const maxPossibleMcq = Math.round(totalQuestions * marksPerQ * 100) / 100;
 
-      for (let s = 0; s < 8; s++) {
-        const sy = skillStartY + s * skillStep;
-        let rowVal = 0;
-        let maxD = 0.28;
-        skillX.forEach((sx, val) => {
-          const d = readBubbleDensity(ctx, Math.floor(sx), Math.floor(sy), radius);
-          if (d > maxD) {
-            maxD = d;
-            rowVal = val;
-          }
-        });
-        skillScore += rowVal;
+      // 3. Optical Skill Bubbles (Q59 to Q63 if Gunotsav Upper mode)
+      let skillScore = 0;
+      let maxSkill = 18;
+      const isGunotsavUpper = document.getElementById('examTrackSelect').value === 'gunotsav_upper';
+
+      if (isGunotsavUpper) {
+        const skillX = [w * 0.80, w * 0.84, w * 0.88, w * 0.92];
+        const skillStartY = h * 0.45;
+        const skillStep = (h * 0.36) / 8;
+
+        for (let s = 0; s < 8; s++) {
+          const sy = skillStartY + s * skillStep;
+          let rowVal = 0;
+          let maxD = 0.28;
+          skillX.forEach((sx, val) => {
+            const d = readBubbleDensity(ctx, Math.floor(sx), Math.floor(sy), radius);
+            if (d > maxD) {
+              maxD = d;
+              rowVal = val;
+            }
+          });
+          skillScore += rowVal;
+        }
+      } else {
+        maxSkill = 0;
       }
 
       currentEvaluation = {
         targetClass: targetClass,
         detectedOcr: detectedOcr,
         matchedUid: matchedStudent ? matchedStudent.unique_id : null,
-        mcqScore: mcqScore,
-        skillScore: skillScore
+        correctCount: correctCount,
+        wrongCount: wrongCount,
+        penalty: penalty,
+        mcqScore: earnedMcqMarks,
+        maxMcq: maxPossibleMcq,
+        skillScore: skillScore,
+        maxSkill: maxSkill
       };
 
       if (navigator.vibrate) navigator.vibrate(100);
@@ -529,12 +578,24 @@
       const selectEl = document.getElementById('studentConfirmSelect');
 
       rawTextEl.innerText = currentEvaluation.detectedOcr.replace(/\n+/g, ' ') || 'Handwriting detected';
-      document.getElementById('modalMcqScore').innerText = `${currentEvaluation.mcqScore} / 58`;
-      document.getElementById('modalSkillScore').innerText = `${currentEvaluation.skillScore} / 18`;
+      document.getElementById('modalMcqLabel').innerText = `MCQ Score (Q1–Q${totalQuestions}):`;
+      document.getElementById('modalMcqScoreInput').value = currentEvaluation.mcqScore;
+      document.getElementById('modalMaxMcqText').innerText = `/ ${currentEvaluation.maxMcq}`;
 
-      const total = currentEvaluation.mcqScore + currentEvaluation.skillScore;
-      const pct = Math.round((total / 76) * 100);
-      document.getElementById('modalCompositeScore').innerText = `${total} / 76 (${pct}%)`;
+      const skillRow = document.getElementById('modalSkillRow');
+      if (currentEvaluation.maxSkill > 0) {
+        skillRow.style.display = 'flex';
+        document.getElementById('modalSkillScoreInput').value = currentEvaluation.skillScore;
+        document.getElementById('modalMaxSkillText').innerText = `/ ${currentEvaluation.maxSkill}`;
+      } else {
+        skillRow.style.display = 'none';
+        document.getElementById('modalSkillScoreInput').value = 0;
+      }
+
+      document.getElementById('modalBreakdownNote').innerText = 
+        `Correct: ${currentEvaluation.correctCount} | Wrong: ${currentEvaluation.wrongCount} | Penalty: -${currentEvaluation.penalty}`;
+
+      recalculateModalTotals();
 
       const classStudents = students.filter(s => s.class_level === currentEvaluation.targetClass);
       selectEl.innerHTML = '';
@@ -551,18 +612,34 @@
       modal.style.display = 'flex';
     }
 
+    function recalculateModalTotals() {
+      const mcqVal = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
+      const skillVal = parseFloat(document.getElementById('modalSkillScoreInput').value) || 0;
+      const totalPossible = currentEvaluation.maxMcq + currentEvaluation.maxSkill;
+
+      const totalEarned = Math.round((mcqVal + skillVal) * 100) / 100;
+      const pct = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
+
+      document.getElementById('modalCompositeScore').innerText = `${totalEarned} / ${totalPossible} Marks (${pct}%)`;
+    }
+
     function confirmAndSaveRecord() {
       const uid = document.getElementById('studentConfirmSelect').value;
       if (!uid) return alert("Please select a student from the list to confirm their marks.");
 
+      const mcqVal = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
+      const skillVal = parseFloat(document.getElementById('modalSkillScoreInput').value) || 0;
+      const totalPossible = currentEvaluation.maxMcq + currentEvaluation.maxSkill;
+      const totalEarned = Math.round((mcqVal + skillVal) * 100) / 100;
+      const pct = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
+
       const target = students.find(s => s.unique_id === uid);
       if (target) {
-        const total = currentEvaluation.mcqScore + currentEvaluation.skillScore;
-        const pct = Math.round((total / 76) * 100);
-
         target.evaluated = true;
-        target.mcq_marks = currentEvaluation.mcqScore;
-        target.subj_marks = currentEvaluation.skillScore;
+        target.mcq_marks = mcqVal;
+        target.subj_marks = skillVal;
+        target.total_marks = totalEarned;
+        target.max_marks = totalPossible;
         target.score = pct;
 
         localStorage.setItem('dhk_students', JSON.stringify(students));
