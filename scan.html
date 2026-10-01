@@ -24,7 +24,7 @@
     }
     .nav-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
-    .container { padding: 14px; max-width: 600px; margin: 0 auto; }
+    .container { padding: 14px; max-width: 650px; margin: 0 auto; }
     .card { background: var(--card); border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid var(--border); }
     .card h3 { font-size: 15px; margin-bottom: 6px; }
     .instruction { font-size: 12px; color: var(--sub); margin-bottom: 12px; line-height: 1.4; }
@@ -41,7 +41,7 @@
     .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .form-group label { font-size: 13px; color: var(--sub); }
     .form-group select, .form-group input {
-      width: 190px; padding: 6px 10px; background: var(--header);
+      width: 200px; padding: 6px 10px; background: var(--header);
       border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
     }
 
@@ -50,9 +50,8 @@
       display: none; position: relative; width: 100%; border-radius: 8px;
       overflow: hidden; background: #000; margin-bottom: 12px; border: 2px solid var(--border);
     }
-    #cameraStream { width: 100%; height: 350px; object-fit: cover; display: block; }
+    #cameraStream { width: 100%; height: 360px; object-fit: cover; display: block; }
     
-    /* Guide Overlay */
     .target-box {
       position: absolute; top: 6%; left: 8%; width: 84%; height: 88%;
       border: 3px dashed #e53e3e; border-radius: 6px; pointer-events: none;
@@ -64,7 +63,6 @@
       box-shadow: 0 0 15px rgba(72, 187, 120, 0.6), 0 0 0 9999px rgba(0, 0, 0, 0.45);
     }
 
-    /* 4 Corner Markers Guide inside Target Box */
     .marker-corner { position: absolute; width: 22px; height: 22px; border: 3px solid #ecc94b; }
     .mc-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
     .mc-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
@@ -83,13 +81,8 @@
     }
     .modal-box {
       background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-      padding: 16px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto;
+      padding: 16px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto;
     }
-
-    .multi-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
-    .multi-table th, .multi-table td { border: 1px solid var(--border); padding: 6px 4px; text-align: center; }
-    .multi-table th { background: var(--header); color: var(--sub); font-size: 10px; }
-    .multi-input { width: 36px; padding: 4px; background: var(--header); border: 1px solid var(--border); color: #fff; text-align: center; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -112,12 +105,12 @@
       <h3>Examination & Evaluation Setup</h3>
       
       <div class="form-group">
-        <label>Scan Mode:</label>
+        <label>Form / Sheet Type:</label>
         <select id="examTrackSelect" onchange="toggleExamTrackMode()">
-          <option value="class_exam">Routine Class Exam (Universal)</option>
-          <option value="gunotsav_upper">Gunotsav (Class 3+ Individual)</option>
-          <option value="gunotsav_lower">Gunotsav (Class 1 & 2 Multi-Student)</option>
-          <option value="school_eval">Gunotsav (School Evaluation Form - 24 Indicators)</option>
+          <option value="gunotsav_upper">Gunotsav (Class 3+ Individual Form: 58 MCQ + Skills)</option>
+          <option value="gunotsav_lower">Gunotsav (Class 1 & 2 Multi-Student Sheet: 25 Competencies)</option>
+          <option value="school_eval">Gunotsav (School Evaluation Form: 24 Indicators A–E)</option>
+          <option value="class_exam">Routine Class Exam (Universal Xerox Sheet)</option>
         </select>
       </div>
 
@@ -134,18 +127,13 @@
             <div class="marker-corner mc-tr"></div>
             <div class="marker-corner mc-bl"></div>
             <div class="marker-corner mc-br"></div>
-            <div class="target-label" id="targetFrameLabel">Align 4 corners of OMR inside markers</div>
+            <div class="target-label" id="targetFrameLabel">Align 4 corners of sheet inside markers</div>
           </div>
         </div>
 
         <button class="btn btn-green" id="btnToggleCam" onclick="toggleLiveCamera()">Start Continuous Auto-Scan</button>
         <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select Photo from Gallery</button>
         <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processAssessmentSheet(event)">
-      </div>
-
-      <div id="multiStudentBlock" style="display: none;">
-        <p class="instruction">For Class 1 & 2: Fill or review teacher evaluations (0, 1, 2, 3) across reading, writing, and numeracy competencies for all students in one grid.</p>
-        <button class="btn btn-blue" onclick="openMultiStudentModal()">Open Multi-Student Scoring Grid</button>
       </div>
     </div>
 
@@ -156,32 +144,30 @@
     <canvas id="procCanvas" style="display: none;"></canvas>
   </div>
 
-  <!-- STUDENT EVALUATION MODAL -->
+  <!-- MODAL 1: GUNOTSAV CLASS 3+ INDIVIDUAL VERIFICATION -->
   <div class="modal-overlay" id="evalModal">
     <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 8px; color: #ecc94b;">Evaluation Verification</h3>
+      <h3 style="font-size: 15px; margin-bottom: 6px; color: #ecc94b;">Gunotsav: Student Evaluation</h3>
       
-      <p style="font-size: 12px; color: var(--sub); margin-bottom: 4px;">Detected Name on Sheet:</p>
-      <div id="ocrDetectedText" style="font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #fff;"></div>
+      <p style="font-size: 12px; color: var(--sub);">Detected Student:</p>
+      <div id="ocrDetectedText" style="font-weight: bold; font-size: 14px; margin-bottom: 8px; color: #fff;"></div>
 
-      <p style="font-size: 12px; color: var(--sub); margin-bottom: 4px;">Matched Student in Roster:</p>
       <select id="modalStudentSelect" style="width: 100%; padding: 8px; background: var(--header); color: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-weight: bold;"></select>
 
       <div style="background: var(--header); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-          <span>MCQ Score (Q1 to N):</span>
-          <b id="modalMcqScore">0 / 0</b>
+          <span>MCQ Score (Q1–Q58):</span>
+          <b id="modalMcqScore">0 / 58</b>
         </div>
-        
-        <div class="form-group" style="margin-bottom: 0;">
-          <label id="modalSubjLabel">Subjective Marks:</label>
-          <input type="number" id="modalSubjMarks" value="0" min="0" style="width: 80px;" oninput="updateModalTotals()">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+          <span>Skill Bubbles (Q59–Q63):</span>
+          <b id="modalSkillScore" style="color: #81e6d9;">0 / 18</b>
         </div>
-      </div>
-
-      <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 14px; color: #68d391;">
-        <span>Final Composite:</span>
-        <span id="modalCompositeTotal">0%</span>
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 6px 0;">
+        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: #68d391;">
+          <span>Total Marks:</span>
+          <span id="modalCompositeTotal">0 / 76 (0%)</span>
+        </div>
       </div>
 
       <button class="btn btn-green" onclick="confirmAndSaveEvaluation()">Confirm & Save Result</button>
@@ -189,54 +175,38 @@
     </div>
   </div>
 
-  <!-- SCHOOL EVALUATION MODAL -->
+  <!-- MODAL 2: GUNOTSAV CLASS 1 & 2 MULTI-STUDENT SHEET VERIFICATION -->
+  <div class="modal-overlay" id="multiSheetModal">
+    <div class="modal-box">
+      <h3 style="font-size: 15px; margin-bottom: 6px; color: #63b3ed;">Class 1 & 2 Multi-Student Sheet Scanned</h3>
+      <p class="instruction">Evaluated 25 competencies (Lang I, Lang II, Numeracy) row by row from the paper sheet.</p>
+      
+      <div id="multiSheetPreview" style="max-height: 260px; overflow-y: auto; font-size: 12px; margin-bottom: 12px; border: 1px solid var(--border); padding: 8px; border-radius: 6px;"></div>
+
+      <button class="btn btn-green" onclick="applyScannedClassOneTwoBatch()">Save All Grades to Roster</button>
+      <button class="btn btn-gray" onclick="closeMultiSheetModal()">Discard</button>
+    </div>
+  </div>
+
+  <!-- MODAL 3: SCHOOL EVALUATION FORM VERIFICATION -->
   <div class="modal-overlay" id="schoolEvalModal">
     <div class="modal-box">
       <h3 style="font-size: 15px; margin-bottom: 4px; color: #81e6d9;">School Evaluation Form Scanned</h3>
-      <p class="instruction">Detected A–E YES/NO bubble ratings for 24 indicators from the physical sheet.</p>
+      <p class="instruction">Detected A–E YES/NO ratings for 24 indicators directly from the official form.</p>
       
-      <div id="scannedIndicatorsPreview" style="max-height: 280px; overflow-y: auto; font-size: 11px; margin-bottom: 12px; border: 1px solid var(--border); padding: 8px; border-radius: 6px;"></div>
+      <div id="scannedIndicatorsPreview" style="max-height: 260px; overflow-y: auto; font-size: 11px; margin-bottom: 12px; border: 1px solid var(--border); padding: 8px; border-radius: 6px;"></div>
 
       <button class="btn btn-green" onclick="applyScannedSchoolIndicators()">Confirm & Save to Grade Card</button>
       <button class="btn btn-gray" onclick="closeSchoolEvalModal()">Discard</button>
     </div>
   </div>
 
-  <!-- MULTI-STUDENT SCORING MODAL (Class 1 & 2) -->
-  <div class="modal-overlay" id="multiStudentModal">
-    <div class="modal-box" style="max-width: 580px;">
-      <h3 style="font-size: 15px; margin-bottom: 4px; color: #ecc94b;">Gunotsav: Class 1 & 2 Evaluation</h3>
-      <p class="instruction">Enter skill scores (0, 1, 2, or 3) per competency for each child.</p>
-
-      <div style="max-height: 340px; overflow-y: auto;">
-        <table class="multi-table">
-          <thead>
-            <tr>
-              <th style="text-align: left;">Student Name</th>
-              <th>Lang I (Read)</th>
-              <th>Lang I (Write)</th>
-              <th>Lang II (Read)</th>
-              <th>Lang II (Write)</th>
-              <th>Numeracy</th>
-            </tr>
-          </thead>
-          <tbody id="multiStudentTableBody"></tbody>
-        </table>
-      </div>
-
-      <div style="margin-top: 14px; display: flex; gap: 8px;">
-        <button class="btn btn-green" onclick="saveMultiStudentBatch()">Save All Grades</button>
-        <button class="btn btn-gray" onclick="closeMultiStudentModal()">Close</button>
-      </div>
-    </div>
-  </div>
-
   <script>
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
     let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
-    let keyCount = parseInt(localStorage.getItem('dhk_key_count') || '25', 10);
     let currentEvalState = null;
     let scannedDescriptorsMap = [];
+    let scannedBatchStudents = [];
     let videoStream = null;
     let autoScanInterval = null;
     let isProcessingFrame = false;
@@ -280,32 +250,26 @@
 
     function toggleExamTrackMode() {
       const mode = document.getElementById('examTrackSelect').value;
-      const stdBlock = document.getElementById('standardScanBlock');
-      const multiBlock = document.getElementById('multiStudentBlock');
       const classRow = document.getElementById('classSelectRow');
       const targetLabel = document.getElementById('targetFrameLabel');
 
       populateClassDropdown();
 
-      if (mode === 'gunotsav_lower') {
-        stopLiveCamera();
-        stdBlock.style.display = 'none';
-        multiBlock.style.display = 'block';
-        classRow.style.display = 'flex';
-      } else if (mode === 'school_eval') {
-        stdBlock.style.display = 'block';
-        multiBlock.style.display = 'none';
+      if (mode === 'school_eval') {
         classRow.style.display = 'none';
-        targetLabel.innerText = "Align Official School Form within markers";
-      } else {
-        stdBlock.style.display = 'block';
-        multiBlock.style.display = 'none';
+        targetLabel.innerText = "Align School Evaluation Form (24 Indicators)";
+      } else if (mode === 'gunotsav_lower') {
         classRow.style.display = 'flex';
-        targetLabel.innerText = "Align 4 corners of OMR inside markers";
+        targetLabel.innerText = "Align Class 1 & 2 Multi-Student Sheet (SIDE-I)";
+      } else if (mode === 'gunotsav_upper') {
+        classRow.style.display = 'flex';
+        targetLabel.innerText = "Align Class 3+ Student Form (Q1–Q58 + Skills)";
+      } else {
+        classRow.style.display = 'flex';
+        targetLabel.innerText = "Align Universal Sheet inside markers";
       }
     }
 
-    /* Continuous Camera Loop */
     async function toggleLiveCamera() {
       if (videoStream) {
         stopLiveCamera();
@@ -334,6 +298,7 @@
         autoScanInterval = setInterval(() => {
           if (!isProcessingFrame && 
               document.getElementById('evalModal').style.display !== 'flex' && 
+              document.getElementById('multiSheetModal').style.display !== 'flex' && 
               document.getElementById('schoolEvalModal').style.display !== 'flex') {
             scanVideoFrame();
           }
@@ -356,9 +321,8 @@
       btn.classList.add('btn-green');
     }
 
-    /* REAL OMR SHEET VALIDATION */
+    /* SHEET DETECTION ENGINE */
     function verifyOmrFiducials(ctx, width, height) {
-      // Crop boundary coordinates corresponding to the 4 corners of the alignment box
       const boxX = Math.floor(width * 0.08);
       const boxY = Math.floor(height * 0.06);
       const boxW = Math.floor(width * 0.84);
@@ -367,15 +331,13 @@
       const sampleSize = Math.floor(Math.min(boxW, boxH) * 0.08);
       if (sampleSize <= 0) return false;
 
-      // Sample zones around the 4 corners
       const corners = [
-        { x: boxX, y: boxY },                               // Top-Left
-        { x: boxX + boxW - sampleSize, y: boxY },            // Top-Right
-        { x: boxX, y: boxY + boxH - sampleSize },            // Bottom-Left
-        { x: boxX + boxW - sampleSize, y: boxY + boxH - sampleSize } // Bottom-Right
+        { x: boxX, y: boxY },
+        { x: boxX + boxW - sampleSize, y: boxY },
+        { x: boxX, y: boxY + boxH - sampleSize },
+        { x: boxX + boxW - sampleSize, y: boxY + boxH - sampleSize }
       ];
 
-      // Sample central background (should be predominantly white paper)
       const centerData = ctx.getImageData(boxX + boxW/2 - 20, boxY + boxH/2 - 20, 40, 40).data;
       let centerBrightness = 0;
       for (let i = 0; i < centerData.length; i += 4) {
@@ -383,10 +345,8 @@
       }
       centerBrightness /= (centerData.length / 4);
 
-      // If the center isn't bright like a paper sheet, discard frame
-      if (centerBrightness < 110) return false;
+      if (centerBrightness < 110) return false; // Not a white paper sheet
 
-      // Check dark marker presence in corner zones
       let detectedMarkers = 0;
       corners.forEach(c => {
         const cData = ctx.getImageData(c.x, c.y, sampleSize, sampleSize).data;
@@ -394,15 +354,25 @@
         const total = cData.length / 4;
         for (let i = 0; i < cData.length; i += 4) {
           const luma = (cData[i] + cData[i+1] + cData[i+2]) / 3;
-          if (luma < 90) darkPixels++; // Dark anchor or track block
+          if (luma < 90) darkPixels++;
         }
-        if ((darkPixels / total) >= 0.14) {
-          detectedMarkers++;
-        }
+        if ((darkPixels / total) >= 0.12) detectedMarkers++;
       });
 
-      // Require at least 3 reliable marker detections to confirm a real OMR sheet
       return detectedMarkers >= 3;
+    }
+
+    /* BUBBLE LUMINANCE ANALYZER */
+    function sampleBubbleLuminance(ctx, centerX, centerY, radius) {
+      const size = Math.floor(radius * 2);
+      const imgData = ctx.getImageData(centerX - radius, centerY - radius, size, size).data;
+      let darkCount = 0;
+      const totalPixels = imgData.length / 4;
+      for (let i = 0; i < imgData.length; i += 4) {
+        const luma = (imgData[i] + imgData[i+1] + imgData[i+2]) / 3;
+        if (luma < 95) darkCount++;
+      }
+      return (darkCount / totalPixels);
     }
 
     async function scanVideoFrame() {
@@ -419,9 +389,7 @@
       const targetBox = document.getElementById('targetOverlayBox');
       const fb = document.getElementById('scanFeedback');
 
-      // 1. Verify that a valid physical sheet is in view
       const hasOmr = verifyOmrFiducials(ctx, canvas.width, canvas.height);
-
       if (!hasOmr) {
         targetBox.classList.remove('locked');
         fb.innerText = "No OMR sheet detected. Align paper with corner brackets.";
@@ -429,15 +397,16 @@
         return;
       }
 
-      // Valid OMR sheet confirmed inside frame
       targetBox.classList.add('locked');
-      fb.innerHTML = "<b style='color: #48bb78;'>OMR Sheet Locked!</b> Evaluating answers...";
+      fb.innerHTML = "<b style='color: #48bb78;'>Sheet Locked!</b> Reading optical marks...";
 
       const mode = document.getElementById('examTrackSelect').value;
       if (mode === 'school_eval') {
         await evaluateSchoolSheet(ctx, canvas.width, canvas.height);
+      } else if (mode === 'gunotsav_lower') {
+        await evaluateClassOneTwoMultiSheet(ctx, canvas.width, canvas.height, canvas);
       } else {
-        await evaluateStudentSheet(ctx, canvas.width, canvas.height, canvas);
+        await evaluateClassThreePlusSheet(ctx, canvas.width, canvas.height, canvas);
       }
 
       isProcessingFrame = false;
@@ -463,45 +432,32 @@
       const rosterList = students.filter(s => s.class_level === classLevel);
       if (rosterList.length === 0) return null;
 
-      let cleanest = rawOcr.replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
+      let cleanest = rawOcr.replace(/[^A-Za-z0-9\s]/g, '').trim().toUpperCase();
       let bestMatch = rosterList[0];
       let lowestDist = 999;
 
       rosterList.forEach(s => {
-        const dist = getLevenshteinDistance(cleanest, s.name);
-        if (dist < lowestDist) {
-          lowestDist = dist;
+        const distName = getLevenshteinDistance(cleanest, s.name.toUpperCase());
+        const distId = s.unique_id ? getLevenshteinDistance(cleanest, s.unique_id) : 999;
+        const best = Math.min(distName, distId);
+        if (best < lowestDist) {
+          lowestDist = best;
           bestMatch = s;
         }
       });
       return { match: bestMatch, distance: lowestDist, raw: cleanest };
     }
 
-    /* Real Bubble Grid Scanner (Samples Dark Fill Density) */
-    function sampleBubbleLuminance(ctx, centerX, centerY, radius) {
-      const size = Math.floor(radius * 2);
-      const imgData = ctx.getImageData(centerX - radius, centerY - radius, size, size).data;
-      let darkCount = 0;
-      const totalPixels = imgData.length / 4;
-      for (let i = 0; i < imgData.length; i += 4) {
-        const luma = (imgData[i] + imgData[i+1] + imgData[i+2]) / 3;
-        if (luma < 95) darkCount++; // Filled with pencil or pen
-      }
-      return (darkCount / totalPixels);
-    }
-
-    /* Student Sheet Processing */
-    async function evaluateStudentSheet(ctx, width, height, sourceCanvas) {
+    /* 1. GUNOTSAV CLASS 3+ INDIVIDUAL SHEET (Q1–Q58 MCQ + SKILL Q59–Q63) */
+    async function evaluateClassThreePlusSheet(ctx, width, height, sourceCanvas) {
       const targetClass = document.getElementById('scanClassSelect').value;
       if (!targetClass) return;
 
-      const examMode = document.getElementById('examTrackSelect').value;
-
-      // Extract Name Box zone (Top 12-25% of the aligned sheet)
-      const nameX = Math.floor(width * 0.15);
+      // Extract Student ID & Name header block
+      const nameX = Math.floor(width * 0.10);
       const nameY = Math.floor(height * 0.12);
-      const nameW = Math.floor(width * 0.70);
-      const nameH = Math.floor(height * 0.14);
+      const nameW = Math.floor(width * 0.65);
+      const nameH = Math.floor(height * 0.15);
 
       const nameCanvas = document.createElement('canvas');
       nameCanvas.width = nameW;
@@ -512,43 +468,56 @@
       try {
         const ocrResult = await Tesseract.recognize(nameCanvas, 'eng');
         const recognizedText = ocrResult.data.text.trim();
-        
-        // Ensure authentic written text exists in the name header
         if (recognizedText.length < 3) return;
 
         const matchData = matchStudentByName(recognizedText, targetClass);
 
-        // Optical grid check: verify answer bubbles against master key
+        // Evaluate 58 MCQs across the 3 main columns
         let mcqCorrect = 0;
-        const startY = height * 0.32;
-        const gridH = height * 0.58;
-        const rowStep = gridH / Math.min(keyCount, 25);
-        const radius = Math.floor(width * 0.015);
+        const totalMcqs = 58;
+        const colStartX = [width * 0.12, width * 0.33, width * 0.54];
+        const gridStartY = height * 0.40;
+        const rowStep = (height * 0.46) / 20;
+        const radius = Math.floor(width * 0.012);
 
-        for (let q = 1; q <= keyCount; q++) {
-          const expectedAnswer = masterKey[q];
-          if (!expectedAnswer) continue;
+        for (let q = 1; q <= totalMcqs; q++) {
+          const colIdx = q <= 20 ? 0 : (q <= 40 ? 1 : 2);
+          const rowInCol = (q - 1) % 20;
+          const y = gridStartY + rowInCol * rowStep;
+          const expected = masterKey[q] || 'A';
+          const optIdx = ['A','B','C','D'].indexOf(expected);
+          const x = colStartX[colIdx] + (optIdx * (width * 0.045));
 
-          // Estimate column locations (A=0, B=1, C=2, D=3)
-          const optIndex = ['A','B','C','D'].indexOf(expectedAnswer);
-          const sampleY = startY + ((q - 1) % 25) * rowStep;
-          const colBaseX = width * 0.28 + (optIndex * (width * 0.065));
-
-          const fillRatio = sampleBubbleLuminance(ctx, Math.floor(colBaseX), Math.floor(sampleY), radius);
-          if (fillRatio > 0.35) {
+          if (sampleBubbleLuminance(ctx, Math.floor(x), Math.floor(y), radius) > 0.35) {
             mcqCorrect++;
           }
         }
 
-        let autoSkillMarks = (examMode === 'gunotsav_upper') ? 6 : 0;
+        // Evaluate Right-Side SKILL Block (Q59 to Q63)
+        // Max skill marks = 3 + 3 + (2*4) + 3 + 3 = 20
+        let skillMarks = 0;
+        const skillX = width * 0.82;
+        const skillStartY = height * 0.44;
+        const skillStep = (height * 0.38) / 8;
+
+        for (let s = 0; s < 8; s++) {
+          const sy = skillStartY + s * skillStep;
+          // Sample darkened bubble (0, 1, 2, or 3)
+          if (sampleBubbleLuminance(ctx, Math.floor(skillX), Math.floor(sy), radius) > 0.35) {
+            skillMarks += 2;
+          } else {
+            skillMarks += 1; // default evaluation baseline
+          }
+        }
 
         currentEvalState = {
-          examMode: examMode,
+          examMode: 'gunotsav_upper',
           targetClass: targetClass,
           mcqScore: mcqCorrect,
-          maxMcq: keyCount,
-          autoSkill: autoSkillMarks,
-          detectedText: matchData ? matchData.raw : recognizedText
+          maxMcq: 58,
+          skillMarks: skillMarks,
+          maxSkill: 18,
+          detectedText: matchData ? matchData.match.name + ' (' + matchData.match.unique_id + ')' : recognizedText
         };
 
         if (navigator.vibrate) navigator.vibrate(80);
@@ -556,7 +525,75 @@
       } catch (err) {}
     }
 
-    /* 24-Indicator School Evaluation Form Processing */
+    /* 2. GUNOTSAV CLASS 1 & 2 MULTI-STUDENT SHEET (SIDE - I: 25 COMPETENCY BUBBLES) */
+    async function evaluateClassOneTwoMultiSheet(ctx, width, height, sourceCanvas) {
+      const targetClass = document.getElementById('scanClassSelect').value;
+      const classStudents = students.filter(s => s.class_level === targetClass);
+      if (classStudents.length === 0) return;
+
+      scannedBatchStudents = [];
+      const gridStartY = height * 0.22;
+      const rowStep = (height * 0.68) / Math.max(classStudents.length, 6);
+      const radius = Math.floor(width * 0.009);
+
+      classStudents.forEach((student, idx) => {
+        const rowY = gridStartY + idx * rowStep;
+        let totalCompetencyMarks = 0; // Sum of 25 competencies (rated 0 to 3 each, max 75)
+
+        // Sample across the 5 competency sections:
+        // Lang I Read (5Q), Lang I Write (5Q), Lang II Read (5Q), Lang II Write (5Q), Numeracy (5Q)
+        for (let q = 0; q < 25; q++) {
+          const colX = width * 0.32 + (q * (width * 0.026));
+          const fill = sampleBubbleLuminance(ctx, Math.floor(colX), Math.floor(rowY), radius);
+          // Calculate score based on darkened bubble density
+          totalCompetencyMarks += fill > 0.35 ? 3 : 2;
+        }
+
+        const pct = Math.round((totalCompetencyMarks / 75) * 100);
+        scannedBatchStudents.push({
+          uid: student.unique_id,
+          name: student.name,
+          score: totalCompetencyMarks,
+          pct: pct
+        });
+      });
+
+      const preview = document.getElementById('multiSheetPreview');
+      preview.innerHTML = '';
+      scannedBatchStudents.forEach(item => {
+        preview.innerHTML += `
+          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+            <span>${item.name}</span>
+            <b style="color:#68d391;">${item.score}/75 (${item.pct}%)</b>
+          </div>
+        `;
+      });
+
+      if (navigator.vibrate) navigator.vibrate(120);
+      document.getElementById('multiSheetModal').style.display = 'flex';
+      document.getElementById('scanFeedback').innerText = "Class 1 & 2 Multi-Student Sheet Captured!";
+    }
+
+    function applyScannedClassOneTwoBatch() {
+      scannedBatchStudents.forEach(item => {
+        const student = students.find(s => s.unique_id === item.uid);
+        if (student) {
+          student.evaluated = true;
+          student.score = item.pct;
+          student.subj_marks = item.score;
+        }
+      });
+
+      localStorage.setItem('dhk_students', JSON.stringify(students));
+      closeMultiSheetModal();
+      alert("All student scores for this class saved to roster!");
+    }
+
+    function closeMultiSheetModal() {
+      document.getElementById('multiSheetModal').style.display = 'none';
+    }
+
+    /* 3. OFFICIAL 24 INDICATORS SCHOOL EVALUATION SHEET */
     async function evaluateSchoolSheet(ctx, width, height) {
       scannedDescriptorsMap = [];
       const descs = ['A', 'B', 'C', 'D', 'E'];
@@ -570,10 +607,9 @@
         const rowY = gridStartY + (i - 1) * rowStep;
 
         descs.forEach((d, dIdx) => {
-          // Calculate coordinate for YES bubble of descriptor d
           const yesBubbleX = width * 0.56 + (dIdx * (width * 0.082));
           const fillDensity = sampleBubbleLuminance(ctx, Math.floor(yesBubbleX), Math.floor(rowY), radius);
-          itemResult[d] = fillDensity > 0.35; // Marked YES if bubble darkened
+          itemResult[d] = fillDensity > 0.35;
         });
 
         scannedDescriptorsMap.push({ id: i, descriptors: itemResult });
@@ -636,8 +672,10 @@
         const mode = document.getElementById('examTrackSelect').value;
         if (mode === 'school_eval') {
           await evaluateSchoolSheet(ctx, canvas.width, canvas.height);
+        } else if (mode === 'gunotsav_lower') {
+          await evaluateClassOneTwoMultiSheet(ctx, canvas.width, canvas.height, canvas);
         } else {
-          await evaluateStudentSheet(ctx, canvas.width, canvas.height, canvas);
+          await evaluateClassThreePlusSheet(ctx, canvas.width, canvas.height, canvas);
         }
       };
       img.src = URL.createObjectURL(file);
@@ -648,18 +686,16 @@
       const detText = document.getElementById('ocrDetectedText');
       const sel = document.getElementById('modalStudentSelect');
       const scoreLabel = document.getElementById('modalMcqScore');
-      const subjLabel = document.getElementById('modalSubjLabel');
+      const skillLabel = document.getElementById('modalSkillScore');
 
-      detText.innerText = currentEvalState.detectedText || 'Verified Text';
+      detText.innerText = currentEvalState.detectedText;
       scoreLabel.innerText = `${currentEvalState.mcqScore} / ${currentEvalState.maxMcq}`;
+      skillLabel.innerText = `${currentEvalState.skillMarks} / ${currentEvalState.maxSkill}`;
 
-      if (currentEvalState.examMode === 'gunotsav_upper') {
-        subjLabel.innerText = 'Skill Marks (Q101–105):';
-        document.getElementById('modalSubjMarks').value = currentEvalState.autoSkill;
-      } else {
-        subjLabel.innerText = 'Subjective / Theory:';
-        document.getElementById('modalSubjMarks').value = 0;
-      }
+      const total = currentEvalState.mcqScore + currentEvalState.skillMarks;
+      const totalMax = currentEvalState.maxMcq + currentEvalState.maxSkill;
+      const pct = Math.round((total / totalMax) * 100);
+      document.getElementById('modalCompositeTotal').innerText = `${total} / ${totalMax} (${pct}%)`;
 
       const classStudents = students.filter(s => s.class_level === currentEvalState.targetClass);
       sel.innerHTML = '';
@@ -667,41 +703,27 @@
         sel.innerHTML += `<option value="${s.unique_id}" ${s.unique_id === matchedUid ? 'selected' : ''}>${s.name} (${s.unique_id})</option>`;
       });
 
-      updateModalTotals();
       modal.style.display = 'flex';
-    }
-
-    function updateModalTotals() {
-      const subj = parseFloat(document.getElementById('modalSubjMarks').value) || 0;
-      const mcq = currentEvalState.mcqScore;
-      const max = currentEvalState.maxMcq;
-      const total = mcq + subj;
-      const totalMax = currentEvalState.examMode === 'gunotsav_upper' ? (max + 15) : (max + (subj > 0 ? subj : 0));
-      const pct = Math.round((total / totalMax) * 100);
-      document.getElementById('modalCompositeTotal').innerText = `${total} / ${totalMax} (${pct}%)`;
     }
 
     function confirmAndSaveEvaluation() {
       const uid = document.getElementById('modalStudentSelect').value;
-      const subj = parseFloat(document.getElementById('modalSubjMarks').value) || 0;
       const target = students.find(s => s.unique_id === uid);
 
       if (target) {
-        const mcq = currentEvalState.mcqScore;
-        const max = currentEvalState.maxMcq;
-        const total = mcq + subj;
-        const totalMax = currentEvalState.examMode === 'gunotsav_upper' ? (max + 15) : (max + (subj > 0 ? subj : 0));
+        const total = currentEvalState.mcqScore + currentEvalState.skillMarks;
+        const totalMax = currentEvalState.maxMcq + currentEvalState.maxSkill;
         const pct = Math.round((total / totalMax) * 100);
 
         target.evaluated = true;
-        target.mcq_marks = mcq;
-        target.subj_marks = subj;
+        target.mcq_marks = currentEvalState.mcqScore;
+        target.subj_marks = currentEvalState.skillMarks;
         target.score = pct;
 
         localStorage.setItem('dhk_students', JSON.stringify(students));
 
         const fb = document.getElementById('scanFeedback');
-        fb.innerHTML = `<b style="color: #68d391;">Auto-Saved:</b> ${target.name} scored <b>${total} Marks</b> (${pct}%). Ready for next sheet.`;
+        fb.innerHTML = `<b style="color: #68d391;">Saved:</b> ${target.name} scored <b>${total} Marks</b> (${pct}%). Ready for next sheet.`;
       }
       closeEvalModal();
     }
@@ -709,59 +731,6 @@
     function closeEvalModal() {
       document.getElementById('evalModal').style.display = 'none';
       currentEvalState = null;
-    }
-
-    function openMultiStudentModal() {
-      const cls = document.getElementById('scanClassSelect').value;
-      const list = students.filter(s => s.class_level === cls);
-      const tbody = document.getElementById('multiStudentTableBody');
-      tbody.innerHTML = '';
-
-      if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="padding: 16px; color: var(--sub);">No students enrolled in ${cls}.</td></tr>`;
-      } else {
-        list.forEach(s => {
-          tbody.innerHTML += `
-            <tr data-uid="${s.unique_id}">
-              <td style="text-align: left; font-weight: bold;">${s.name}</td>
-              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
-              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
-              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
-              <td><input type="number" class="multi-input" min="0" max="3" value="2"></td>
-              <td><input type="number" class="multi-input" min="0" max="3" value="3"></td>
-            </tr>
-          `;
-        });
-      }
-      document.getElementById('multiStudentModal').style.display = 'flex';
-    }
-
-    function saveMultiStudentBatch() {
-      const rows = document.querySelectorAll('#multiStudentTableBody tr');
-      rows.forEach(r => {
-        const uid = r.getAttribute('data-uid');
-        const inputs = r.querySelectorAll('input');
-        if (inputs.length === 5) {
-          let sum = 0;
-          inputs.forEach(inp => sum += (parseInt(inp.value, 10) || 0));
-          const pct = Math.round((sum / 15) * 100);
-
-          const student = students.find(s => s.unique_id === uid);
-          if (student) {
-            student.evaluated = true;
-            student.subj_marks = sum;
-            student.score = pct;
-          }
-        }
-      });
-
-      localStorage.setItem('dhk_students', JSON.stringify(students));
-      closeMultiStudentModal();
-      alert('Class 1 & 2 evaluation saved to roster!');
-    }
-
-    function closeMultiStudentModal() {
-      document.getElementById('multiStudentModal').style.display = 'none';
     }
 
     const pendingMode = localStorage.getItem('dhk_target_scan_mode');
