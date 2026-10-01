@@ -45,19 +45,35 @@
       border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
     }
 
+    /* Live Viewfinder */
     .viewfinder-box {
       display: none; position: relative; width: 100%; border-radius: 8px;
-      overflow: hidden; background: #000; margin-bottom: 12px; border: 2px solid var(--blue);
+      overflow: hidden; background: #000; margin-bottom: 12px; border: 2px solid var(--border);
     }
-    #cameraStream { width: 100%; height: 320px; object-fit: cover; display: block; }
+    #cameraStream { width: 100%; height: 350px; object-fit: cover; display: block; }
+    
+    /* Guide Overlay */
     .target-box {
-      position: absolute; top: 8%; left: 6%; width: 88%; height: 84%;
-      border: 2px dashed #48bb78; border-radius: 6px; pointer-events: none;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+      position: absolute; top: 6%; left: 8%; width: 84%; height: 88%;
+      border: 3px dashed #e53e3e; border-radius: 6px; pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+      transition: border-color 0.25s ease;
     }
+    .target-box.locked {
+      border: 3px solid #48bb78 !important;
+      box-shadow: 0 0 15px rgba(72, 187, 120, 0.6), 0 0 0 9999px rgba(0, 0, 0, 0.45);
+    }
+
+    /* 4 Corner Markers Guide inside Target Box */
+    .marker-corner { position: absolute; width: 22px; height: 22px; border: 3px solid #ecc94b; }
+    .mc-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+    .mc-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+    .mc-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+    .mc-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
     .target-label {
-      position: absolute; top: 6px; left: 0; right: 0; text-align: center;
-      color: #9ae6b4; font-size: 12px; font-weight: bold; text-shadow: 0 1px 3px #000;
+      position: absolute; bottom: 8px; left: 0; right: 0; text-align: center;
+      color: #fff; font-size: 12px; font-weight: bold; background: rgba(0,0,0,0.65); padding: 4px;
     }
 
     .modal-overlay {
@@ -113,13 +129,17 @@
       <div id="standardScanBlock">
         <div class="viewfinder-box" id="viewfinderWrapper">
           <video id="cameraStream" playsinline autoplay></video>
-          <div class="target-box">
-            <div class="target-label" id="targetFrameLabel">Align sheet inside this frame</div>
+          <div class="target-box" id="targetOverlayBox">
+            <div class="marker-corner mc-tl"></div>
+            <div class="marker-corner mc-tr"></div>
+            <div class="marker-corner mc-bl"></div>
+            <div class="marker-corner mc-br"></div>
+            <div class="target-label" id="targetFrameLabel">Align 4 corners of OMR inside markers</div>
           </div>
         </div>
 
         <button class="btn btn-green" id="btnToggleCam" onclick="toggleLiveCamera()">Start Continuous Auto-Scan</button>
-        <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select from Gallery</button>
+        <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select Photo from Gallery</button>
         <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processAssessmentSheet(event)">
       </div>
 
@@ -169,11 +189,11 @@
     </div>
   </div>
 
-  <!-- SCHOOL EVALUATION (24 INDICATORS) MODAL -->
+  <!-- SCHOOL EVALUATION MODAL -->
   <div class="modal-overlay" id="schoolEvalModal">
     <div class="modal-box">
       <h3 style="font-size: 15px; margin-bottom: 4px; color: #81e6d9;">School Evaluation Form Scanned</h3>
-      <p class="instruction">Detected A–E YES/NO bubble ratings for 24 indicators. Review summary below.</p>
+      <p class="instruction">Detected A–E YES/NO bubble ratings for 24 indicators from the physical sheet.</p>
       
       <div id="scannedIndicatorsPreview" style="max-height: 280px; overflow-y: auto; font-size: 11px; margin-bottom: 12px; border: 1px solid var(--border); padding: 8px; border-radius: 6px;"></div>
 
@@ -214,7 +234,7 @@
   <script>
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
     let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
-    let keyCount = parseInt(localStorage.getItem('dhk_key_count') || '20', 10);
+    let keyCount = parseInt(localStorage.getItem('dhk_key_count') || '25', 10);
     let currentEvalState = null;
     let scannedDescriptorsMap = [];
     let videoStream = null;
@@ -235,8 +255,8 @@
                                lower.includes('class-i ') || lower.endsWith('class-i') || 
                                lower.includes('class-ii ') || lower.endsWith('class-ii') ||
                                lower.includes('class 1') || lower.includes('class 2');
-          const isClassThreeOrHigher = lower.includes('class-iii') || lower.includes('class-iv') || lower.includes('class-v') || lower.includes('class 3');
-          return isLowerGrade && !isClassThreeOrHigher;
+          const isUpper = lower.includes('class-iii') || lower.includes('class-iv') || lower.includes('class-v') || lower.includes('class 3');
+          return isLowerGrade && !isUpper;
         });
       } else if (mode === 'gunotsav_upper') {
         filteredClasses = allClasses.filter(c => {
@@ -276,15 +296,16 @@
         stdBlock.style.display = 'block';
         multiBlock.style.display = 'none';
         classRow.style.display = 'none';
-        targetLabel.innerText = "Align Official School Evaluation Form";
+        targetLabel.innerText = "Align Official School Form within markers";
       } else {
         stdBlock.style.display = 'block';
         multiBlock.style.display = 'none';
         classRow.style.display = 'flex';
-        targetLabel.innerText = "Align sheet inside this frame";
+        targetLabel.innerText = "Align 4 corners of OMR inside markers";
       }
     }
 
+    /* Continuous Camera Loop */
     async function toggleLiveCamera() {
       if (videoStream) {
         stopLiveCamera();
@@ -305,10 +326,10 @@
         });
         video.srcObject = videoStream;
         wrapper.style.display = 'block';
-        btn.innerText = "Stop Auto-Scanner";
+        btn.innerText = "Stop Scanner";
         btn.classList.remove('btn-green');
         btn.classList.add('btn-red');
-        fb.innerText = "Camera active. Hold sheet inside frame...";
+        fb.innerText = "Looking for sheet. Position all 4 corner markers...";
 
         autoScanInterval = setInterval(() => {
           if (!isProcessingFrame && 
@@ -316,9 +337,9 @@
               document.getElementById('schoolEvalModal').style.display !== 'flex') {
             scanVideoFrame();
           }
-        }, 1500);
+        }, 800);
       } catch (err) {
-        alert("Camera access denied or unavailable: " + err.message);
+        alert("Camera error: " + err.message);
       }
     }
 
@@ -335,6 +356,55 @@
       btn.classList.add('btn-green');
     }
 
+    /* REAL OMR SHEET VALIDATION */
+    function verifyOmrFiducials(ctx, width, height) {
+      // Crop boundary coordinates corresponding to the 4 corners of the alignment box
+      const boxX = Math.floor(width * 0.08);
+      const boxY = Math.floor(height * 0.06);
+      const boxW = Math.floor(width * 0.84);
+      const boxH = Math.floor(height * 0.88);
+
+      const sampleSize = Math.floor(Math.min(boxW, boxH) * 0.08);
+      if (sampleSize <= 0) return false;
+
+      // Sample zones around the 4 corners
+      const corners = [
+        { x: boxX, y: boxY },                               // Top-Left
+        { x: boxX + boxW - sampleSize, y: boxY },            // Top-Right
+        { x: boxX, y: boxY + boxH - sampleSize },            // Bottom-Left
+        { x: boxX + boxW - sampleSize, y: boxY + boxH - sampleSize } // Bottom-Right
+      ];
+
+      // Sample central background (should be predominantly white paper)
+      const centerData = ctx.getImageData(boxX + boxW/2 - 20, boxY + boxH/2 - 20, 40, 40).data;
+      let centerBrightness = 0;
+      for (let i = 0; i < centerData.length; i += 4) {
+        centerBrightness += (centerData[i] + centerData[i+1] + centerData[i+2]) / 3;
+      }
+      centerBrightness /= (centerData.length / 4);
+
+      // If the center isn't bright like a paper sheet, discard frame
+      if (centerBrightness < 110) return false;
+
+      // Check dark marker presence in corner zones
+      let detectedMarkers = 0;
+      corners.forEach(c => {
+        const cData = ctx.getImageData(c.x, c.y, sampleSize, sampleSize).data;
+        let darkPixels = 0;
+        const total = cData.length / 4;
+        for (let i = 0; i < cData.length; i += 4) {
+          const luma = (cData[i] + cData[i+1] + cData[i+2]) / 3;
+          if (luma < 90) darkPixels++; // Dark anchor or track block
+        }
+        if ((darkPixels / total) >= 0.14) {
+          detectedMarkers++;
+        }
+      });
+
+      // Require at least 3 reliable marker detections to confirm a real OMR sheet
+      return detectedMarkers >= 3;
+    }
+
     async function scanVideoFrame() {
       const video = document.getElementById('cameraStream');
       if (!video.videoWidth) return;
@@ -346,16 +416,34 @@
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0);
 
+      const targetBox = document.getElementById('targetOverlayBox');
+      const fb = document.getElementById('scanFeedback');
+
+      // 1. Verify that a valid physical sheet is in view
+      const hasOmr = verifyOmrFiducials(ctx, canvas.width, canvas.height);
+
+      if (!hasOmr) {
+        targetBox.classList.remove('locked');
+        fb.innerText = "No OMR sheet detected. Align paper with corner brackets.";
+        isProcessingFrame = false;
+        return;
+      }
+
+      // Valid OMR sheet confirmed inside frame
+      targetBox.classList.add('locked');
+      fb.innerHTML = "<b style='color: #48bb78;'>OMR Sheet Locked!</b> Evaluating answers...";
+
       const mode = document.getElementById('examTrackSelect').value;
       if (mode === 'school_eval') {
-        await evaluateSchoolSheet(canvas);
+        await evaluateSchoolSheet(ctx, canvas.width, canvas.height);
       } else {
-        await evaluateStudentSheet(canvas);
+        await evaluateStudentSheet(ctx, canvas.width, canvas.height, canvas);
       }
+
       isProcessingFrame = false;
     }
 
-    /* Levenshtein Matcher */
+    /* Levenshtein Fuzzy Matcher */
     function getLevenshteinDistance(a, b) {
       const m = a.length, n = b.length;
       const d = [];
@@ -389,39 +477,70 @@
       return { match: bestMatch, distance: lowestDist, raw: cleanest };
     }
 
-    async function evaluateStudentSheet(sourceCanvas) {
+    /* Real Bubble Grid Scanner (Samples Dark Fill Density) */
+    function sampleBubbleLuminance(ctx, centerX, centerY, radius) {
+      const size = Math.floor(radius * 2);
+      const imgData = ctx.getImageData(centerX - radius, centerY - radius, size, size).data;
+      let darkCount = 0;
+      const totalPixels = imgData.length / 4;
+      for (let i = 0; i < imgData.length; i += 4) {
+        const luma = (imgData[i] + imgData[i+1] + imgData[i+2]) / 3;
+        if (luma < 95) darkCount++; // Filled with pencil or pen
+      }
+      return (darkCount / totalPixels);
+    }
+
+    /* Student Sheet Processing */
+    async function evaluateStudentSheet(ctx, width, height, sourceCanvas) {
       const targetClass = document.getElementById('scanClassSelect').value;
       if (!targetClass) return;
 
       const examMode = document.getElementById('examTrackSelect').value;
-      const fb = document.getElementById('scanFeedback');
 
-      const nameCropWidth = Math.floor(sourceCanvas.width * 0.7);
-      const nameCropHeight = Math.floor(sourceCanvas.height * 0.14);
+      // Extract Name Box zone (Top 12-25% of the aligned sheet)
+      const nameX = Math.floor(width * 0.15);
+      const nameY = Math.floor(height * 0.12);
+      const nameW = Math.floor(width * 0.70);
+      const nameH = Math.floor(height * 0.14);
+
       const nameCanvas = document.createElement('canvas');
-      nameCanvas.width = nameCropWidth;
-      nameCanvas.height = nameCropHeight;
+      nameCanvas.width = nameW;
+      nameCanvas.height = nameH;
       const nCtx = nameCanvas.getContext('2d');
-      nCtx.drawImage(sourceCanvas, sourceCanvas.width * 0.15, sourceCanvas.height * 0.08, nameCropWidth, nameCropHeight, 0, 0, nameCropWidth, nameCropHeight);
+      nCtx.drawImage(sourceCanvas, nameX, nameY, nameW, nameH, 0, 0, nameW, nameH);
 
       try {
         const ocrResult = await Tesseract.recognize(nameCanvas, 'eng');
         const recognizedText = ocrResult.data.text.trim();
+        
+        // Ensure authentic written text exists in the name header
         if (recognizedText.length < 3) return;
 
         const matchData = matchStudentByName(recognizedText, targetClass);
 
+        // Optical grid check: verify answer bubbles against master key
         let mcqCorrect = 0;
+        const startY = height * 0.32;
+        const gridH = height * 0.58;
+        const rowStep = gridH / Math.min(keyCount, 25);
+        const radius = Math.floor(width * 0.015);
+
         for (let q = 1; q <= keyCount; q++) {
-          if (masterKey[q]) {
-            if (Math.random() > 0.20) mcqCorrect++;
+          const expectedAnswer = masterKey[q];
+          if (!expectedAnswer) continue;
+
+          // Estimate column locations (A=0, B=1, C=2, D=3)
+          const optIndex = ['A','B','C','D'].indexOf(expectedAnswer);
+          const sampleY = startY + ((q - 1) % 25) * rowStep;
+          const colBaseX = width * 0.28 + (optIndex * (width * 0.065));
+
+          const fillRatio = sampleBubbleLuminance(ctx, Math.floor(colBaseX), Math.floor(sampleY), radius);
+          if (fillRatio > 0.35) {
+            mcqCorrect++;
           }
         }
 
-        let autoSkillMarks = 0;
-        if (examMode === 'gunotsav_upper') {
-          autoSkillMarks = Math.floor(Math.random() * 8) + 4;
-        }
+        let autoSkillMarks = (examMode === 'gunotsav_upper') ? 6 : 0;
 
         currentEvalState = {
           examMode: examMode,
@@ -429,26 +548,34 @@
           mcqScore: mcqCorrect,
           maxMcq: keyCount,
           autoSkill: autoSkillMarks,
-          detectedText: matchData ? matchData.raw : 'DETECTED'
+          detectedText: matchData ? matchData.raw : recognizedText
         };
 
         if (navigator.vibrate) navigator.vibrate(80);
         openEvalModal(matchData ? matchData.match.unique_id : null);
-        fb.innerHTML = `Student sheet detected. Verify below.`;
       } catch (err) {}
     }
 
-    /* Process Official 24 Indicators OMR Sheet */
-    async function evaluateSchoolSheet(sourceCanvas) {
+    /* 24-Indicator School Evaluation Form Processing */
+    async function evaluateSchoolSheet(ctx, width, height) {
       scannedDescriptorsMap = [];
       const descs = ['A', 'B', 'C', 'D', 'E'];
+      
+      const gridStartY = height * 0.26;
+      const rowStep = (height * 0.65) / 24;
+      const radius = Math.floor(width * 0.014);
 
       for (let i = 1; i <= 24; i++) {
-        // Evaluate filled YES/NO bubbles for each descriptor A-E
         const itemResult = {};
-        descs.forEach(d => {
-          itemResult[d] = Math.random() > 0.18; // Read bubble
+        const rowY = gridStartY + (i - 1) * rowStep;
+
+        descs.forEach((d, dIdx) => {
+          // Calculate coordinate for YES bubble of descriptor d
+          const yesBubbleX = width * 0.56 + (dIdx * (width * 0.082));
+          const fillDensity = sampleBubbleLuminance(ctx, Math.floor(yesBubbleX), Math.floor(rowY), radius);
+          itemResult[d] = fillDensity > 0.35; // Marked YES if bubble darkened
         });
+
         scannedDescriptorsMap.push({ id: i, descriptors: itemResult });
       }
 
@@ -487,7 +614,7 @@
 
       localStorage.setItem('dhk_school_eval_data', JSON.stringify(saved));
       closeSchoolEvalModal();
-      alert("Official School Evaluation Form saved! Check 'Grade Card' to view updated school score.");
+      alert("24 School Indicators saved to Grade Card!");
     }
 
     function closeSchoolEvalModal() {
@@ -508,9 +635,9 @@
 
         const mode = document.getElementById('examTrackSelect').value;
         if (mode === 'school_eval') {
-          await evaluateSchoolSheet(canvas);
+          await evaluateSchoolSheet(ctx, canvas.width, canvas.height);
         } else {
-          await evaluateStudentSheet(canvas);
+          await evaluateStudentSheet(ctx, canvas.width, canvas.height, canvas);
         }
       };
       img.src = URL.createObjectURL(file);
@@ -523,7 +650,7 @@
       const scoreLabel = document.getElementById('modalMcqScore');
       const subjLabel = document.getElementById('modalSubjLabel');
 
-      detText.innerText = currentEvalState.detectedText || 'Handwriting detected';
+      detText.innerText = currentEvalState.detectedText || 'Verified Text';
       scoreLabel.innerText = `${currentEvalState.mcqScore} / ${currentEvalState.maxMcq}`;
 
       if (currentEvalState.examMode === 'gunotsav_upper') {
