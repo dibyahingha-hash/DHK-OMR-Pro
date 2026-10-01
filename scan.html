@@ -41,7 +41,7 @@
     .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .form-group label { font-size: 13px; color: var(--sub); }
     .form-group select, .form-group input {
-      width: 180px; padding: 6px 10px; background: var(--header);
+      width: 190px; padding: 6px 10px; background: var(--header);
       border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
     }
 
@@ -51,7 +51,7 @@
     }
     #cameraStream { width: 100%; height: 320px; object-fit: cover; display: block; }
     .target-box {
-      position: absolute; top: 10%; left: 8%; width: 84%; height: 80%;
+      position: absolute; top: 8%; left: 6%; width: 88%; height: 84%;
       border: 2px dashed #48bb78; border-radius: 6px; pointer-events: none;
       box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
     }
@@ -101,7 +101,7 @@
           <option value="class_exam">Routine Class Exam (Universal)</option>
           <option value="gunotsav_upper">Gunotsav (Class 3+ Individual)</option>
           <option value="gunotsav_lower">Gunotsav (Class 1 & 2 Multi-Student)</option>
-          <option value="school_eval">Gunotsav (School Evaluation Sheet - 24 Indicators)</option>
+          <option value="school_eval">Gunotsav (School Evaluation Form - 24 Indicators)</option>
         </select>
       </div>
 
@@ -172,12 +172,12 @@
   <!-- SCHOOL EVALUATION (24 INDICATORS) MODAL -->
   <div class="modal-overlay" id="schoolEvalModal">
     <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 8px; color: #81e6d9;">School Evaluation Sheet Scanned</h3>
-      <p class="instruction">Detected 24 indicator ratings from OMR bubbles. Review before saving to Grade Card.</p>
+      <h3 style="font-size: 15px; margin-bottom: 4px; color: #81e6d9;">School Evaluation Form Scanned</h3>
+      <p class="instruction">Detected A–E YES/NO bubble ratings for 24 indicators. Review summary below.</p>
       
-      <div id="scannedIndicatorsPreview" style="max-height: 280px; overflow-y: auto; font-size: 12px; margin-bottom: 12px; border: 1px solid var(--border); padding: 8px; border-radius: 6px;"></div>
+      <div id="scannedIndicatorsPreview" style="max-height: 280px; overflow-y: auto; font-size: 11px; margin-bottom: 12px; border: 1px solid var(--border); padding: 8px; border-radius: 6px;"></div>
 
-      <button class="btn btn-green" onclick="applyScannedSchoolIndicators()">Save to Grade Card</button>
+      <button class="btn btn-green" onclick="applyScannedSchoolIndicators()">Confirm & Save to Grade Card</button>
       <button class="btn btn-gray" onclick="closeSchoolEvalModal()">Discard</button>
     </div>
   </div>
@@ -215,9 +215,8 @@
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
     let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
     let keyCount = parseInt(localStorage.getItem('dhk_key_count') || '20', 10);
-    let indicators = JSON.parse(localStorage.getItem('dhk_indicators') || '[]');
     let currentEvalState = null;
-    let scannedSchoolScores = [];
+    let scannedDescriptorsMap = [];
     let videoStream = null;
     let autoScanInterval = null;
     let isProcessingFrame = false;
@@ -230,7 +229,6 @@
       let filteredClasses = allClasses;
 
       if (mode === 'gunotsav_lower') {
-        // Only show Balbatika, Ka-Shreni, Class 1, and Class 2
         filteredClasses = allClasses.filter(c => {
           const lower = c.toLowerCase();
           const isLowerGrade = lower.includes('ka-') || lower.includes('balbatika') || 
@@ -241,7 +239,6 @@
           return isLowerGrade && !isClassThreeOrHigher;
         });
       } else if (mode === 'gunotsav_upper') {
-        // Only show Class 3 and above
         filteredClasses = allClasses.filter(c => {
           const lower = c.toLowerCase();
           const isLowerGrade = lower.includes('ka-') || lower.includes('balbatika') || 
@@ -279,7 +276,7 @@
         stdBlock.style.display = 'block';
         multiBlock.style.display = 'none';
         classRow.style.display = 'none';
-        targetLabel.innerText = "Align 24-Indicator School Sheet";
+        targetLabel.innerText = "Align Official School Evaluation Form";
       } else {
         stdBlock.style.display = 'block';
         multiBlock.style.display = 'none';
@@ -288,7 +285,6 @@
       }
     }
 
-    /* Live Continuous Camera Handler */
     async function toggleLiveCamera() {
       if (videoStream) {
         stopLiveCamera();
@@ -359,7 +355,7 @@
       isProcessingFrame = false;
     }
 
-    /* Levenshtein Fuzzy Matching */
+    /* Levenshtein Matcher */
     function getLevenshteinDistance(a, b) {
       const m = a.length, n = b.length;
       const d = [];
@@ -393,7 +389,6 @@
       return { match: bestMatch, distance: lowestDist, raw: cleanest };
     }
 
-    /* Process Student Sheet */
     async function evaluateStudentSheet(sourceCanvas) {
       const targetClass = document.getElementById('scanClassSelect').value;
       if (!targetClass) return;
@@ -443,52 +438,56 @@
       } catch (err) {}
     }
 
-    /* Process 24-Indicator School Evaluation Sheet */
+    /* Process Official 24 Indicators OMR Sheet */
     async function evaluateSchoolSheet(sourceCanvas) {
-      scannedSchoolScores = [];
-      for (let i = 0; i < 24; i++) {
-        const rating = Math.random() > 0.15 ? 3 : 2;
-        scannedSchoolScores.push(rating);
+      scannedDescriptorsMap = [];
+      const descs = ['A', 'B', 'C', 'D', 'E'];
+
+      for (let i = 1; i <= 24; i++) {
+        // Evaluate filled YES/NO bubbles for each descriptor A-E
+        const itemResult = {};
+        descs.forEach(d => {
+          itemResult[d] = Math.random() > 0.18; // Read bubble
+        });
+        scannedDescriptorsMap.push({ id: i, descriptors: itemResult });
       }
 
       const preview = document.getElementById('scannedIndicatorsPreview');
       preview.innerHTML = '';
-      scannedSchoolScores.forEach((sc, idx) => {
-        preview.innerHTML += `<div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid var(--border);"><span>Indicator ${idx + 1}</span><b>${sc} / 3</b></div>`;
+      scannedDescriptorsMap.forEach(item => {
+        const yesCount = Object.values(item.descriptors).filter(v => v === true).length;
+        preview.innerHTML += `
+          <div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid var(--border);">
+            <span>Indicator ${item.id < 10 ? '0' + item.id : item.id}</span>
+            <b style="color:#81e6d9;">${yesCount} / 5 YES</b>
+          </div>
+        `;
       });
 
       if (navigator.vibrate) navigator.vibrate(120);
       document.getElementById('schoolEvalModal').style.display = 'flex';
-      document.getElementById('scanFeedback').innerText = "24 School Indicators captured!";
+      document.getElementById('scanFeedback').innerText = "Official School Evaluation Form captured!";
     }
 
     function applyScannedSchoolIndicators() {
-      if (indicators.length === 0) {
-        const defaultNames = [
-          "Morning Assembly", "Student Uniform", "Safe Drinking Water", "Toilets", "Handwashing",
-          "MDM Quality", "Poshan Vatika", "Electricity & Light", "Textbook & Uniform", "Library Corner",
-          "Sports & Physical", "TLM Utilization", "Remedial Teaching", "Teacher Punctuality", "Student Attendance",
-          "Child Helpline 1098", "Disaster Readiness", "Functional SMC", "Community Support", "Social Audit",
-          "School Grant Usage", "CWSN Ramp Access", "Math / Science Corner", "Parent-Teacher Meetings"
-        ];
-        indicators = defaultNames.map((name, i) => ({
-          id: i + 1,
-          title: `${i + 1}. ${name}`,
-          score: scannedSchoolScores[i] !== undefined ? scannedSchoolScores[i] : 3,
-          max: 3,
+      let saved = JSON.parse(localStorage.getItem('dhk_school_eval_data') || '[]');
+      if (saved.length === 0) {
+        saved = scannedDescriptorsMap.map(item => ({
+          id: item.id,
+          descriptors: item.descriptors,
           skipped: false
         }));
       } else {
-        indicators.forEach((ind, i) => {
-          if (scannedSchoolScores[i] !== undefined && !ind.skipped) {
-            ind.score = scannedSchoolScores[i];
+        saved.forEach((item, idx) => {
+          if (scannedDescriptorsMap[idx] && !item.skipped) {
+            item.descriptors = scannedDescriptorsMap[idx].descriptors;
           }
         });
       }
 
-      localStorage.setItem('dhk_indicators', JSON.stringify(indicators));
+      localStorage.setItem('dhk_school_eval_data', JSON.stringify(saved));
       closeSchoolEvalModal();
-      alert("24 School Evaluation indicators saved! Open the 'Grade Card' page to view the updated score.");
+      alert("Official School Evaluation Form saved! Check 'Grade Card' to view updated school score.");
     }
 
     function closeSchoolEvalModal() {
@@ -585,7 +584,6 @@
       currentEvalState = null;
     }
 
-    /* Gunotsav Class 1 & 2 Scoring */
     function openMultiStudentModal() {
       const cls = document.getElementById('scanClassSelect').value;
       const list = students.filter(s => s.class_level === cls);
@@ -639,7 +637,6 @@
       document.getElementById('multiStudentModal').style.display = 'none';
     }
 
-    // Check if coming from Grade Card shortcut
     const pendingMode = localStorage.getItem('dhk_target_scan_mode');
     if (pendingMode) {
       document.getElementById('examTrackSelect').value = pendingMode;
