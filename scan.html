@@ -98,7 +98,6 @@
       border-radius: 4px; color: #fff; font-weight: bold; text-align: center; font-size: 13px;
     }
 
-    /* Indicator Table for School Evaluation */
     .indicator-row {
       display: flex; justify-content: space-between; align-items: center;
       padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 12px;
@@ -128,10 +127,10 @@
       <div class="form-group">
         <label>Form / Sheet Type:</label>
         <select id="examTrackSelect" onchange="toggleExamTrackMode()">
-          <option value="school_eval">Gunotsav (School Evaluation Form: 24 Indicators A–E)</option>
-          <option value="gunotsav_lower">Gunotsav (Class 1 & 2 Multi-Student Sheet: LO 1–30)</option>
           <option value="gunotsav_upper" selected>Gunotsav (Class 3 to 12 Individual Form)</option>
-          <option value="class_exam">Routine Class Exam (Universal Xerox Sheet)</option>
+          <option value="class_exam">Routine Class Exam (Universal Xerox: Class Ka–12)</option>
+          <option value="gunotsav_lower">Gunotsav (Class 1 & 2 Multi-Student: LO 1–30)</option>
+          <option value="school_eval">Gunotsav (School Evaluation Form: 24 Indicators A–E)</option>
         </select>
       </div>
 
@@ -168,7 +167,7 @@
     <canvas id="procCanvas" style="display: none;"></canvas>
   </div>
 
-  <!-- MODAL 1: INDIVIDUAL STUDENT VERIFICATION (CLASS 3 TO 12) -->
+  <!-- MODAL 1: INDIVIDUAL STUDENT VERIFICATION (CLASS 3 TO 12 & ROUTINE EXAMS) -->
   <div class="modal-overlay" id="studentVerifyModal">
     <div class="modal-box">
       <h3 style="font-size: 15px; margin-bottom: 8px; color: #ecc94b;">Verify Student & Results</h3>
@@ -270,7 +269,11 @@
     let currentSchoolEval = [];
     let currentMultiEval = [];
 
-    // Official 24 Indicators Configuration with standard maximum sub-criteria
+    const ALL_MASTER_CLASSES = [
+      'Ka-Shreni', 'Class-I', 'Class-II', 'Class-III', 'Class-IV', 'Class-V',
+      'Class-VI', 'Class-VII', 'Class-VIII', 'Class-IX', 'Class-X', 'Class-XI', 'Class-XII'
+    ];
+
     const INDICATOR_MAX_MARKS = [
       2, 5, 3, 2, 4, 3, 3, 2, 4, 3, 2, 3,
       3, 4, 2, 3, 2, 4, 3, 3, 2, 4, 3, 4
@@ -294,23 +297,34 @@
     function populateClassDropdown() {
       const sel = document.getElementById('scanClassSelect');
       const mode = document.getElementById('examTrackSelect').value;
-      const allClasses = [...new Set(students.map(s => s.class_level))].sort();
+      students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
+      
+      const enrolledClasses = [...new Set(students.map(s => s.class_level))];
 
-      let filtered = allClasses;
-      if (mode === 'gunotsav_lower') {
-        filtered = allClasses.filter(c => c.includes('Class-I') || c.includes('Class-II') || c.includes('Ka-'));
+      let targetOptions = [];
+
+      if (mode === 'class_exam') {
+        // Routine Class Exam: ALWAYS allow every class from Ka-Shreni to Class 12
+        targetOptions = ALL_MASTER_CLASSES;
+      } else if (mode === 'gunotsav_lower') {
+        // Strict discrete match for foundational grades
+        const lowerAllowed = ['Ka-Shreni', 'Class-I', 'Class-II'];
+        targetOptions = enrolledClasses.filter(c => lowerAllowed.includes(c));
+        if (targetOptions.length === 0) targetOptions = lowerAllowed;
       } else if (mode === 'gunotsav_upper') {
-        filtered = allClasses.filter(c => !c.includes('Class-I') && !c.includes('Class-II') && !c.includes('Ka-'));
+        // Strict discrete match for Class 3 to 12 (Ka, I, II are strictly excluded)
+        const lowerExcluded = ['Ka-Shreni', 'Class-I', 'Class-II'];
+        targetOptions = enrolledClasses.filter(c => !lowerExcluded.includes(c));
+        // Fallback to all upper classes if roster has not populated them yet
+        if (targetOptions.length === 0) {
+          targetOptions = ALL_MASTER_CLASSES.filter(c => !lowerExcluded.includes(c));
+        }
       }
 
       sel.innerHTML = '';
-      filtered.forEach(c => {
+      targetOptions.forEach(c => {
         sel.innerHTML += `<option value="${c}">${c}</option>`;
       });
-
-      if (filtered.length === 0) {
-        sel.innerHTML = `<option value="">No matching classes in roster</option>`;
-      }
 
       const note = document.getElementById('scannerConfigNote');
       if (mode === 'gunotsav_lower') {
@@ -431,488 +445,4 @@
       const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-      updateStabilityUI(100, "Manual Snapshot Captured!");
-      processSnapshot(canvas);
-    }
-
-    function processGalleryImage(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const img = new Image();
-      img.onload = function() {
-        const canvas = document.getElementById('procCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        processSnapshot(canvas);
-      };
-      img.src = URL.createObjectURL(file);
-    }
-
-    function readBubbleDensity(ctx, cx, cy, radius) {
-      const size = Math.floor(radius * 2);
-      const data = ctx.getImageData(cx - radius, cy - radius, size, size).data;
-      let darkPixels = 0;
-      const total = data.length / 4;
-      for (let i = 0; i < data.length; i += 4) {
-        const luma = (data[i] + data[i+1] + data[i+2]) / 3;
-        if (luma < 105) darkPixels++;
-      }
-      return darkPixels / total;
-    }
-
-    function getDistance(a, b) {
-      const m = a.length, n = b.length;
-      const d = [];
-      for (let i = 0; i <= m; i++) d[i] = [i];
-      for (let j = 0; j <= n; j++) d[0][j] = j;
-      for (let i = 1; i <= m; i++) {
-        for (let j = 1; j <= n; j++) {
-          const cost = a[i - 1].toUpperCase() === b[j - 1].toUpperCase() ? 0 : 1;
-          d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
-        }
-      }
-      return d[m][n];
-    }
-
-    /* Master Snapshot Router */
-    async function processSnapshot(canvas) {
-      isProcessing = true;
-      const mode = document.getElementById('examTrackSelect').value;
-
-      if (mode === 'school_eval') {
-        await processSchoolEvaluationSheet(canvas);
-      } else if (mode === 'gunotsav_lower') {
-        await processLowerClassMultiStudentSheet(canvas);
-      } else {
-        await processIndividualStudentExamSheet(canvas);
-      }
-      isProcessing = false;
-    }
-
-    /* 1. PIPELINE: SCHOOL EVALUATION (24 INDICATORS) */
-    async function processSchoolEvaluationSheet(canvas) {
-      const w = canvas.width;
-      const h = canvas.height;
-      const ctx = canvas.getContext('2d');
-
-      // Header OCR to extract School Name and UDISE
-      const cropCanvas = document.createElement('canvas');
-      cropCanvas.width = Math.floor(w * 0.85);
-      cropCanvas.height = Math.floor(h * 0.22);
-      const cCtx = cropCanvas.getContext('2d');
-      cCtx.drawImage(canvas, Math.floor(w * 0.08), Math.floor(h * 0.05), cropCanvas.width, cropCanvas.height, 0, 0, cropCanvas.width, cropCanvas.height);
-
-      let schoolMeta = "NO 145 CHENIMARI LPS (UDISE: 18150302801)";
-      try {
-        const res = await Tesseract.recognize(cropCanvas, 'eng');
-        const text = res.data.text.trim();
-        if (text.length > 8) schoolMeta = text.replace(/\n+/g, ' ');
-      } catch (e) {}
-
-      // Optical read for 24 indicators
-      currentSchoolEval = [];
-      const radius = Math.floor(w * 0.011);
-      const startY = h * 0.30;
-      const stepY = (h * 0.62) / 24;
-
-      for (let i = 0; i < 24; i++) {
-        const maxCriteria = INDICATOR_MAX_MARKS[i];
-        let yesCount = 0;
-        const rowY = startY + i * stepY;
-
-        for (let sub = 0; sub < maxCriteria; sub++) {
-          const yesX = w * (0.35 + sub * 0.09);
-          const density = readBubbleDensity(ctx, Math.floor(yesX), Math.floor(rowY), radius);
-          if (density > 0.26) yesCount++;
-        }
-
-        // Logical fallback to guarantee realistic values if faint
-        if (yesCount === 0 && Math.random() > 0.3) yesCount = Math.max(1, maxCriteria - 1);
-
-        currentSchoolEval.push({
-          indicatorNumber: i + 1,
-          yesCount: yesCount,
-          maxMarks: maxCriteria
-        });
-      }
-
-      openSchoolEvalModal(schoolMeta);
-    }
-
-    function openSchoolEvalModal(schoolMeta) {
-      document.getElementById('schoolOcrMeta').innerText = schoolMeta;
-      const container = document.getElementById('indicatorsListContainer');
-      container.innerHTML = '';
-
-      currentSchoolEval.forEach((ind, idx) => {
-        container.innerHTML += `
-          <div class="indicator-row">
-            <span><b>Indicator ${ind.indicatorNumber}</b> (${ind.maxMarks} Criteria)</span>
-            <div>
-              <span style="color: #68d391; margin-right: 6px;">YES Count:</span>
-              <input type="number" id="ind_input_${idx}" class="score-input" min="0" max="${ind.maxMarks}" value="${ind.yesCount}" onchange="recalculateSchoolEvalTotal()">
-              <span style="color: var(--sub);">/ ${ind.maxMarks}</span>
-            </div>
-          </div>
-        `;
-      });
-
-      recalculateSchoolEvalTotal();
-      document.getElementById('schoolEvalModal').style.display = 'flex';
-      if (navigator.vibrate) navigator.vibrate(100);
-    }
-
-    function recalculateSchoolEvalTotal() {
-      let earned = 0;
-      let totalMax = 0;
-
-      currentSchoolEval.forEach((ind, idx) => {
-        const val = parseInt(document.getElementById(`ind_input_${idx}`).value) || 0;
-        earned += Math.min(ind.maxMarks, Math.max(0, val));
-        totalMax += ind.maxMarks;
-      });
-
-      const pct = Math.round((earned / totalMax) * 100);
-      document.getElementById('schoolTotalScoreText').innerText = `${earned} / ${totalMax} Marks (${pct}%)`;
-    }
-
-    function confirmAndSaveSchoolEval() {
-      let earned = 0;
-      let totalMax = 0;
-
-      const breakdown = currentSchoolEval.map((ind, idx) => {
-        const val = parseInt(document.getElementById(`ind_input_${idx}`).value) || 0;
-        const validVal = Math.min(ind.maxMarks, Math.max(0, val));
-        earned += validVal;
-        totalMax += ind.maxMarks;
-        return { indicator: ind.indicatorNumber, earned: validVal, max: ind.maxMarks };
-      });
-
-      const finalPct = Math.round((earned / totalMax) * 100);
-
-      const record = {
-        schoolMeta: document.getElementById('schoolOcrMeta').innerText,
-        totalMarks: earned,
-        maxMarks: totalMax,
-        score: finalPct,
-        breakdown: breakdown,
-        evaluatedAt: new Date().toISOString()
-      };
-
-      localStorage.setItem('dhk_school_eval_data', JSON.stringify(record));
-      alert(`School Evaluation saved successfully!\nScore: ${earned}/${totalMax} (${finalPct}%)\nThis is now integrated into your Grade Card.`);
-      closeAllModals();
-    }
-
-    /* 2. PIPELINE: CLASS 1 & 2 MULTI-STUDENT ROSTER (LO 1–30) */
-    async function processLowerClassMultiStudentSheet(canvas) {
-      const targetClass = document.getElementById('scanClassSelect').value;
-      if (!targetClass) return alert("Please select Target Class (Class-I or Class-II).");
-
-      const classStudents = students.filter(s => s.class_level === targetClass);
-      const w = canvas.width;
-      const h = canvas.height;
-      const ctx = canvas.getContext('2d');
-      const radius = Math.floor(w * 0.009);
-
-      currentMultiEval = [];
-      const numRows = Math.min(10, classStudents.length > 0 ? classStudents.length : 6);
-      const startY = h * 0.32;
-      const stepY = (h * 0.60) / numRows;
-
-      for (let r = 0; r < numRows; r++) {
-        let achievedCount = 0;
-        const rowY = startY + r * stepY;
-
-        for (let lo = 1; lo <= 30; lo++) {
-          const loX_A = w * (0.28 + ((lo - 1) * 0.022));
-          const loX_B = loX_A + (w * 0.011);
-
-          const densA = readBubbleDensity(ctx, Math.floor(loX_A), Math.floor(rowY), radius);
-          const densB = readBubbleDensity(ctx, Math.floor(loX_B), Math.floor(rowY), radius);
-
-          if (densA > 0.25 && densA > densB) {
-            achievedCount++;
-          }
-        }
-
-        if (achievedCount === 0) achievedCount = Math.floor(20 + Math.random() * 8);
-
-        const st = classStudents[r] || { name: `STUDENT ROW ${r + 1}`, unique_id: `AUTO_${r + 1}` };
-        currentMultiEval.push({
-          unique_id: st.unique_id,
-          name: st.name,
-          achieved: achievedCount,
-          total: 30
-        });
-      }
-
-      openLowerClassModal();
-    }
-
-    function openLowerClassModal() {
-      const container = document.getElementById('multiStudentReviewList');
-      container.innerHTML = '';
-
-      currentMultiEval.forEach((st, idx) => {
-        const pct = Math.round((st.achieved / st.total) * 100);
-        container.innerHTML += `
-          <div class="indicator-row">
-            <div>
-              <b>R-${idx + 1}: ${st.name}</b><br>
-              <span style="font-size: 10px; color: var(--sub);">ID: ${st.unique_id}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 4px;">
-              <span style="color: #68d391; font-size: 11px;">LOs:</span>
-              <input type="number" id="lo_input_${idx}" class="score-input" min="0" max="30" value="${st.achieved}">
-              <span style="color: var(--sub);">/ 30</span>
-            </div>
-          </div>
-        `;
-      });
-
-      document.getElementById('lowerClassModal').style.display = 'flex';
-      if (navigator.vibrate) navigator.vibrate(100);
-    }
-
-    function confirmAndSaveMultiStudentRoster() {
-      currentMultiEval.forEach((st, idx) => {
-        const val = parseInt(document.getElementById(`lo_input_${idx}`).value) || 0;
-        const validVal = Math.min(30, Math.max(0, val));
-        const pct = Math.round((validVal / 30) * 100);
-
-        const target = students.find(s => s.unique_id === st.unique_id);
-        if (target) {
-          target.evaluated = true;
-          target.mcq_marks = validVal;
-          target.subj_marks = 0;
-          target.total_marks = validVal;
-          target.max_marks = 30;
-          target.score = pct;
-        }
-      });
-
-      localStorage.setItem('dhk_students', JSON.stringify(students));
-      alert("Successfully saved evaluations for all students in this sheet!");
-      closeAllModals();
-    }
-
-    /* 3. PIPELINE: CLASS 3 TO 12 INDIVIDUAL STUDENT EXAM */
-    async function processIndividualStudentExamSheet(canvas) {
-      const targetClass = document.getElementById('scanClassSelect').value;
-      if (!targetClass) return alert("Please select a target class first.");
-
-      const w = canvas.width;
-      const h = canvas.height;
-      const ctx = canvas.getContext('2d');
-
-      // OCR Crop
-      const cropCanvas = document.createElement('canvas');
-      cropCanvas.width = Math.floor(w * 0.75);
-      cropCanvas.height = Math.floor(h * 0.20);
-      const cCtx = cropCanvas.getContext('2d');
-      cCtx.drawImage(canvas, Math.floor(w * 0.10), Math.floor(h * 0.10), cropCanvas.width, cropCanvas.height, 0, 0, cropCanvas.width, cropCanvas.height);
-
-      let detectedOcr = "Unclear text";
-      let matchedStudent = null;
-
-      try {
-        const res = await Tesseract.recognize(cropCanvas, 'eng');
-        detectedOcr = res.data.text.trim();
-        const classStudents = students.filter(s => s.class_level === targetClass);
-        const cleanUpper = detectedOcr.toUpperCase();
-
-        for (let s of classStudents) {
-          if (cleanUpper.includes(s.name.toUpperCase()) || (s.unique_id && cleanUpper.includes(s.unique_id))) {
-            matchedStudent = s;
-            break;
-          }
-        }
-
-        if (!matchedStudent && classStudents.length > 0) {
-          let lowest = 999;
-          classStudents.forEach(s => {
-            const dist = getDistance(cleanUpper, s.name.toUpperCase());
-            if (dist < lowest && dist <= 6) {
-              lowest = dist;
-              matchedStudent = s;
-            }
-          });
-        }
-      } catch (err) {}
-
-      // Optical read 1..N questions
-      let correctCount = 0;
-      let wrongCount = 0;
-      const radius = Math.floor(w * 0.012);
-      const questionsPerCol = totalQuestions > 60 ? 25 : 20;
-      const numCols = Math.ceil(totalQuestions / questionsPerCol);
-      const colBaseWidth = 0.65 / numCols;
-      const gridStartY = h * 0.40;
-      const rowStep = (h * 0.48) / questionsPerCol;
-
-      for (let q = 1; q <= totalQuestions; q++) {
-        const colIdx = Math.floor((q - 1) / questionsPerCol);
-        const rowInCol = (q - 1) % questionsPerCol;
-        const colStartX = w * (0.12 + colIdx * colBaseWidth);
-        const y = gridStartY + rowInCol * rowStep;
-
-        let markedOpt = null;
-        let maxD = 0.28;
-
-        ['A','B','C','D'].forEach((opt, optIdx) => {
-          const x = colStartX + (optIdx * (w * 0.038));
-          const density = readBubbleDensity(ctx, Math.floor(x), Math.floor(y), radius);
-          if (density > maxD) {
-            maxD = density;
-            markedOpt = opt;
-          }
-        });
-
-        if (masterKey[q]) {
-          if (markedOpt === masterKey[q]) correctCount++;
-          else if (markedOpt) wrongCount++;
-        } else if (markedOpt) {
-          correctCount++;
-        }
-      }
-
-      let earnedMcqMarks = correctCount * marksPerQ;
-      let penalty = 0;
-      if (negEnabled && wrongCount > 0) {
-        penalty = wrongCount * negMark;
-        earnedMcqMarks = Math.max(0, earnedMcqMarks - penalty);
-      }
-      earnedMcqMarks = Math.round(earnedMcqMarks * 100) / 100;
-      const maxPossibleMcq = Math.round(totalQuestions * marksPerQ * 100) / 100;
-
-      let skillScore = 0;
-      let maxSkill = 18;
-      const isGunotsavUpper = document.getElementById('examTrackSelect').value === 'gunotsav_upper';
-
-      if (isGunotsavUpper) {
-        const skillX = [w * 0.80, w * 0.84, w * 0.88, w * 0.92];
-        const skillStartY = h * 0.45;
-        const skillStep = (h * 0.36) / 8;
-
-        for (let s = 0; s < 8; s++) {
-          const sy = skillStartY + s * skillStep;
-          let rowVal = 0;
-          let maxD = 0.28;
-          skillX.forEach((sx, val) => {
-            const d = readBubbleDensity(ctx, Math.floor(sx), Math.floor(sy), radius);
-            if (d > maxD) {
-              maxD = d;
-              rowVal = val;
-            }
-          });
-          skillScore += rowVal;
-        }
-      } else {
-        maxSkill = 0;
-      }
-
-      currentStudentEval = {
-        targetClass: targetClass,
-        detectedOcr: detectedOcr,
-        matchedUid: matchedStudent ? matchedStudent.unique_id : null,
-        correctCount: correctCount,
-        wrongCount: wrongCount,
-        penalty: penalty,
-        mcqScore: earnedMcqMarks,
-        maxMcq: maxPossibleMcq,
-        skillScore: skillScore,
-        maxSkill: maxSkill
-      };
-
-      openStudentVerifyModal();
-    }
-
-    function openStudentVerifyModal() {
-      const modal = document.getElementById('studentVerifyModal');
-      document.getElementById('rawOcrText').innerText = currentStudentEval.detectedOcr.replace(/\n+/g, ' ') || 'Handwriting detected';
-      document.getElementById('modalMcqLabel').innerText = `MCQ Score (Q1–Q${totalQuestions}):`;
-      document.getElementById('modalMcqScoreInput').value = currentStudentEval.mcqScore;
-      document.getElementById('modalMaxMcqText').innerText = `/ ${currentStudentEval.maxMcq}`;
-
-      const skillRow = document.getElementById('modalSkillRow');
-      if (currentStudentEval.maxSkill > 0) {
-        skillRow.style.display = 'flex';
-        document.getElementById('modalSkillScoreInput').value = currentStudentEval.skillScore;
-        document.getElementById('modalMaxSkillText').innerText = `/ ${currentStudentEval.maxSkill}`;
-      } else {
-        skillRow.style.display = 'none';
-        document.getElementById('modalSkillScoreInput').value = 0;
-      }
-
-      document.getElementById('modalBreakdownNote').innerText = 
-        `Correct: ${currentStudentEval.correctCount} | Wrong: ${currentStudentEval.wrongCount} | Penalty: -${currentStudentEval.penalty}`;
-
-      recalculateStudentTotals();
-
-      const selectEl = document.getElementById('studentConfirmSelect');
-      const classStudents = students.filter(s => s.class_level === currentStudentEval.targetClass);
-      selectEl.innerHTML = '';
-
-      if (!currentStudentEval.matchedUid) {
-        selectEl.innerHTML += `<option value="">⚠️ Name unclear on paper! Tap here to select student</option>`;
-      }
-
-      classStudents.forEach(s => {
-        const isSelected = s.unique_id === currentStudentEval.matchedUid ? 'selected' : '';
-        selectEl.innerHTML += `<option value="${s.unique_id}" ${isSelected}>${s.name} (${s.unique_id})</option>`;
-      });
-
-      modal.style.display = 'flex';
-      if (navigator.vibrate) navigator.vibrate(100);
-    }
-
-    function recalculateStudentTotals() {
-      const mcqVal = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
-      const skillVal = parseFloat(document.getElementById('modalSkillScoreInput').value) || 0;
-      const totalPossible = currentStudentEval.maxMcq + currentStudentEval.maxSkill;
-      const totalEarned = Math.round((mcqVal + skillVal) * 100) / 100;
-      const pct = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
-      document.getElementById('modalCompositeScore').innerText = `${totalEarned} / ${totalPossible} Marks (${pct}%)`;
-    }
-
-    function confirmAndSaveStudentRecord() {
-      const uid = document.getElementById('studentConfirmSelect').value;
-      if (!uid) return alert("Please select a student from the list to confirm their marks.");
-
-      const mcqVal = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
-      const skillVal = parseFloat(document.getElementById('modalSkillScoreInput').value) || 0;
-      const totalPossible = currentStudentEval.maxMcq + currentStudentEval.maxSkill;
-      const totalEarned = Math.round((mcqVal + skillVal) * 100) / 100;
-      const pct = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
-
-      const target = students.find(s => s.unique_id === uid);
-      if (target) {
-        target.evaluated = true;
-        target.mcq_marks = mcqVal;
-        target.subj_marks = skillVal;
-        target.total_marks = totalEarned;
-        target.max_marks = totalPossible;
-        target.score = pct;
-
-        localStorage.setItem('dhk_students', JSON.stringify(students));
-        alert(`Saved successfully: ${target.name} (${pct}%)`);
-      }
-      closeAllModals();
-    }
-
-    function closeAllModals() {
-      document.getElementById('studentVerifyModal').style.display = 'none';
-      document.getElementById('schoolEvalModal').style.display = 'none';
-      document.getElementById('lowerClassModal').style.display = 'none';
-      resetScanState();
-    }
-
-    toggleExamTrackMode();
-  </script>
-</body>
-</html>
+      ctx.
