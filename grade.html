@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DHK OMR Pro • School Grade Card</title>
+  <title>DHK OMR Pro • Grade Card</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root {
       --bg: #121721; --card: #1e2635; --header: #1a2230;
-      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030; --gold: #d69e2e;
+      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030; --gold: #ecc94b;
       --text: #f0f4f8; --sub: #a0aec0; --border: #2d3748;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding-bottom: 40px; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 50px; }
 
     header { background: var(--header); padding: 12px 14px; border-bottom: 1px solid var(--border); }
     .app-name { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
@@ -25,65 +26,49 @@
 
     .container { padding: 14px; max-width: 680px; margin: 0 auto; }
     .card { background: var(--card); border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid var(--border); }
-    .instruction { font-size: 12px; color: var(--sub); margin-bottom: 12px; line-height: 1.4; }
+    .card h3 { font-size: 15px; margin-bottom: 10px; color: var(--gold); }
 
     .btn {
-      width: 100%; padding: 12px; border-radius: 8px; border: none;
-      font-weight: bold; font-size: 14px; color: #fff; cursor: pointer; margin-bottom: 8px; text-align: center;
+      width: 100%; padding: 11px 12px; border-radius: 8px; border: none;
+      font-weight: bold; font-size: 13px; color: #fff; cursor: pointer; text-align: center; margin-bottom: 8px;
     }
     .btn-green { background: var(--green); }
     .btn-blue { background: var(--blue); }
-    .btn-orange { background: var(--orange); }
     .btn-gray { background: #4a5568; }
 
-    .grade-display-box {
-      text-align: center; padding: 20px 10px; background: #16202e;
-      border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px;
+    .score-banner {
+      background: linear-gradient(135deg, #1a273a, #16202e);
+      border: 1px solid #2d3748; border-radius: 8px; padding: 16px;
+      display: flex; justify-content: space-around; align-items: center; margin-bottom: 14px;
     }
-    .grade-badge-huge {
-      display: inline-block; font-size: 46px; font-weight: 900;
-      width: 84px; height: 84px; line-height: 80px; border-radius: 50%;
-      background: #234e52; color: #81e6d9; border: 3px solid #319795; margin-bottom: 10px;
+    .sb-item { text-align: center; }
+    .sb-num { font-size: 24px; font-weight: bold; margin-bottom: 2px; }
+    .sb-lbl { font-size: 11px; color: var(--sub); text-transform: uppercase; }
+
+    .grade-badge {
+      display: inline-block; padding: 6px 16px; border-radius: 6px;
+      font-size: 20px; font-weight: 900; background: #22543d; color: #9ae6b4; border: 1px solid #38a169;
     }
-    .composite-text { font-size: 20px; font-weight: bold; margin-bottom: 4px; color: #fff; }
-    .status-text { font-size: 12px; color: var(--sub); }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: var(--header); color: var(--sub); font-size: 11px; text-transform: uppercase; }
+    tr:hover { background: rgba(255, 255, 255, 0.02); }
 
     .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .form-group label { font-size: 13px; color: var(--sub); }
     .form-group input {
-      width: 80px; padding: 6px 10px; background: var(--header);
-      border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px; text-align: right;
+      width: 80px; padding: 6px 8px; background: var(--header);
+      border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px; text-align: center;
     }
-
-    /* Official Gunotsav Indicator Table Layout */
-    .indicator-card {
-      background: var(--header); border-radius: 6px; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border);
-    }
-    .indicator-card.skipped { opacity: 0.35; text-decoration: line-through; }
-    .ind-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 8px; }
-    .ind-title { font-size: 13px; font-weight: bold; color: #fff; line-height: 1.3; }
-    .ind-score-summary { font-size: 12px; font-weight: bold; color: #81e6d9; white-space: nowrap; }
-
-    .desc-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; text-align: center; }
-    .desc-box {
-      background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 4px 2px; font-size: 11px;
-    }
-    .desc-box.yes { border-color: #48bb78; background: #1c4532; color: #9ae6b4; font-weight: bold; }
-    .desc-box.no { border-color: #e53e3e; background: #4a1d1d; color: #feb2b2; }
-
-    .btn-skip {
-      padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;
-      border: 1px solid var(--border); cursor: pointer; background: transparent; color: #fc8181;
-    }
-    .btn-skip.skipped-state { background: #2c5282; color: #bee3f8; border-color: #3182ce; }
 
     @media print {
       body * { visibility: hidden; }
-      #printableCard, #printableCard * { visibility: visible; }
-      #printableCard { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; color: #000 !important; padding: 25px; }
-      .grade-badge-huge { color: #000 !important; border-color: #000 !important; background: transparent !important; }
-      .composite-text, .status-text { color: #000 !important; }
-      .btn, header, .btn-skip { display: none !important; }
+      #printableGradeReport, #printableGradeReport * { visibility: visible; }
+      #printableGradeReport {
+        position: absolute; left: 0; top: 0; width: 100%;
+        color: #000 !important; background: #fff !important; padding: 20px;
+      }
     }
   </style>
 </head>
@@ -92,7 +77,7 @@
   <header>
     <div class="app-name">
       <span>DHK OMR Pro</span>
-      <span style="font-size: 12px; color: #81e6d9;">School Grade Card</span>
+      <span style="font-size: 12px; color: #68d391;">Grade Card</span>
     </div>
     <div class="nav-links">
       <a href="index.html" class="nav-btn">👥 Roster</a>
@@ -102,213 +87,228 @@
     </div>
   </header>
 
-  <div class="container" id="printableCard">
-    <div class="grade-display-box">
-      <div class="grade-badge-huge" id="finalGradeBadge">A</div>
-      <div class="composite-text" id="compositeScoreText">Composite: 82.5%</div>
-      <div class="status-text" id="evaluationProgressText">Based on live scholastic average & Gunotsav School Evaluation Form</div>
+  <div class="container">
+    <!-- OVERALL PERFORMANCE BANNER -->
+    <div class="score-banner">
+      <div class="sb-item">
+        <div class="sb-num" id="bannerEvaluatedCount" style="color: #63b3ed;">0 / 0</div>
+        <div class="sb-lbl">Students Evaluated</div>
+      </div>
+      <div class="sb-item">
+        <div class="sb-num" id="bannerCompositePct" style="color: #68d391;">0%</div>
+        <div class="sb-lbl">School Average</div>
+      </div>
+      <div class="sb-item">
+        <div class="grade-badge" id="bannerSchoolGrade">N/A</div>
+        <div class="sb-lbl" style="margin-top: 4px;">Institutional Grade</div>
+      </div>
     </div>
 
-    <!-- Domain Allocations -->
+    <!-- WEIGHTAGE CONFIGURATION -->
     <div class="card">
-      <h3 style="font-size: 14px; margin-bottom: 8px;">Domain Allocations</h3>
+      <h3>1. Composite Weightage Settings</h3>
       <div class="form-group">
-        <label>1. Scholastic Academic Weight (%):</label>
-        <input type="number" id="weightScholastic" value="90" oninput="calculateFinalGrade()">
+        <label>Scholastic Evaluation Weight (%):</label>
+        <input type="number" id="weightScholastic" value="90" min="0" max="100" onchange="calculateOverallInstitutionalScore()">
       </div>
       <div class="form-group">
-        <label>2. School Evaluation Weight (%):</label>
-        <input type="number" id="weightEvaluation" value="10" oninput="calculateFinalGrade()">
-      </div>
-      <div style="font-size: 12px; color: var(--sub); display: flex; justify-content: space-between; margin-top: 6px;">
-        <span>Scholastic Live Avg: <b id="statScholasticAvg" style="color: #fff;">0%</b></span>
-        <span>School Form Total: <b id="statEvalPercent" style="color: #fff;">0%</b></span>
+        <label>School Evaluation (24 Indicators) Weight (%):</label>
+        <input type="number" id="weightSchoolEval" value="10" min="0" max="100" onchange="calculateOverallInstitutionalScore()">
       </div>
     </div>
 
-    <!-- Official 24 Indicators Section -->
+    <!-- CLASS-WISE BREAKDOWN TABLE -->
     <div class="card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <h3 style="font-size: 14px;">School Evaluation Form (24 Indicators)</h3>
-        <span style="font-size: 11px; color: #68d391;" id="activeIndicatorCount">24 Active</span>
+      <h3>2. Class-Wise Scholastic Summary</h3>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th>Enrolled</th>
+              <th>Evaluated</th>
+              <th>Avg Score</th>
+              <th>Class Grade</th>
+            </tr>
+          </thead>
+          <tbody id="classSummaryTableBody"></tbody>
+        </table>
       </div>
-      <p class="instruction">Scan the filled External Evaluator sheet. Each descriptor (A–E) marked YES contributes to the school score.</p>
-
-      <button class="btn btn-orange" onclick="goToSchoolOmrScan()">📷 Scan Official Evaluation Form (OMR)</button>
-
-      <div id="indicatorsContainer" style="margin-top: 12px;"></div>
-
-      <button class="btn btn-gray" style="margin-top: 10px;" onclick="addCustomIndicator()">+ Add Indicator (For Future Criteria)</button>
     </div>
 
-    <button class="btn btn-blue" onclick="window.print()">Print Official Report Card</button>
+    <!-- ACTIONS -->
+    <div class="card">
+      <h3>3. Export & Reporting</h3>
+      <button class="btn btn-green" onclick="exportReportToExcel()">📊 Export Complete Results (.xlsx)</button>
+      <button class="btn btn-blue" onclick="printOfficialReport()">🖨️ Print School Grade Card</button>
+    </div>
   </div>
+
+  <!-- PRINT CONTAINER -->
+  <div id="printableGradeReport" style="display: none;"></div>
 
   <script>
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
+    let schoolEval = JSON.parse(localStorage.getItem('dhk_school_eval_data') || '{}');
 
-    const officialGunotsav24 = [
-      "01 Morning Assembly (As per Observation)",
-      "02 Singing of Jatiya Sangeet by standing in rows just before end of school hours",
-      "03 Record Keeping (Observation and Interaction)",
-      "04 Learning Outcome (Observation and Interaction)",
-      "05 Sports/Music/Art Education/Health & Physical Education Activities",
-      "06 Resource Mobilisation - overall functioning of school",
-      "07 Student Parliament (as per school record, Interaction with children & Teachers)",
-      "08 Availability and use of Teaching Learning Materials (TLM)",
-      "09 Innovative practices (Observation and Interaction)",
-      "10 Personal and Social Skills of children (regularity, punctuality, sharing)",
-      "11 Toilets Facilities (as per observation)",
-      "12 Safe Drinking Water facility (as per observation)",
-      "13 Class Rooms (as per observation)",
-      "14 School premise - safety, security, inclusive & hygienic",
-      "15 Availability and use of facilities (Electricity, Computer, Radio/TV)",
-      "16 Preparedness for Disaster Management (as per observation & record)",
-      "17 Mid-Day Meal (MDM) (as per observation)",
-      "18 Participation of SMC/SMDC in school Activities",
-      "19 SMC/SMDC constitution/meeting as per record & observation",
-      "20 Monitoring of school functioning by SMC/SMDC",
-      "21 Social Audit (as per record, observation and interaction)",
-      "22 Swachh Vidyalaya (as per record, observation and interaction)",
-      "23 Community Contribution as per record, observation",
-      "24 Teaching - learning process"
-    ];
-
-    let savedData = JSON.parse(localStorage.getItem('dhk_school_eval_data') || 'null');
-    let indicators = [];
-
-    if (!savedData) {
-      indicators = officialGunotsav24.map((title, i) => ({
-        id: i + 1,
-        title: title,
-        descriptors: { A: true, B: true, C: true, D: false, E: false },
-        skipped: false
-      }));
-    } else {
-      indicators = officialGunotsav24.map((title, i) => {
-        const found = savedData.find(item => item.id === (i + 1));
-        return {
-          id: i + 1,
-          title: title,
-          descriptors: found ? found.descriptors : { A: true, B: true, C: true, D: false, E: false },
-          skipped: found ? !!found.skipped : false
-        };
-      });
-      // Append any custom added indicators beyond 24
-      savedData.filter(item => item.id > 24).forEach(item => indicators.push(item));
+    function getLetterGrade(pct) {
+      if (pct >= 85) return { grade: 'A+', color: '#22543d', text: '#9ae6b4' };
+      if (pct >= 70) return { grade: 'A', color: '#2c5282', text: '#bee3f8' };
+      if (pct >= 55) return { grade: 'B', color: '#744210', text: '#fefcbf' };
+      if (pct >= 40) return { grade: 'C', color: '#7b341e', text: '#feebc8' };
+      return { grade: 'D', color: '#742a2a', text: '#fed7d7' };
     }
 
-    function renderIndicators() {
-      const container = document.getElementById('indicatorsContainer');
-      container.innerHTML = '';
-      let activeCount = 0;
+    function calculateOverallInstitutionalScore() {
+      const wScholastic = parseFloat(document.getElementById('weightScholastic').value) || 90;
+      const wSchool = parseFloat(document.getElementById('weightSchoolEval').value) || 10;
 
-      indicators.forEach((ind, idx) => {
-        if (!ind.skipped) activeCount++;
-        const yesCount = Object.values(ind.descriptors).filter(v => v === true).length;
-        
-        container.innerHTML += `
-          <div class="indicator-card ${ind.skipped ? 'skipped' : ''}">
-            <div class="ind-head">
-              <span class="ind-title">${ind.title}</span>
-              <div style="display:flex; align-items:center; gap:6px;">
-                <span class="ind-score-summary">${ind.skipped ? 'Skipped' : yesCount + ' / 5 YES'}</span>
-                <button class="btn-skip ${ind.skipped ? 'skipped-state' : ''}" onclick="toggleSkipIndicator(${idx})">
-                  ${ind.skipped ? 'Include' : 'Skip'}
-                </button>
-              </div>
-            </div>
-            <div class="desc-grid">
-              ${['A','B','C','D','E'].map(d => `
-                <div class="desc-box ${ind.descriptors[d] ? 'yes' : 'no'}">
-                  ${d}:${ind.descriptors[d] ? 'YES' : 'NO'}
-                </div>
-              `).join('')}
-            </div>
-          </div>
+      const totalStudents = students.length;
+      const evaluated = students.filter(s => s.evaluated);
+      const evalCount = evaluated.length;
+
+      document.getElementById('bannerEvaluatedCount').innerText = `${evalCount} / ${totalStudents}`;
+
+      let scholasticAvg = 0;
+      if (evalCount > 0) {
+        const sum = evaluated.reduce((acc, s) => acc + (parseFloat(s.score) || 0), 0);
+        scholasticAvg = sum / evalCount;
+      }
+
+      // School evaluation score (default 80% baseline if not fully scored)
+      let schoolEvalScore = typeof schoolEval.score === 'number' ? schoolEval.score : 80;
+
+      const totalWeight = wScholastic + wSchool;
+      const compositeScore = totalWeight > 0 
+        ? Math.round(((scholasticAvg * wScholastic) + (schoolEvalScore * wSchool)) / totalWeight) 
+        : 0;
+
+      document.getElementById('bannerCompositePct').innerText = `${compositeScore}%`;
+
+      const badge = document.getElementById('bannerSchoolGrade');
+      if (evalCount === 0) {
+        badge.innerText = 'Pending';
+        badge.style.background = '#2d3748';
+        badge.style.color = '#a0aec0';
+        badge.style.borderColor = '#4a5568';
+      } else {
+        const gradeInfo = getLetterGrade(compositeScore);
+        badge.innerText = gradeInfo.grade;
+        badge.style.background = gradeInfo.color;
+        badge.style.color = gradeInfo.text;
+      }
+
+      renderClassSummaryTable();
+    }
+
+    function renderClassSummaryTable() {
+      const tbody = document.getElementById('classSummaryTableBody');
+      tbody.innerHTML = '';
+
+      const allClasses = [...new Set(students.map(s => s.class_level))].sort();
+
+      if (allClasses.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--sub); padding: 16px;">No student records found in roster.</td></tr>`;
+        return;
+      }
+
+      allClasses.forEach(cls => {
+        const inClass = students.filter(s => s.class_level === cls);
+        const evalInClass = inClass.filter(s => s.evaluated);
+
+        let avg = 0;
+        if (evalInClass.length > 0) {
+          avg = Math.round(evalInClass.reduce((a, b) => a + (parseFloat(b.score) || 0), 0) / evalInClass.length);
+        }
+
+        const gr = evalInClass.length > 0 ? getLetterGrade(avg).grade : '-';
+
+        tbody.innerHTML += `
+          <tr>
+            <td><b>${cls}</b></td>
+            <td>${inClass.length}</td>
+            <td>${evalInClass.length}</td>
+            <td><b>${evalInClass.length > 0 ? avg + '%' : 'Pending'}</b></td>
+            <td><span style="font-weight: bold;">${gr}</span></td>
+          </tr>
+        `;
+      });
+    }
+
+    function exportReportToExcel() {
+      if (students.length === 0) return alert("No students available to export.");
+
+      const exportRows = students.map((s, idx) => ({
+        "SL No": idx + 1,
+        "Student Name": s.name,
+        "Class": s.class_level,
+        "Section": s.section || 'A',
+        "Student ID / Code": s.unique_id,
+        "Evaluated": s.evaluated ? "YES" : "NO",
+        "MCQ Marks": s.mcq_marks || 0,
+        "Subjective/Skill Marks": s.subj_marks || 0,
+        "Total Marks Earned": s.total_marks || (s.mcq_marks + s.subj_marks) || 0,
+        "Max Marks": s.max_marks || 76,
+        "Percentage": s.evaluated ? `${s.score}%` : "Pending",
+        "Grade": s.evaluated ? getLetterGrade(s.score).grade : "Pending"
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "School Evaluation Report");
+      XLSX.writeFile(wb, "DHK_OMR_Assessment_Report.xlsx");
+    }
+
+    function printOfficialReport() {
+      const container = document.getElementById('printableGradeReport');
+      const schoolPct = document.getElementById('bannerCompositePct').innerText;
+      const schoolGrade = document.getElementById('bannerSchoolGrade').innerText;
+
+      let studentRows = '';
+      students.forEach((s, i) => {
+        studentRows += `
+          <tr>
+            <td style="border: 1px solid #000; padding: 6px;">${i + 1}</td>
+            <td style="border: 1px solid #000; padding: 6px;"><b>${s.name}</b></td>
+            <td style="border: 1px solid #000; padding: 6px;">${s.class_level}</td>
+            <td style="border: 1px solid #000; padding: 6px;">${s.unique_id}</td>
+            <td style="border: 1px solid #000; padding: 6px;">${s.evaluated ? s.total_marks || (s.mcq_marks + s.subj_marks) : '-'}</td>
+            <td style="border: 1px solid #000; padding: 6px;">${s.evaluated ? s.score + '%' : 'Pending'}</td>
+            <td style="border: 1px solid #000; padding: 6px;">${s.evaluated ? getLetterGrade(s.score).grade : '-'}</td>
+          </tr>
         `;
       });
 
-      document.getElementById('activeIndicatorCount').innerText = `${activeCount} Active`;
-      localStorage.setItem('dhk_school_eval_data', JSON.stringify(indicators));
+      container.innerHTML = `
+        <div style="font-family: sans-serif; padding: 10px;">
+          <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px;">
+            <h2 style="margin: 0; text-transform: uppercase;">DHK OMR PRO • INSTITUTIONAL ASSESSMENT REPORT</h2>
+            <div style="font-size: 13px; margin-top: 6px;"><b>Composite School Score:</b> ${schoolPct} | <b>Final Grade:</b> ${schoolGrade}</div>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background: #eee;">
+                <th style="border: 1px solid #000; padding: 6px;">#</th>
+                <th style="border: 1px solid #000; padding: 6px;">Student Name</th>
+                <th style="border: 1px solid #000; padding: 6px;">Class</th>
+                <th style="border: 1px solid #000; padding: 6px;">Student ID</th>
+                <th style="border: 1px solid #000; padding: 6px;">Marks</th>
+                <th style="border: 1px solid #000; padding: 6px;">%</th>
+                <th style="border: 1px solid #000; padding: 6px;">Grade</th>
+              </tr>
+            </thead>
+            <tbody>${studentRows}</tbody>
+          </table>
+        </div>
+      `;
+
+      container.style.display = 'block';
+      window.print();
+      container.style.display = 'none';
     }
 
-    function toggleSkipIndicator(idx) {
-      indicators[idx].skipped = !indicators[idx].skipped;
-      localStorage.setItem('dhk_school_eval_data', JSON.stringify(indicators));
-      renderIndicators();
-      calculateFinalGrade();
-    }
-
-    function addCustomIndicator() {
-      const title = prompt("Enter additional criteria / indicator name:");
-      if (title && title.trim() !== "") {
-        indicators.push({
-          id: indicators.length + 1,
-          title: `${indicators.length + 1} ${title.trim()}`,
-          descriptors: { A: true, B: true, C: true, D: true, E: true },
-          skipped: false
-        });
-        localStorage.setItem('dhk_school_eval_data', JSON.stringify(indicators));
-        renderIndicators();
-        calculateFinalGrade();
-      }
-    }
-
-    function goToSchoolOmrScan() {
-      localStorage.setItem('dhk_target_scan_mode', 'school_eval');
-      window.location.href = 'scan.html';
-    }
-
-    function calculateFinalGrade() {
-      const evaluatedList = students.filter(s => s.evaluated);
-      const evalCount = evaluatedList.length;
-
-      let scholasticAvg = evalCount > 0 
-        ? Math.round(evaluatedList.reduce((acc, curr) => acc + (curr.score || 0), 0) / evalCount) 
-        : 75;
-
-      document.getElementById('statScholasticAvg').innerText = `${scholasticAvg}%`;
-
-      const activeInds = indicators.filter(i => !i.skipped);
-      let evalPercent = 80;
-      if (activeInds.length > 0) {
-        let totalYes = 0;
-        let totalPossible = activeInds.length * 5;
-        activeInds.forEach(ind => {
-          totalYes += Object.values(ind.descriptors).filter(v => v === true).length;
-        });
-        evalPercent = Math.round((totalYes / totalPossible) * 100);
-      }
-      document.getElementById('statEvalPercent').innerText = `${evalPercent}%`;
-
-      const wScholastic = parseFloat(document.getElementById('weightScholastic').value) || 90;
-      const wEval = parseFloat(document.getElementById('weightEvaluation').value) || 10;
-      const composite = Math.round(((scholasticAvg * wScholastic) + (evalPercent * wEval)) / (wScholastic + wEval));
-
-      let grade = 'D';
-      if (composite >= 85) grade = 'A+';
-      else if (composite >= 70) grade = 'A';
-      else if (composite >= 55) grade = 'B';
-      else if (composite >= 40) grade = 'C';
-
-      const badge = document.getElementById('finalGradeBadge');
-      badge.innerText = grade;
-
-      if (grade === 'A+' || grade === 'A') {
-        badge.style.background = '#234e52'; badge.style.color = '#81e6d9'; badge.style.borderColor = '#319795';
-      } else if (grade === 'B') {
-        badge.style.background = '#744210'; badge.style.color = '#f6e05e'; badge.style.borderColor = '#d69e2e';
-      } else {
-        badge.style.background = '#742a2a'; badge.style.color = '#feb2b2'; badge.style.borderColor = '#e53e3e';
-      }
-
-      document.getElementById('compositeScoreText').innerText = `Composite: ${composite}%`;
-      document.getElementById('evaluationProgressText').innerText = `Based on ${evalCount} students & ${activeInds.length} indicators`;
-    }
-
-    renderIndicators();
-    calculateFinalGrade();
+    calculateOverallInstitutionalScore();
   </script>
 </body>
 </html>
