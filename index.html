@@ -3,18 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DHK OMR Pro • Roster</title>
+  <title>DHK OMR Pro • Student Roster</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root {
       --bg: #121721; --card: #1e2635; --header: #1a2230;
-      --blue: #296bb2; --green: #2e8556; --red: #c53030;
+      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030;
       --text: #f0f4f8; --sub: #a0aec0; --border: #2d3748;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding-bottom: 30px; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 40px; }
 
-    /* Top Navigation Bar */
     header { background: var(--header); padding: 12px 14px; border-bottom: 1px solid var(--border); }
     .app-name { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
     .nav-links { display: flex; gap: 6px; overflow-x: auto; }
@@ -25,38 +24,36 @@
     }
     .nav-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
-    /* Main Container */
     .container { padding: 14px; max-width: 600px; margin: 0 auto; }
     .btn {
-      width: 100%; padding: 12px; border-radius: 8px; border: none;
-      font-weight: bold; font-size: 14px; color: #fff; cursor: pointer; margin-bottom: 8px;
+      padding: 12px; border-radius: 8px; border: none; font-weight: bold;
+      font-size: 14px; color: #fff; cursor: pointer; text-align: center;
     }
     .btn-green { background: var(--green); }
     .btn-red { background: var(--red); }
 
-    /* Filters */
-    .filter-bar { display: flex; overflow-x: auto; gap: 6px; margin: 12px 0; padding-bottom: 4px; }
-    .filter-chip {
-      background: var(--card); border: 1px solid var(--border); color: var(--sub);
-      padding: 6px 14px; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer;
+    .controls-grid { display: flex; gap: 10px; margin-bottom: 14px; }
+    .class-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; }
+    .tab-btn {
+      padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: bold;
+      background: var(--header); color: var(--sub); border: 1px solid var(--border); cursor: pointer; white-space: nowrap;
     }
-    .filter-chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .tab-btn.active { background: var(--blue); color: #fff; border-color: #63b3ed; }
 
-    /* Student Cards */
     .student-card {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 12px; background: var(--card); border-radius: 8px; margin-bottom: 8px;
-      border: 1px solid var(--border);
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
     }
-    .student-info h4 { font-size: 14px; margin-bottom: 3px; }
-    .student-info p { font-size: 11px; color: var(--sub); }
-    .student-actions { display: flex; align-items: center; gap: 8px; }
-    .badge { font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; }
-    .badge-pending { background: #4a5568; color: #cbd5e0; }
-    .badge-done { background: #276749; color: #9ae6b4; }
+    .st-name { font-size: 14px; font-weight: bold; text-transform: capitalize; margin-bottom: 3px; color: #fff; }
+    .st-meta { font-size: 11px; color: var(--sub); }
+    .badge {
+      padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold;
+    }
+    .badge-pending { background: #2d3748; color: var(--sub); }
+    .badge-evaluated { background: #22543d; color: #9ae6b4; border: 1px solid #38a169; }
+
     .btn-del {
-      background: transparent; border: 1px solid var(--border); color: #fc8181;
-      width: 28px; height: 28px; border-radius: 4px; font-weight: bold; cursor: pointer;
+      background: transparent; border: none; color: #fc8181; font-size: 16px; cursor: pointer; padding: 4px 8px;
     }
   </style>
 </head>
@@ -76,131 +73,182 @@
   </header>
 
   <div class="container">
-    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;" onchange="handleFileUpload(event)">
-    
-    <div style="display: flex; gap: 8px;">
-      <button class="btn btn-green" onclick="document.getElementById('fileInput').click()">Upload Shiksha Setu (.xlsx)</button>
-      <button class="btn btn-red" style="width: 130px;" onclick="confirmDeleteRoster()">Clear List</button>
+    <div class="controls-grid">
+      <button class="btn btn-green" style="flex: 2;" onclick="document.getElementById('excelFileInput').click()">Upload Shiksha Setu (.xlsx)</button>
+      <button class="btn btn-red" style="flex: 1;" onclick="clearAllStudents()">Clear List</button>
+      <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleExcelUpload(event)">
     </div>
 
-    <div class="filter-bar" id="filterBar">
-      <div class="filter-chip active" onclick="setFilter('All')">All Classes</div>
+    <!-- Dynamic Class Tabs (Ka, Class-I, Class-II, Class-III, etc.) -->
+    <div class="class-tabs" id="classTabsContainer"></div>
+
+    <div style="font-size: 13px; color: var(--sub); margin-bottom: 10px; display: flex; justify-content: space-between;">
+      <span id="studentCountText">Total: 0 Students</span>
+      <span id="evaluatedCountText" style="color: #68d391;">0 Evaluated</span>
     </div>
 
-    <div style="font-size: 12px; color: var(--sub); margin-bottom: 10px;" id="rosterSummary">Total: 0 Students</div>
-    <div id="studentContainer"></div>
+    <div id="studentsListContainer"></div>
   </div>
 
   <script>
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
-    let currentFilter = 'All';
+    let activeClassFilter = 'ALL';
 
-    function handleFileUpload(e) {
-      const file = e.target.files[0];
+    function normalizeClassName(raw) {
+      if (!raw) return 'Class-I';
+      let val = String(raw).trim().toLowerCase();
+
+      // Check Pre-primary / Ka-Shreni / Balvatika
+      if (val === '0' || val.includes('ka') || val.includes('balvatika') || val.includes('pre') || val.includes('nursery') || val.includes('kg')) {
+        return 'Ka-Shreni';
+      }
+
+      // Check Roman Numerals & Numbers strictly
+      if (val === '1' || val === 'i' || val.includes('class-i ') || val.includes('class 1') || val.includes('class-1') || val.endsWith('class-i') || val.endsWith('class i') || val === 'class i') {
+        return 'Class-I';
+      }
+      if (val === '2' || val === 'ii' || val.includes('class-ii ') || val.includes('class 2') || val.includes('class-2') || val.endsWith('class-ii') || val.endsWith('class ii') || val === 'class ii') {
+        return 'Class-II';
+      }
+      if (val === '3' || val === 'iii' || val.includes('class-iii ') || val.includes('class 3') || val.includes('class-3') || val.endsWith('class-iii') || val.endsWith('class iii') || val === 'class iii') {
+        return 'Class-III';
+      }
+      if (val === '4' || val === 'iv' || val.includes('class-iv ') || val.includes('class 4') || val.includes('class-4') || val.endsWith('class-iv') || val.endsWith('class iv') || val === 'class iv') {
+        return 'Class-IV';
+      }
+      if (val === '5' || val === 'v' || val.includes('class-v ') || val.includes('class 5') || val.includes('class-5') || val.endsWith('class-v') || val.endsWith('class v') || val === 'class v') {
+        return 'Class-V';
+      }
+
+      // Preserve formatted label if already clean
+      return String(raw).trim();
+    }
+
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = function(evt) {
+      reader.onload = function(e) {
         try {
-          const data = new Uint8Array(evt.target.result);
+          const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rawSheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          
-          let headerIdx = 0;
-          for (let i = 0; i < Math.min(10, rawSheetData.length); i++) {
-            const rowStr = (rawSheetData[i] || []).join(' ').toLowerCase();
-            if (rowStr.includes('uniqueid') || (rowStr.includes('student') && rowStr.includes('name'))) {
-              headerIdx = i;
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+          // Convert to 2D array matrix to locate true header row
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+          if (rows.length < 2) return alert("The uploaded file does not contain enough data.");
+
+          // Find the header row containing "name" or "student"
+          let headerIdx = -1;
+          for (let r = 0; r < Math.min(rows.length, 10); r++) {
+            const rowStr = rows[r].map(c => String(c).toLowerCase().trim()).join(' ');
+            if (rowStr.includes('name') || rowStr.includes('student') || rowStr.includes('child')) {
+              headerIdx = r;
               break;
             }
           }
+          if (headerIdx === -1) headerIdx = 0;
 
-          const rows = XLSX.utils.sheet_to_json(worksheet, { range: headerIdx, defval: '' });
-          function findField(row, targets) {
-            const keys = Object.keys(row);
-            for (let t of targets) {
-              const cleanTarget = t.toLowerCase().replace(/[^a-z0-9]/g, '');
-              const foundKey = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanTarget);
-              if (foundKey && String(row[foundKey]).trim() !== '') return String(row[foundKey]).trim();
-            }
-            return '';
-          }
+          const headers = rows[headerIdx].map(h => String(h).trim().toLowerCase());
+
+          // Identify column indices intelligently
+          let nameCol = headers.findIndex(h => h.includes('student name') || h.includes('name of the student') || h === 'name' || h.includes('student') || h.includes('child name'));
+          let classCol = headers.findIndex(h => h.includes('present class') || h.includes('current class') || h.includes('class/grade') || h.includes('standard') || h === 'class' || h.includes('class'));
+          let idCol = headers.findIndex(h => h.includes('student code') || h.includes('student id') || h.includes('child id') || h.includes('pen') || h.includes('unique id') || h.includes('code') || h.includes('roll'));
+          let secCol = headers.findIndex(h => h.includes('section') || h === 'sec');
+
+          if (nameCol === -1) nameCol = 1; // Fallback to column B
 
           const parsedStudents = [];
-          rows.forEach((row, idx) => {
-            const name = findField(row, ['Student Name', 'student_name', 'StudentName', 'Name']);
-            const classAndSec = findField(row, ['Class & Section', 'Class', 'student_class', 'Grade']) || 'Class-V';
-            const uid = findField(row, ['Student UniqueId', 'Student ID', 'student_id', 'UID']) || String(100000 + idx);
+          for (let r = headerIdx + 1; r < rows.length; r++) {
+            const row = rows[r];
+            const name = String(row[nameCol] || '').trim();
+            if (!name || name.toLowerCase().includes('total') || name.toLowerCase().includes('school')) continue;
 
-            if (name && name.toLowerCase() !== 'student name') {
-              let classLvl = classAndSec;
-              let sec = 'A';
-              if (classAndSec.includes('Section')) {
-                const parts = classAndSec.split(/Section/i);
-                classLvl = parts[0].trim();
-                sec = parts[1].trim() || 'A';
-              }
-              parsedStudents.push({
-                unique_id: uid, name: name, class_level: classLvl, section: sec,
-                evaluated: false, score: 0, mcq_marks: 0, subj_marks: 0
-              });
-            }
-          });
+            const rawClass = classCol !== -1 ? row[classCol] : '';
+            const normalizedClass = normalizeClassName(rawClass);
+
+            const rawId = idCol !== -1 ? String(row[idCol]).trim() : '';
+            const uniqueId = (rawId && rawId.length >= 4) ? rawId : String(100000 + parsedStudents.length);
+            const section = secCol !== -1 && row[secCol] ? String(row[secCol]).trim().toUpperCase() : 'A';
+
+            parsedStudents.push({
+              unique_id: uniqueId,
+              name: name,
+              class_level: normalizedClass,
+              section: section,
+              evaluated: false,
+              score: null,
+              mcq_marks: 0,
+              subj_marks: 0
+            });
+          }
+
+          if (parsedStudents.length === 0) {
+            return alert("Could not extract student rows. Please check the Excel format.");
+          }
 
           students = parsedStudents;
           localStorage.setItem('dhk_students', JSON.stringify(students));
-          currentFilter = 'All';
-          updateClassFilters();
-          renderRoster();
-          alert(`Successfully loaded ${students.length} students across all classes!`);
+          renderClassTabs();
+          renderStudents();
+          alert(`Successfully imported ${students.length} students across all classes!`);
         } catch (err) {
-          alert("Error: " + err.message);
-        } finally {
-          e.target.value = '';
+          alert("Error processing Excel file: " + err.message);
         }
       };
       reader.readAsArrayBuffer(file);
+      event.target.value = '';
     }
 
-    function updateClassFilters() {
-      const classes = [...new Set(students.map(s => s.class_level))].sort();
-      const bar = document.getElementById('filterBar');
-      bar.innerHTML = `<div class="filter-chip ${currentFilter === 'All' ? 'active' : ''}" onclick="setFilter('All')">All Classes</div>`;
+    function renderClassTabs() {
+      const container = document.getElementById('classTabsContainer');
+      const classes = ['ALL', ...new Set(students.map(s => s.class_level))].sort();
+
+      container.innerHTML = '';
       classes.forEach(c => {
-        bar.innerHTML += `<div class="filter-chip ${currentFilter === c ? 'active' : ''}" onclick="setFilter('${c}')">${c}</div>`;
+        const label = c === 'ALL' ? 'All Classes' : c;
+        const isActive = activeClassFilter === c ? 'active' : '';
+        container.innerHTML += `<button class="tab-btn ${isActive}" onclick="filterByClass('${c}')">${label}</button>`;
       });
     }
 
-    function setFilter(cls) {
-      currentFilter = cls;
-      updateClassFilters();
-      renderRoster();
+    function filterByClass(cls) {
+      activeClassFilter = cls;
+      renderClassTabs();
+      renderStudents();
     }
 
-    function renderRoster() {
-      const list = document.getElementById('studentContainer');
-      const filtered = currentFilter === 'All' ? students : students.filter(s => s.class_level === currentFilter);
-      document.getElementById('rosterSummary').innerText = `Total: ${filtered.length} Students`;
-      list.innerHTML = '';
+    function renderStudents() {
+      const container = document.getElementById('studentsListContainer');
+      container.innerHTML = '';
+
+      const filtered = activeClassFilter === 'ALL' 
+        ? students 
+        : students.filter(s => s.class_level === activeClassFilter);
+
+      document.getElementById('studentCountText').innerText = `Total: ${filtered.length} Students`;
+      const evalCount = filtered.filter(s => s.evaluated).length;
+      document.getElementById('evaluatedCountText').innerText = `${evalCount} Evaluated`;
 
       if (filtered.length === 0) {
-        list.innerHTML = `<div style="text-align: center; color: var(--sub); margin-top: 30px; font-size: 13px;">No students found.<br>Upload a Shiksha Setu file to begin.</div>`;
+        container.innerHTML = `<div style="text-align: center; color: var(--sub); padding: 30px;">No students found in ${activeClassFilter}.</div>`;
         return;
       }
 
-      filtered.forEach(s => {
-        list.innerHTML += `
+      filtered.forEach((st, idx) => {
+        container.innerHTML += `
           <div class="student-card">
-            <div class="student-info">
-              <h4>${s.name}</h4>
-              <p>${s.class_level} (Sec ${s.section}) | UID: ${s.unique_id}</p>
+            <div>
+              <div class="st-name">${st.name}</div>
+              <div class="st-meta">${st.class_level} (Sec ${st.section}) | UID: ${st.unique_id}</div>
             </div>
-            <div class="student-actions">
-              <span class="badge ${s.evaluated ? 'badge-done' : 'badge-pending'}">
-                ${s.evaluated ? s.score + '%' : 'Pending'}
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge ${st.evaluated ? 'badge-evaluated' : 'badge-pending'}">
+                ${st.evaluated ? st.score + '%' : 'Pending'}
               </span>
-              <button class="btn-del" title="Delete Student" onclick="deleteStudent('${s.unique_id}')">✕</button>
+              <button class="btn-del" onclick="deleteStudent('${st.unique_id}')">&times;</button>
             </div>
           </div>
         `;
@@ -208,28 +256,23 @@
     }
 
     function deleteStudent(uid) {
-      const target = students.find(s => s.unique_id === uid);
-      if (target && confirm(`Remove "${target.name}"?`)) {
-        students = students.filter(s => s.unique_id !== uid);
-        localStorage.setItem('dhk_students', JSON.stringify(students));
-        updateClassFilters();
-        renderRoster();
+      students = students.filter(s => s.unique_id !== uid);
+      localStorage.setItem('dhk_students', JSON.stringify(students));
+      renderClassTabs();
+      renderStudents();
+    }
+
+    function clearAllStudents() {
+      if (confirm("Are you sure you want to clear the entire roster?")) {
+        students = [];
+        localStorage.removeItem('dhk_students');
+        renderClassTabs();
+        renderStudents();
       }
     }
 
-    function confirmDeleteRoster() {
-      if (students.length === 0) return alert('List is empty.');
-      const msg = currentFilter === 'All' ? 'Delete all students from roster?' : `Delete all students in ${currentFilter}?`;
-      if (confirm(msg)) {
-        students = currentFilter === 'All' ? [] : students.filter(s => s.class_level !== currentFilter);
-        localStorage.setItem('dhk_students', JSON.stringify(students));
-        updateClassFilters();
-        renderRoster();
-      }
-    }
-
-    updateClassFilters();
-    renderRoster();
+    renderClassTabs();
+    renderStudents();
   </script>
 </body>
 </html>
