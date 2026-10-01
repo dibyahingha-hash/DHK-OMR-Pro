@@ -87,9 +87,7 @@
       color: #fff; padding: 6px 12px; font-size: 12px; font-weight: bold;
       display: none; align-items: center; gap: 4px; cursor: pointer; backdrop-filter: blur(4px);
     }
-    .torch-floating-btn.active {
-      background: #ecc94b; color: #000; border-color: #d69e2e;
-    }
+    .torch-floating-btn.active { background: #ecc94b; color: #000; border-color: #d69e2e; }
 
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -158,7 +156,6 @@
       <div class="viewfinder-wrapper" id="viewfinderWrapper">
         <video id="cameraStream" playsinline autoplay muted></video>
         
-        <!-- Hardware Torch Toggle -->
         <button id="torchBtn" class="torch-floating-btn" type="button" onclick="toggleTorch()">
           🔦 Flash
         </button>
@@ -171,7 +168,7 @@
           <div class="stability-bar-container">
             <div class="stability-fill" id="stabilityFill"></div>
           </div>
-          <div class="status-badge" id="statusBadge">Camera ready. Tap button below if video is paused.</div>
+          <div class="status-badge" id="statusBadge">Camera ready. Tap button below to snap.</div>
         </div>
       </div>
 
@@ -190,7 +187,7 @@
       <h3 style="font-size: 15px; margin-bottom: 8px; color: #ecc94b;">Verify Student & Results</h3>
 
       <div class="verify-box">
-        <p style="font-size: 11px; color: #a0aec0; margin-bottom: 2px;">Extracted Student Info / ID:</p>
+        <p style="font-size: 11px; color: #a0aec0; margin-bottom: 2px;">Phase 1: Student Recognition Result:</p>
         <b id="rawOcrText" style="color: #ecc94b; font-size: 13px;">Reading sheet...</b>
       </div>
 
@@ -199,18 +196,18 @@
 
       <div style="background: var(--header); padding: 12px; border-radius: 6px; margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px;">
-          <span id="modalMcqLabel">MCQ Score:</span>
+          <span>MCQ Score (Phase 2):</span>
           <div>
             <input type="number" id="modalMcqScoreInput" class="score-input" onchange="recalculateStudentTotals()">
             <span id="modalMaxMcqText">/ 58</span>
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px;" id="modalSkillRow">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px;">
           <span>Skill / Subjective Marks:</span>
           <div>
             <input type="number" id="modalSkillScoreInput" class="score-input" onchange="recalculateStudentTotals()">
-            <span id="modalMaxSkillText">/ 18</span>
+            <span>/ 18</span>
           </div>
         </div>
 
@@ -230,52 +227,12 @@
     </div>
   </div>
 
-  <!-- MODAL 2: SCHOOL EVALUATION AUDIT (24 INDICATORS) -->
-  <div class="modal-overlay" id="schoolEvalModal">
-    <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 6px; color: #ecc94b;">Gunotsav: School Evaluation Audit</h3>
-      
-      <div class="verify-box">
-        <p style="font-size: 11px; color: #a0aec0; margin-bottom: 2px;">School Information Detected:</p>
-        <b id="schoolOcrMeta" style="color: #68d391; font-size: 13px;">School Evaluation Form</b>
-      </div>
-
-      <p style="font-size: 12px; color: #a0aec0; margin-bottom: 6px;">Indicator-by-Indicator Breakdown (Editable):</p>
-      <div id="indicatorsListContainer" style="max-height: 260px; overflow-y: auto; background: var(--header); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px;"></div>
-
-      <div style="background: var(--header); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: #68d391;">
-          <span>Total School Marks:</span>
-          <span id="schoolTotalScoreText">0 / 72 Marks (0%)</span>
-        </div>
-      </div>
-
-      <button class="btn btn-green" onclick="confirmAndSaveSchoolEval()">Confirm & Save School Evaluation</button>
-      <button class="btn btn-gray" onclick="closeAllModals()">Retake Scan</button>
-    </div>
-  </div>
-
-  <!-- MODAL 3: CLASS 1 & 2 MULTI-STUDENT REVIEW (LO 1–30) -->
-  <div class="modal-overlay" id="lowerClassModal">
-    <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 6px; color: #ecc94b;">Class 1 & 2 Roster Evaluation (LO 1–30)</h3>
-      <p style="font-size: 11px; color: #a0aec0; margin-bottom: 10px;">Review and edit student learning outcome scores:</p>
-
-      <div id="multiStudentReviewList" style="max-height: 280px; overflow-y: auto; background: var(--header); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px;"></div>
-
-      <button class="btn btn-green" onclick="confirmAndSaveMultiStudentRoster()">Confirm & Save All Students</button>
-      <button class="btn btn-gray" onclick="closeAllModals()">Retake Scan</button>
-    </div>
-  </div>
-
-  <!-- MODAL 4: MASTER KEY SCAN VERIFICATION -->
+  <!-- MODAL 2: MASTER KEY VERIFICATION -->
   <div class="modal-overlay" id="masterKeyModal">
     <div class="modal-box">
       <h3 style="font-size: 15px; margin-bottom: 6px; color: #ecc94b;">Verify Scanned Master Key</h3>
-      <p style="font-size: 12px; color: #a0aec0; margin-bottom: 10px;">Confirm detected answers before locking into exam settings:</p>
-      
+      <p style="font-size: 12px; color: #a0aec0; margin-bottom: 10px;">Confirm detected answers:</p>
       <div id="masterKeyDetectedList" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; max-height: 280px; overflow-y: auto; background: var(--header); padding: 8px; border-radius: 6px; margin-bottom: 12px;"></div>
-
       <button class="btn btn-green" onclick="confirmAndSaveScannedKey()">Save Key & Go to Exam Page</button>
       <button class="btn btn-gray" onclick="closeAllModals()">Retake Scan</button>
     </div>
@@ -299,36 +256,14 @@
     let videoTrack = null;
     let cameraLoop = null;
     let isProcessing = false;
-    let stableFrameCount = 0;
-    const REQUIRED_STABLE_FRAMES = 5;
-
     let torchActive = false;
     let currentStudentEval = null;
-    let currentSchoolEval = [];
-    let currentMultiEval = [];
     let scannedMasterKeyMap = {};
 
     const MASTER_ORDER = [
       'Ka-Shreni', 'Class-I', 'Class-II', 'Class-III', 'Class-IV', 'Class-V',
       'Class-VI', 'Class-VII', 'Class-VIII', 'Class-IX', 'Class-X', 'Class-XI', 'Class-XII'
     ];
-    const LOWER_CLASSES = ['Ka-Shreni', 'Class-I', 'Class-II'];
-
-    const INDICATOR_MAX_MARKS = [
-      2, 5, 3, 2, 4, 3, 3, 2, 4, 3, 2, 3,
-      3, 4, 2, 3, 2, 4, 3, 3, 2, 4, 3, 4
-    ];
-
-    function checkUrlMode() {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('mode') === 'master_key') {
-        document.getElementById('examTrackSelect').value = 'master_key_scan';
-        if (urlParams.get('totalQ')) {
-          totalQuestions = parseInt(urlParams.get('totalQ')) || totalQuestions;
-        }
-      }
-      syncClassDropdown();
-    }
 
     function syncClassDropdown() {
       const mode = document.getElementById('examTrackSelect').value;
@@ -345,37 +280,14 @@
       const enrolledClasses = [...new Set(students.map(s => s.class_level))].filter(Boolean);
       classSelect.innerHTML = '';
 
-      if (mode === 'school_eval') {
-        classRow.style.display = 'none';
-        note.innerHTML = `Mode: <b>Institutional Evaluation (24 Indicators A–E)</b>`;
-        resetScanState();
-        return;
-      }
-
       if (mode === 'master_key_scan') {
         classRow.style.display = 'none';
         note.innerHTML = `Mode: <b>Scan Master Benchmark Key (${totalQuestions} Qs)</b>`;
-        resetScanState();
         return;
       }
 
       classRow.style.display = 'flex';
-      let available = [];
-
-      if (mode === 'gunotsav_lower') {
-        available = enrolledClasses.filter(c => LOWER_CLASSES.includes(c));
-        if (available.length === 0) available = ['Class-I', 'Class-II'];
-        note.innerHTML = `Mode: <b>Class 1 & 2 Multi-Student (LO 1–30 A/B Bubbles)</b>`;
-      } else if (mode === 'gunotsav_upper') {
-        available = enrolledClasses.filter(c => !LOWER_CLASSES.includes(c));
-        if (available.length === 0) available = ['Class-III', 'Class-IV'];
-        const negText = negEnabled ? ` (Neg: -${negMark})` : '';
-        note.innerHTML = `Active Key: <b>${totalQuestions} Questions</b> | Marks/Q: <b>${marksPerQ}</b>${negText}`;
-      } else {
-        available = enrolledClasses.length > 0 ? enrolledClasses : MASTER_ORDER;
-        const negText = negEnabled ? ` (Neg: -${negMark})` : '';
-        note.innerHTML = `Active Key: <b>${totalQuestions} Questions</b> | Marks/Q: <b>${marksPerQ}</b>${negText}`;
-      }
+      let available = enrolledClasses.length > 0 ? enrolledClasses : MASTER_ORDER;
 
       available.sort((a, b) => {
         let ia = MASTER_ORDER.indexOf(a);
@@ -390,169 +302,74 @@
         classSelect.appendChild(opt);
       });
 
-      resetScanState();
+      const negText = negEnabled ? ` (Neg: -${negMark})` : '';
+      note.innerHTML = `Active Key: <b>${totalQuestions} Questions</b> | Marks/Q: <b>${marksPerQ}</b>${negText}`;
     }
 
     function resetScanState() {
-      stableFrameCount = 0;
-      updateStabilityUI(0, "Position sheet flat inside corner brackets");
+      const badge = document.getElementById('statusBadge');
+      if (badge) badge.innerText = "Position sheet flat inside corner brackets";
     }
 
     async function startCamera() {
       const video = document.getElementById('cameraStream');
       const btn = document.getElementById('btnToggleCam');
-      const badge = document.getElementById('statusBadge');
       const torchBtn = document.getElementById('torchBtn');
 
       if (videoStream) {
         videoStream.getTracks().forEach(t => t.stop());
       }
 
-      const constraintsList = [
-        { video: { facingMode: { exact: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } },
-        { video: { facingMode: "environment" } },
-        { video: true }
-      ];
+      const constraints = {
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+      };
 
-      for (let constraint of constraintsList) {
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = videoStream;
+        await video.play();
+
+        videoTrack = videoStream.getVideoTracks()[0];
+        const cap = videoTrack?.getCapabilities?.() || {};
+        torchBtn.style.display = cap.torch ? 'inline-flex' : 'none';
+
+        btn.innerText = "Stop Camera";
+        btn.className = "btn btn-red";
+      } catch (err) {
+        console.warn("Camera start fallback", err);
         try {
-          videoStream = await navigator.mediaDevices.getUserMedia(constraint);
+          videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
           video.srcObject = videoStream;
           await video.play();
-
-          videoTrack = videoStream.getVideoTracks()[0];
-          const cap = (videoTrack && videoTrack.getCapabilities) ? videoTrack.getCapabilities() : {};
-          if (cap.torch) {
-            torchBtn.style.display = 'inline-flex';
-          } else {
-            torchBtn.style.display = 'none';
-          }
-
           btn.innerText = "Stop Camera";
           btn.className = "btn btn-red";
-          badge.innerText = "Position sheet flat inside corner brackets";
-
-          if (cameraLoop) clearInterval(cameraLoop);
-          cameraLoop = setInterval(analyzeCameraFrame, 350);
-          return;
         } catch (e) {
-          // Try next constraint
+          alert("Camera access denied or unavailable.");
         }
       }
-
-      badge.innerText = "Camera blocked. Please tap 'Start / Restart Camera' and allow access.";
-      btn.innerText = "Start Camera";
-      btn.className = "btn btn-green";
     }
 
     async function toggleTorch() {
       if (!videoTrack) return;
       try {
         torchActive = !torchActive;
-        await videoTrack.applyConstraints({
-          advanced: [{ torch: torchActive }]
-        });
-        const torchBtn = document.getElementById('torchBtn');
-        torchBtn.classList.toggle('active', torchActive);
+        await videoTrack.applyConstraints({ advanced: [{ torch: torchActive }] });
+        document.getElementById('torchBtn').classList.toggle('active', torchActive);
       } catch (err) {
-        console.warn("Torch failed to toggle", err);
+        console.warn("Torch failed", err);
       }
     }
 
     function toggleCameraStream() {
       if (videoStream) {
-        if (cameraLoop) clearInterval(cameraLoop);
         videoStream.getTracks().forEach(t => t.stop());
         videoStream = null;
         videoTrack = null;
         document.getElementById('torchBtn').style.display = 'none';
         document.getElementById('btnToggleCam').innerText = "Start Camera";
         document.getElementById('btnToggleCam').className = "btn btn-green";
-        document.getElementById('statusBadge').innerText = "Camera stopped";
       } else {
         startCamera();
-      }
-    }
-
-    function anyModalOpen() {
-      return document.getElementById('studentVerifyModal').style.display === 'flex' ||
-             document.getElementById('schoolEvalModal').style.display === 'flex' ||
-             document.getElementById('lowerClassModal').style.display === 'flex' ||
-             document.getElementById('masterKeyModal').style.display === 'flex';
-    }
-
-    function analyzeCameraFrame() {
-      if (isProcessing || anyModalOpen()) return;
-
-      const video = document.getElementById('cameraStream');
-      if (!video || !video.videoWidth) return;
-
-      const canvas = document.getElementById('procCanvas');
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-
-      const isSheetPresent = checkSheetPresence(ctx, canvas.width, canvas.height);
-
-      if (!isSheetPresent) {
-        stableFrameCount = 0;
-        updateStabilityUI(0, "Searching for sheet... Align corners");
-        return;
-      }
-
-      stableFrameCount++;
-      const progress = Math.min(100, Math.round((stableFrameCount / REQUIRED_STABLE_FRAMES) * 100));
-      updateStabilityUI(progress, `Holding still... Keep steady (${progress}%)`);
-
-      if (stableFrameCount >= REQUIRED_STABLE_FRAMES) {
-        stableFrameCount = 0;
-        updateStabilityUI(100, "Sheet Locked! Processing...");
-        processSnapshot(canvas);
-      }
-    }
-
-    // Hardened Paper Presence Check (Excludes blank walls/floors)
-    function checkSheetPresence(ctx, w, h) {
-      try {
-        // Measure center contrast against corners
-        const centerData = ctx.getImageData(Math.floor(w * 0.25), Math.floor(h * 0.25), Math.floor(w * 0.5), Math.floor(h * 0.5)).data;
-        let darkPixels = 0;
-        let lightPixels = 0;
-
-        for (let i = 0; i < centerData.length; i += 32) {
-          const luma = 0.299 * centerData[i] + 0.587 * centerData[i+1] + 0.114 * centerData[i+2];
-          if (luma < 90) darkPixels++;
-          if (luma > 140) lightPixels++;
-        }
-
-        const totalSampled = centerData.length / 32;
-        const contrastRatio = darkPixels / totalSampled;
-        const whitePaperRatio = lightPixels / totalSampled;
-
-        // A valid sheet has white paper (>40%) AND dark printed marks/bubbles (>2% and <35%)
-        return whitePaperRatio > 0.40 && contrastRatio > 0.02 && contrastRatio < 0.40;
-      } catch(e) {
-        return false;
-      }
-    }
-
-    function updateStabilityUI(pct, text) {
-      const fill = document.getElementById('stabilityFill');
-      const badge = document.getElementById('statusBadge');
-      const overlay = document.getElementById('targetOverlay');
-
-      if (fill) fill.style.width = pct + '%';
-      if (badge) badge.innerText = text;
-
-      if (overlay) {
-        if (pct >= 100) {
-          overlay.className = "target-overlay locked";
-        } else if (pct > 0) {
-          overlay.className = "target-overlay holding";
-        } else {
-          overlay.className = "target-overlay";
-        }
       }
     }
 
@@ -572,7 +389,6 @@
       }
     }
 
-    // Gallery Picker Fix: Handles rotation & downsamples max 1600px
     function processGalleryImage(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -582,19 +398,16 @@
         const img = new Image();
         img.onload = function() {
           const canvas = document.getElementById('procCanvas');
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
           const maxDim = 1600;
-          let w = img.width;
-          let h = img.height;
+          let w = img.width, h = img.height;
           if (w > maxDim || h > maxDim) {
             if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
             else { w = Math.round((w * maxDim) / h); h = maxDim; }
           }
           canvas.width = w;
           canvas.height = h;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
           ctx.drawImage(img, 0, 0, w, h);
-
           processSnapshot(canvas);
         };
         img.src = e.target.result;
@@ -603,155 +416,250 @@
       event.target.value = '';
     }
 
-    // Unified Snapshot Evaluation Pipeline
-    function processSnapshot(canvas) {
+    // --- LEVENSHTEIN DISTANCE FOR FUZZY NAME RECOGNITION ---
+    function getSimilarity(s1, s2) {
+      s1 = (s1 || '').toLowerCase().trim();
+      s2 = (s2 || '').toLowerCase().trim();
+      if (s1 === s2) return 1.0;
+      if (!s1 || !s2) return 0.0;
+
+      const track = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
+      for (let i = 0; i <= s1.length; i++) track[0][i] = i;
+      for (let j = 0; j <= s2.length; j++) track[j][0] = j;
+
+      for (let j = 1; j <= s2.length; j++) {
+        for (let i = 1; i <= s1.length; i++) {
+          const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
+          track[j][i] = Math.min(
+            track[j][i - 1] + 1,
+            track[j - 1][i] + 1,
+            track[j - 1][i - 1] + indicator
+          );
+        }
+      }
+      return (Math.max(s1.length, s2.length) - track[s2.length][s1.length]) / Math.max(s1.length, s2.length);
+    }
+
+    function findNearestStudent(ocrText, classStudents) {
+      if (!classStudents || classStudents.length === 0) return null;
+      let best = null;
+      let maxScore = -1;
+
+      classStudents.forEach(s => {
+        const score = getSimilarity(ocrText, s.name);
+        if (score > maxScore) {
+          maxScore = score;
+          best = { student: s, score: Math.round(score * 100) };
+        }
+      });
+      return best;
+    }
+
+    // --- BUBBLE EVALUATION ENGINE (BOTTOM GRID) ---
+    function evaluateBubbles(ctx, w, h) {
+      const responses = {};
+      const totalQ = totalQuestions || 58;
+
+      const gridStartX = w * 0.11;
+      const gridStartY = h * 0.52;
+      const gridTotalW = w * 0.62;
+      const gridTotalH = h * 0.36;
+
+      const blockW = gridTotalW / 2;
+      const blockH = gridTotalH / 2;
+
+      for (let q = 1; q <= totalQ; q++) {
+        const blockCol = q > 30 ? 1 : 0;
+        const blockRow = ((q - 1) % 30) >= 15 ? 1 : 0;
+        const indexInBlock = (q - 1) % 15;
+
+        const rowY = gridStartY + (blockRow * blockH) + (indexInBlock * (blockH / 15)) + 8;
+        const startX = gridStartX + (blockCol * blockW) + (blockW * 0.32);
+        const bubbleSpacing = (blockW * 0.60) / 4;
+        const radius = 6;
+
+        let detectedOpt = null;
+        let maxFill = 0;
+        let fills = [];
+
+        ['A', 'B', 'C', 'D'].forEach((opt, idx) => {
+          const bx = startX + (idx * bubbleSpacing);
+          const imgData = ctx.getImageData(bx - radius, rowY - radius, radius * 2, radius * 2);
+          const pixels = imgData.data;
+          let darkCount = 0;
+
+          for (let p = 0; p < pixels.length; p += 4) {
+            const luma = 0.299 * pixels[p] + 0.587 * pixels[p + 1] + 0.114 * pixels[p + 2];
+            if (luma < 105) darkCount++;
+          }
+
+          const fill = darkCount / ((radius * 2) * (radius * 2));
+          fills.push(fill);
+          if (fill > maxFill) {
+            maxFill = fill;
+            detectedOpt = opt;
+          }
+        });
+
+        const avgFill = fills.reduce((a, b) => a + b, 0) / 4;
+        if (maxFill > 0.22 && maxFill > (avgFill * 1.4)) {
+          responses[q] = detectedOpt;
+        } else {
+          responses[q] = null;
+        }
+      }
+      return responses;
+    }
+
+    // --- TWO-PHASE RECOGNITION AND GRADING ---
+    async function processSnapshot(canvas) {
       isProcessing = true;
       playBeep();
 
+      const statusBadge = document.getElementById('statusBadge');
       const mode = document.getElementById('examTrackSelect').value;
 
-      setTimeout(() => {
-        if (mode === 'master_key_scan') {
-          processMasterKeyScan(canvas);
-        } else if (mode === 'school_eval') {
-          processSchoolEvaluation(canvas);
-        } else if (mode === 'gunotsav_lower') {
-          processLowerClassMulti(canvas);
-        } else {
-          processUpperStudentEvaluation(canvas);
-        }
+      if (mode === 'master_key_scan') {
+        processMasterKeyScan(canvas);
         isProcessing = false;
-      }, 100);
-    }
-
-    // Relative Bubble Evaluator (Immune to Shadows / Faint Print)
-    function readRowOption(ctx, y, startX, colWidth, radius) {
-      const opts = ['A', 'B', 'C', 'D'];
-      const optSpacing = colWidth / 4;
-      let darkestOpt = null;
-      let maxFill = 0;
-      let fills = [];
-
-      opts.forEach((opt, idx) => {
-        const x = startX + (idx * optSpacing) + (optSpacing / 2);
-        const imgData = ctx.getImageData(x - radius, y - radius, radius * 2, radius * 2);
-        const data = imgData.data;
-        let darkCount = 0;
-
-        for (let p = 0; p < data.length; p += 4) {
-          const luma = 0.299 * data[p] + 0.587 * data[p+1] + 0.114 * data[p+2];
-          if (luma < 110) darkCount++;
-        }
-
-        const area = (radius * 2) * (radius * 2);
-        const fillPct = darkCount / area;
-        fills.push(fillPct);
-
-        if (fillPct > maxFill) {
-          maxFill = fillPct;
-          darkestOpt = opt;
-        }
-      });
-
-      // Relative contrast rule: Must be >22% filled and notably darker than average row
-      const avgFill = fills.reduce((a, b) => a + b, 0) / 4;
-      if (maxFill > 0.22 && maxFill > (avgFill * 1.5)) {
-        return darkestOpt;
+        return;
       }
-      return null;
-    }
-
-    // Mode 1: Upper / Routine Student Evaluation
-    function processUpperStudentEvaluation(canvas) {
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      const w = canvas.width;
-      const h = canvas.height;
 
       const targetClass = document.getElementById('scanClassSelect').value;
       const classStudents = students.filter(s => s.class_level === targetClass);
 
-      // Frame bounds
-      const startX = w * 0.10;
-      const startY = h * 0.22;
-      const gridW = w * 0.80;
-      const gridH = h * 0.65;
+      try {
+        // PHASE 1: RECOGNIZE STUDENT
+        if (statusBadge) statusBadge.innerText = "Phase 1: Recognizing student...";
+        let identifiedStudent = null;
+        let identificationSource = "";
 
-      const numCols = totalQuestions > 30 ? 2 : 1;
-      const rowsPerCol = Math.ceil(totalQuestions / numCols);
-      const colWidth = gridW / numCols;
-      const rowHeight = gridH / rowsPerCol;
-      const radius = Math.max(4, Math.min(rowHeight, colWidth / 4) * 0.32);
-
-      let correct = 0;
-      let incorrect = 0;
-      let blank = 0;
-
-      for (let q = 1; q <= totalQuestions; q++) {
-        const colIdx = Math.floor((q - 1) / rowsPerCol);
-        const rowIdx = (q - 1) % rowsPerCol;
-
-        const y = startY + (rowIdx * rowHeight) + (rowHeight / 2);
-        const xCol = startX + (colIdx * colWidth);
-
-        const detected = readRowOption(ctx, y, xCol, colWidth, radius);
-        const key = masterKey[q];
-
-        if (!detected) {
-          blank++;
-        } else if (key && detected === key) {
-          correct++;
-        } else {
-          incorrect++;
+        // 1A. Hardware Barcode
+        if ('BarcodeDetector' in window) {
+          try {
+            const detector = new BarcodeDetector({ formats: ['code_128', 'code_39', 'ean_13', 'upc_a', 'qr_code'] });
+            const barcodes = await detector.detect(canvas);
+            if (barcodes.length > 0) {
+              const rawCode = barcodes[0].rawValue.trim();
+              const match = classStudents.find(s => String(s.unique_id).trim() === rawCode) ||
+                            students.find(s => String(s.unique_id).trim() === rawCode);
+              if (match) {
+                identifiedStudent = match;
+                identificationSource = `Barcode Verified: ${match.name} (${match.unique_id})`;
+              }
+            }
+          } catch(e) {
+            console.warn("Barcode read bypassed", e);
+          }
         }
-      }
 
-      let penalty = negEnabled ? (incorrect * negMark) : 0;
-      let mcqScore = Math.max(0, Math.round(((correct * marksPerQ) - penalty) * 10) / 10);
-      let skillScore = 12; // Gunotsav reading/writing default
+        // 1B. Fallback OCR Crop
+        if (!identifiedStudent && classStudents.length > 0) {
+          const nameCrop = document.createElement('canvas');
+          const nCtx = nameCrop.getContext('2d');
+          const cx = canvas.width * 0.22;
+          const cy = canvas.height * 0.24;
+          const cw = canvas.width * 0.53;
+          const ch = canvas.height * 0.09;
 
-      currentStudentEval = {
-        class_level: targetClass,
-        mcqScore: mcqScore,
-        maxMcq: totalQuestions * marksPerQ,
-        skillScore: skillScore,
-        maxSkill: 18,
-        correct: correct,
-        incorrect: incorrect,
-        penalty: penalty
-      };
+          nameCrop.width = cw;
+          nameCrop.height = ch;
+          nCtx.drawImage(canvas, cx, cy, cw, ch, 0, 0, cw, ch);
 
-      // Populate Modal
-      const studentSelect = document.getElementById('studentConfirmSelect');
-      studentSelect.innerHTML = '';
+          const imgData = nCtx.getImageData(0, 0, cw, ch);
+          const d = imgData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            const luma = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+            const val = luma < 120 ? 0 : 255;
+            d[i] = d[i+1] = d[i+2] = val;
+          }
+          nCtx.putImageData(imgData, 0, 0);
 
-      if (classStudents.length === 0) {
-        studentSelect.innerHTML = `<option value="">No students enrolled in ${targetClass}</option>`;
-      } else {
+          try {
+            const res = await Tesseract.recognize(nameCrop, 'eng');
+            const rawText = (res.data.text || '').toUpperCase().replace(/[^A-Z ]/g, '').trim();
+            if (rawText.length >= 3) {
+              const match = findNearestStudent(rawText, classStudents);
+              if (match && match.score >= 40) {
+                identifiedStudent = match.student;
+                identificationSource = `Name Matched: "${rawText}" (${match.score}% confidence)`;
+              }
+            }
+          } catch(ocrErr) {
+            console.warn("OCR skipped", ocrErr);
+          }
+        }
+
+        // PHASE 2: SCAN BUBBLE RESULTS
+        if (statusBadge) statusBadge.innerText = "Phase 2: Scanning bubbles...";
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const responses = evaluateBubbles(ctx, canvas.width, canvas.height);
+
+        let correct = 0;
+        let incorrect = 0;
+
+        for (let q = 1; q <= totalQuestions; q++) {
+          const sAns = responses[q];
+          const kAns = masterKey[q];
+          if (sAns && kAns) {
+            if (sAns === kAns) correct++;
+            else incorrect++;
+          }
+        }
+
+        const penalty = negEnabled ? (incorrect * negMark) : 0;
+        const mcqScore = Math.max(0, Math.round(((correct * marksPerQ) - penalty) * 10) / 10);
+        const skillScore = 12;
+
+        currentStudentEval = {
+          class_level: targetClass,
+          mcqScore: mcqScore,
+          maxMcq: totalQuestions * marksPerQ,
+          skillScore: skillScore,
+          maxSkill: 18,
+          correct: correct,
+          incorrect: incorrect,
+          penalty: penalty
+        };
+
+        // POPULATE VERIFICATION DIALOG
+        const studentSelect = document.getElementById('studentConfirmSelect');
+        studentSelect.innerHTML = '';
+
         classStudents.forEach(s => {
           const opt = document.createElement('option');
           opt.value = s.unique_id;
-          opt.textContent = `${s.name} (ID: ${s.unique_id}) - ${s.evaluated ? 'Already Evaluated' : 'Pending'}`;
+          opt.textContent = `${s.name} (${s.unique_id}) ${s.evaluated ? '[Evaluated]' : ''}`;
           studentSelect.appendChild(opt);
         });
+
+        if (identifiedStudent) {
+          studentSelect.value = identifiedStudent.unique_id;
+          document.getElementById('rawOcrText').innerText = identificationSource;
+        } else {
+          document.getElementById('rawOcrText').innerText = "Student not identified automatically. Confirm from list below:";
+        }
+
+        document.getElementById('modalMcqScoreInput').value = mcqScore;
+        document.getElementById('modalMaxMcqText').innerText = `/ ${currentStudentEval.maxMcq}`;
+        document.getElementById('modalSkillScoreInput').value = skillScore;
+        document.getElementById('modalBreakdownNote').innerText = `Correct: ${correct} | Incorrect: ${incorrect} | Penalty: -${penalty}`;
+
+        recalculateStudentTotals();
+        document.getElementById('studentVerifyModal').style.display = 'flex';
+
+      } finally {
+        isProcessing = false;
+        if (statusBadge) statusBadge.innerText = "Scan complete. Tap button to scan next.";
       }
-
-      document.getElementById('rawOcrText').innerText = `Sheet verified for ${targetClass} • ${correct} Correct Answers`;
-      document.getElementById('modalMcqScoreInput').value = mcqScore;
-      document.getElementById('modalMaxMcqText').innerText = `/ ${currentStudentEval.maxMcq}`;
-      document.getElementById('modalSkillScoreInput').value = skillScore;
-      document.getElementById('modalBreakdownNote').innerText = `Correct: ${correct} | Incorrect: ${incorrect} | Penalty: -${penalty}`;
-
-      recalculateStudentTotals();
-      document.getElementById('studentVerifyModal').style.display = 'flex';
     }
 
     function recalculateStudentTotals() {
       const mcq = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
       const skill = parseFloat(document.getElementById('modalSkillScoreInput').value) || 0;
       const totalEarned = mcq + skill;
-      const maxTotal = (currentStudentEval.maxMcq || 58) + (currentStudentEval.maxSkill || 18);
+      const maxTotal = (currentStudentEval?.maxMcq || 58) + (currentStudentEval?.maxSkill || 18);
       const pct = maxTotal > 0 ? Math.round((totalEarned / maxTotal) * 100) : 0;
-
       document.getElementById('modalCompositeScore').innerText = `${totalEarned} Marks (${pct}%)`;
     }
 
@@ -760,13 +668,13 @@
       const uid = studentSelect.value;
       if (!uid) return alert("Please select a student from the roster.");
 
-      const target = students.find(s => s.unique_id === uid);
+      const target = students.find(s => String(s.unique_id).trim() === String(uid).trim());
       if (!target) return alert("Student not found.");
 
       const mcq = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
       const skill = parseFloat(document.getElementById('modalSkillScoreInput').value) || 0;
       const totalEarned = mcq + skill;
-      const maxTotal = (currentStudentEval.maxMcq || 58) + (currentStudentEval.maxSkill || 18);
+      const maxTotal = (currentStudentEval?.maxMcq || 58) + (currentStudentEval?.maxSkill || 18);
       const pct = maxTotal > 0 ? Math.round((totalEarned / maxTotal) * 100) : 0;
 
       target.evaluated = true;
@@ -780,37 +688,16 @@
       closeAllModals();
     }
 
-    // Mode 2: Master Key Scan Mode
     function processMasterKeyScan(canvas) {
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      const w = canvas.width;
-      const h = canvas.height;
-
-      const startX = w * 0.10;
-      const startY = h * 0.22;
-      const gridW = w * 0.80;
-      const gridH = h * 0.65;
-
-      const numCols = totalQuestions > 30 ? 2 : 1;
-      const rowsPerCol = Math.ceil(totalQuestions / numCols);
-      const colWidth = gridW / numCols;
-      const rowHeight = gridH / rowsPerCol;
-      const radius = Math.max(4, Math.min(rowHeight, colWidth / 4) * 0.32);
-
+      const responses = evaluateBubbles(ctx, canvas.width, canvas.height);
       scannedMasterKeyMap = {};
       const container = document.getElementById('masterKeyDetectedList');
       container.innerHTML = '';
 
       for (let q = 1; q <= totalQuestions; q++) {
-        const colIdx = Math.floor((q - 1) / rowsPerCol);
-        const rowIdx = (q - 1) % rowsPerCol;
-
-        const y = startY + (rowIdx * rowHeight) + (rowHeight / 2);
-        const xCol = startX + (colIdx * colWidth);
-
-        const detected = readRowOption(ctx, y, xCol, colWidth, radius) || 'A';
+        const detected = responses[q] || 'A';
         scannedMasterKeyMap[q] = detected;
-
         container.innerHTML += `
           <div style="display:flex; justify-content:space-between; align-items:center; background:#121721; padding:4px 8px; border-radius:4px;">
             <span><b>Q${q}:</b></span>
@@ -820,138 +707,18 @@
           </div>
         `;
       }
-
       document.getElementById('masterKeyModal').style.display = 'flex';
     }
 
     function confirmAndSaveScannedKey() {
       localStorage.setItem('dhk_master_key', JSON.stringify(scannedMasterKeyMap));
       localStorage.setItem('dhk_total_questions', String(totalQuestions));
-      alert(`Master Answer Key (${totalQuestions} Questions) saved! Redirecting to Exam page...`);
+      alert(`Master Answer Key (${totalQuestions} Qs) saved! Redirecting to Exam page...`);
       window.location.href = 'exam.html';
-    }
-
-    // Mode 3: School Evaluation (24 Indicators)
-    function processSchoolEvaluation(canvas) {
-      currentSchoolEval = [];
-      let totalEarned = 0;
-      const maxTotal = INDICATOR_MAX_MARKS.reduce((a, b) => a + b, 0);
-
-      const listContainer = document.getElementById('indicatorsListContainer');
-      listContainer.innerHTML = '';
-
-      for (let i = 0; i < 24; i++) {
-        const maxMarks = INDICATOR_MAX_MARKS[i];
-        // Evaluate indicator
-        const score = Math.min(maxMarks, Math.round(maxMarks * 0.85));
-        totalEarned += score;
-        currentSchoolEval.push({ indicator: i + 1, score: score, max: maxMarks });
-
-        listContainer.innerHTML += `
-          <div class="indicator-row">
-            <span>Indicator ${i + 1} (Max: ${maxMarks})</span>
-            <input type="number" class="score-input" value="${score}" min="0" max="${maxMarks}" onchange="recalculateSchoolEvalTotal()">
-          </div>
-        `;
-      }
-
-      const pct = Math.round((totalEarned / maxTotal) * 100);
-      document.getElementById('schoolTotalScoreText').innerText = `${totalEarned} / ${maxTotal} Marks (${pct}%)`;
-      document.getElementById('schoolEvalModal').style.display = 'flex';
-    }
-
-    function recalculateSchoolEvalTotal() {
-      const inputs = document.querySelectorAll('#indicatorsListContainer input');
-      let sum = 0;
-      const maxTotal = INDICATOR_MAX_MARKS.reduce((a, b) => a + b, 0);
-
-      inputs.forEach((inp, idx) => {
-        let val = parseFloat(inp.value) || 0;
-        val = Math.max(0, Math.min(INDICATOR_MAX_MARKS[idx], val));
-        inp.value = val;
-        sum += val;
-      });
-
-      const pct = Math.round((sum / maxTotal) * 100);
-      document.getElementById('schoolTotalScoreText').innerText = `${sum} / ${maxTotal} Marks (${pct}%)`;
-    }
-
-    function confirmAndSaveSchoolEval() {
-      const inputs = document.querySelectorAll('#indicatorsListContainer input');
-      let sum = 0;
-      inputs.forEach(inp => sum += parseFloat(inp.value) || 0);
-
-      const schoolData = {
-        score: sum,
-        maxScore: 72,
-        evaluatedDate: new Date().toLocaleDateString()
-      };
-      localStorage.setItem('dhk_school_eval_data', JSON.stringify(schoolData));
-      alert("Gunotsav School Evaluation (24 Indicators) saved successfully!");
-      closeAllModals();
-    }
-
-    // Mode 4: Class 1 & 2 Multi-Student (LO 1–30)
-    function processLowerClassMulti(canvas) {
-      const targetClass = document.getElementById('scanClassSelect').value;
-      const classStudents = students.filter(s => s.class_level === targetClass);
-
-      const listContainer = document.getElementById('multiStudentReviewList');
-      listContainer.innerHTML = '';
-      currentMultiEval = [];
-
-      const studentsToScore = classStudents.slice(0, 10);
-      if (studentsToScore.length === 0) {
-        listContainer.innerHTML = `<div style="padding: 12px; color: #a0aec0; text-align: center;">No students found in ${targetClass}.</div>`;
-      } else {
-        studentsToScore.forEach((s, idx) => {
-          const loScore = 24; // Simulated LO pass count
-          currentMultiEval.push({ uid: s.unique_id, score: loScore });
-
-          listContainer.innerHTML += `
-            <div class="indicator-row">
-              <div>
-                <b>${s.name}</b><br>
-                <span style="font-size: 10px; color: #a0aec0;">ID: ${s.unique_id}</span>
-              </div>
-              <div>
-                <input type="number" class="score-input" value="${loScore}" min="0" max="30" onchange="updateMultiStudentVal('${s.unique_id}', this.value)">
-                <span>/ 30 LO</span>
-              </div>
-            </div>
-          `;
-        });
-      }
-
-      document.getElementById('lowerClassModal').style.display = 'flex';
-    }
-
-    function updateMultiStudentVal(uid, val) {
-      const item = currentMultiEval.find(m => m.uid === uid);
-      if (item) item.score = Math.max(0, Math.min(30, parseFloat(val) || 0));
-    }
-
-    function confirmAndSaveMultiStudentRoster() {
-      currentMultiEval.forEach(evalItem => {
-        const st = students.find(s => s.unique_id === evalItem.uid);
-        if (st) {
-          st.evaluated = true;
-          st.mcq_marks = evalItem.score;
-          st.subj_marks = 0;
-          st.total_marks = evalItem.score;
-          st.score = Math.round((evalItem.score / 30) * 100);
-        }
-      });
-
-      localStorage.setItem('dhk_students', JSON.stringify(students));
-      alert("Batch evaluation saved for Class 1 & 2 students!");
-      closeAllModals();
     }
 
     function closeAllModals() {
       document.getElementById('studentVerifyModal').style.display = 'none';
-      document.getElementById('schoolEvalModal').style.display = 'none';
-      document.getElementById('lowerClassModal').style.display = 'none';
       document.getElementById('masterKeyModal').style.display = 'none';
       resetScanState();
     }
@@ -969,7 +736,14 @@
     }
 
     window.onload = () => {
-      checkUrlMode();
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('mode') === 'master_key') {
+        document.getElementById('examTrackSelect').value = 'master_key_scan';
+        if (urlParams.get('totalQ')) {
+          totalQuestions = parseInt(urlParams.get('totalQ')) || totalQuestions;
+        }
+      }
+      syncClassDropdown();
       startCamera();
     };
   </script>
