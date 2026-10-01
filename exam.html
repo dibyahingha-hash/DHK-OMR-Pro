@@ -2,404 +2,312 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DHK OMR Pro • Exam & Key</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DHK OMR Pro - Master Key & Marking</title>
   <style>
     :root {
-      --bg: #121721; --card: #1e2635; --header: #1a2230;
-      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030; --gold: #ecc94b;
-      --text: #f0f4f8; --sub: #a0aec0; --border: #2d3748;
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-blue: #2563eb;
+      --accent-green: #16a34a;
+      --accent-red: #dc2626;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding-bottom: 50px; }
+    body { background: var(--bg-dark); color: var(--text-main); padding: 12px; }
 
-    header { background: var(--header); padding: 12px 14px; border-bottom: 1px solid var(--border); }
-    .app-name { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
-    .nav-links { display: flex; gap: 6px; overflow-x: auto; }
-    .nav-btn {
-      flex: 1; text-align: center; padding: 8px 10px; border-radius: 6px;
-      font-size: 12px; font-weight: bold; text-decoration: none;
-      background: var(--card); color: var(--sub); border: 1px solid var(--border); white-space: nowrap;
-    }
-    .nav-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+    /* Nav */
+    .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; }
+    .nav-title { font-size: 1.1rem; font-weight: 700; color: #fff; }
+    .nav-tabs { display: flex; gap: 6px; overflow-x: auto; }
+    .nav-tab { background: #1e293b; border: 1px solid var(--card-border); color: var(--text-muted); padding: 6px 10px; border-radius: 6px; text-decoration: none; font-size: 0.8rem; white-space: nowrap; }
+    .nav-tab.active { background: #1d4ed8; color: #fff; border-color: #3b82f6; }
 
-    .container { padding: 14px; max-width: 650px; margin: 0 auto; }
-    .card { background: var(--card); border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid var(--border); }
-    .card h3 { font-size: 15px; margin-bottom: 10px; color: var(--gold); }
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+    .card-title { font-size: 0.95rem; font-weight: 700; color: #facc15; margin-bottom: 12px; }
 
-    .btn {
-      width: 100%; padding: 11px 12px; border-radius: 8px; border: none;
-      font-weight: bold; font-size: 13px; color: #fff; cursor: pointer; text-align: center; margin-bottom: 8px;
-    }
-    .btn-green { background: var(--green); }
-    .btn-blue { background: var(--blue); }
-    .btn-orange { background: var(--orange); }
-    .btn-red { background: var(--red); }
-    .btn-gray { background: #4a5568; }
+    /* Controls Grid */
+    .control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .input-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+    .input-group input, .input-group select { width: 100%; background: #0f172a; border: 1px solid var(--card-border); color: #fff; padding: 8px; border-radius: 6px; font-size: 0.85rem; }
 
-    .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .form-group label { font-size: 13px; color: var(--sub); }
-    .form-group select, .form-group input {
-      width: 190px; padding: 7px 10px; background: var(--header);
-      border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
-    }
+    /* Tab Switcher for Key Entry (Resolves Issue #4) */
+    .key-mode-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .key-mode-btn { flex: 1; padding: 8px; font-size: 0.8rem; background: #0f172a; color: var(--text-muted); border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; text-align: center; }
+    .key-mode-btn.active { background: #2563eb; color: #fff; border-color: #3b82f6; font-weight: 600; }
 
-    .key-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 8px; max-height: 480px; overflow-y: auto; padding: 6px; background: var(--header);
-      border: 1px solid var(--border); border-radius: 6px; margin-bottom: 14px;
-    }
-    .key-row {
-      display: flex; align-items: center; justify-content: space-between;
-      background: var(--card); padding: 6px 8px; border-radius: 4px; border: 1px solid var(--border);
-    }
-    .key-num { font-size: 12px; font-weight: bold; width: 34px; color: var(--sub); }
-    .bubble-opts { display: flex; gap: 4px; }
-    .bubble-opt {
-      width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center; font-size: 10px;
-      font-weight: bold; cursor: pointer; background: var(--header); color: var(--sub);
-      user-select: none;
-    }
-    .bubble-opt.selected { background: var(--blue); color: #fff; border-color: #63b3ed; }
+    /* Bubble Matrix */
+    .matrix-container { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 480px; overflow-y: auto; padding: 4px; }
+    .q-row { display: flex; align-items: center; justify-content: space-between; background: #0f172a; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--card-border); }
+    .q-num { font-size: 0.8rem; font-weight: 600; width: 32px; }
+    .bubble-group { display: flex; gap: 6px; }
+    .bubble { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #475569; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #cbd5e1; cursor: pointer; }
+    .bubble.selected { background: #2563eb; border-color: #38bdf8; color: #fff; font-weight: 700; }
 
-    .stat-pill {
-      background: #16202e; border: 1px solid var(--border); border-radius: 6px;
-      padding: 10px; margin-bottom: 12px; font-size: 13px; line-height: 1.5;
-    }
+    /* Bottom Action Buttons */
+    .action-row { display: flex; gap: 8px; margin-top: 14px; }
+    .btn { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: 700; font-size: 0.85rem; cursor: pointer; text-align: center; }
+    .btn-green { background: var(--accent-green); color: #fff; }
+    .btn-red { background: var(--accent-red); color: #fff; }
+    .btn-blue { background: var(--accent-blue); color: #fff; width: 100%; margin-top: 8px; }
 
-    /* Print View for A4 Universal OMR Sheet */
+    /* PRINT SHEET AREA (Strictly formatted for A4 Universal OMR) */
+    #printableOmrArea { display: none; background: #fff; color: #000; padding: 15mm 10mm; }
+    
     @media print {
       body * { visibility: hidden; }
-      #printableOmrSheet, #printableOmrSheet * { visibility: visible; }
-      #printableOmrSheet {
-        position: absolute; left: 0; top: 0; width: 100%;
-        color: #000 !important; background: #fff !important; padding: 20px;
+      #printableOmrArea, #printableOmrArea * { visibility: visible; }
+      #printableOmrArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        display: block !important;
       }
     }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="app-name">
-      <span>DHK OMR Pro</span>
-      <span style="font-size: 12px; color: #63b3ed;">Exam & Key</span>
-    </div>
-    <div class="nav-links">
-      <a href="index.html" class="nav-btn">👥 Roster</a>
-      <a href="exam.html" class="nav-btn active">📝 Exam & Key</a>
-      <a href="scan.html" class="nav-btn">📷 Scanner</a>
-      <a href="grade.html" class="nav-btn">🏆 Grade Card</a>
-    </div>
-  </header>
-
-  <div class="container">
-    <!-- EXAM SETUP CARD -->
-    <div class="card">
-      <h3>1. Examination Setup & Questions ($1 \dots 100$)</h3>
-
-      <div class="form-group">
-        <label>Exam Name / Subject:</label>
-        <input type="text" id="examSubjectInput" placeholder="e.g. Gunotsav Math / Unit Test" value="Gunotsav Assessment">
-      </div>
-
-      <div class="form-group">
-        <label>Total Questions ($N$):</label>
-        <select id="questionCountSelect" onchange="handleQuestionCountChange()">
-          <option value="10">10 Questions</option>
-          <option value="20">20 Questions</option>
-          <option value="25">25 Questions</option>
-          <option value="30">30 Questions</option>
-          <option value="40">40 Questions</option>
-          <option value="50">50 Questions</option>
-          <option value="58" selected>58 Questions (Gunotsav Standard)</option>
-          <option value="60">60 Questions</option>
-          <option value="75">75 Questions</option>
-          <option value="80">80 Questions</option>
-          <option value="100">100 Questions (High School / Mock)</option>
-          <option value="custom">Custom Count...</option>
-        </select>
-      </div>
-
-      <div class="form-group" id="customCountRow" style="display: none;">
-        <label>Enter Custom Questions (1–100):</label>
-        <input type="number" id="customCountInput" min="1" max="100" value="58" onchange="renderKeyGrid()">
-      </div>
-    </div>
-
-    <!-- MARKING SCHEME CARD -->
-    <div class="card">
-      <h3>2. Marking Scheme & Penalties</h3>
-
-      <div class="form-group">
-        <label>Marks per Correct Question:</label>
-        <input type="number" id="marksPerQInput" min="0.5" step="0.5" value="1" onchange="updateSummaryStats()">
-      </div>
-
-      <div class="form-group">
-        <label>Negative Marking:</label>
-        <select id="negMarkToggle" onchange="toggleNegativeMarking()">
-          <option value="off" selected>OFF (No Penalty / Normal)</option>
-          <option value="on">ON (Deduct per Wrong Answer)</option>
-        </select>
-      </div>
-
-      <div class="form-group" id="negDeductionRow" style="display: none;">
-        <label>Penalty per Incorrect Answer:</label>
-        <select id="negPenaltySelect" onchange="updateSummaryStats()">
-          <option value="0.25">-0.25 (1/4 Mark)</option>
-          <option value="0.33">-0.33 (1/3 Mark)</option>
-          <option value="0.50">-0.50 (1/2 Mark)</option>
-          <option value="1.00">-1.00 (Full 1 Mark)</option>
-        </select>
-      </div>
-
-      <div class="stat-pill" id="examSummaryText">
-        Total Questions: <b>58</b> | Marks Per Correct: <b>1</b> | Max MCQ Marks: <b>58</b><br>
-        Negative Marking: <b style="color: #68d391;">OFF</b>
-      </div>
-    </div>
-
-    <!-- MASTER ANSWER KEY CARD -->
-    <div class="card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h3 style="margin: 0;">3. Master Benchmark Key</h3>
-        <span id="keyStatusBadge" style="font-size: 11px; padding: 3px 8px; border-radius: 4px; background: #2d3748; color: #a0aec0;">Unlocked</span>
-      </div>
-
-      <div class="key-grid" id="keyGridContainer"></div>
-
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-green" style="flex: 2;" onclick="lockAndSaveMasterKey()">🔒 Lock Master Answer Key</button>
-        <button class="btn btn-red" style="flex: 1;" onclick="clearMasterKey()">Reset Key</button>
-      </div>
-      <button class="btn btn-blue" onclick="printBlankSheet()">🖨️ Print Universal OMR Sheet ($N$ Questions)</button>
+  <div class="nav-bar">
+    <div class="nav-title">DHK OMR Pro</div>
+    <div class="nav-tabs">
+      <a href="index.html" class="nav-tab">👤 Roster</a>
+      <a href="exam.html" class="nav-tab active">📝 Exam & Key</a>
+      <a href="scan.html" class="nav-tab">📷 Scanner</a>
+      <a href="grade.html" class="nav-tab">🏆 Grade Card</a>
     </div>
   </div>
 
-  <!-- HIDDEN PRINTABLE CONTAINER FOR A4 UNIVERSAL SHEET -->
-  <div id="printableOmrSheet" style="display: none;"></div>
+  <!-- 1. Exam Metadata & Scheme -->
+  <div class="card">
+    <div class="card-title">1. Examination Setup</div>
+    <div class="control-grid">
+      <div class="input-group">
+        <label for="examTitle">Exam Title / Subject</label>
+        <input type="text" id="examTitle" value="Annual Examination">
+      </div>
+      <div class="input-group">
+        <label for="totalQuestions">Total Questions (1-100)</label>
+        <input type="number" id="totalQuestions" min="1" max="100" value="50" onchange="buildQuestionMatrix()">
+      </div>
+      <div class="input-group">
+        <label for="posMark">Marks per Correct (+)</label>
+        <input type="number" id="posMark" step="0.5" value="1">
+      </div>
+      <div class="input-group">
+        <label for="negMark">Negative Marks (-)</label>
+        <input type="number" id="negMark" step="0.25" value="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Master Key Setup (Manual or Scan) -->
+  <div class="card">
+    <div class="card-title" style="display: flex; justify-content: space-between;">
+      <span>2. Master Benchmark Key</span>
+      <span id="lockBadge" style="color: #4ade80; font-size: 0.8rem;">Unlocked</span>
+    </div>
+
+    <!-- Dual Switcher -->
+    <div class="key-mode-tabs">
+      <button class="key-mode-btn active" id="tabManual" onclick="switchKeyMode('manual')">📱 Manual Tap Matrix</button>
+      <button class="key-mode-btn" id="tabScan" onclick="switchKeyMode('scan')">📷 Scan Filled Master Sheet</button>
+    </div>
+
+    <!-- Matrix View -->
+    <div id="manualMatrixContainer" class="matrix-container">
+      <!-- Injected Rows -->
+    </div>
+
+    <!-- Scan Master View -->
+    <div id="scanMasterContainer" style="display: none; padding: 20px; text-align: center;">
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+        Point camera at a pre-filled Master OMR sheet to automatically extract all answers without tapping.
+      </p>
+      <button class="btn btn-blue" onclick="launchMasterKeyScanner()">📷 Open Master Sheet Camera Scanner</button>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-green" onclick="lockMasterKey()">🔒 Lock Master Answer Key</button>
+      <button class="btn btn-red" onclick="resetMasterKey()">Reset Key</button>
+    </div>
+    
+    <!-- Dynamic Print Button (Fixes unparsed $N$) -->
+    <button class="btn btn-blue" id="printOmrBtn" onclick="triggerUniversalOmrPrint()">
+      🖨️ Print Universal OMR Sheet (50 Qs)
+    </button>
+  </div>
+
+  <!-- PRINTABLE OMR TEMPLATE (Resolves Issue #3 Blank Print) -->
+  <div id="printableOmrArea">
+    <!-- 4 Fiducial Alignment Markers for Scanning -->
+    <div style="display: flex; justify-content: space-between;">
+      <div style="width: 22px; height: 22px; background: #000;"></div>
+      <div style="text-align: center;">
+        <h2 id="printSchoolHeader" style="margin: 0; font-size: 16pt;">UNIVERSAL OMR EVALUATION SHEET</h2>
+        <p id="printExamHeader" style="margin: 4px 0 0 0; font-size: 11pt;">Annual Examination</p>
+      </div>
+      <div style="width: 22px; height: 22px; background: #000;"></div>
+    </div>
+
+    <!-- Student Metadata Fill Area -->
+    <div style="display: flex; justify-content: space-between; border: 1px solid #000; padding: 8px; margin: 12px 0;">
+      <div><strong>STUDENT NAME:</strong> _________________________________</div>
+      <div><strong>CLASS:</strong> ______</div>
+      <div><strong>ROLL NO:</strong> ______</div>
+    </div>
+
+    <!-- Bubbles Grid for Print -->
+    <div id="printSheetQuestions" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 10pt;">
+      <!-- Populated via JS -->
+    </div>
+
+    <!-- Bottom Alignment Markers -->
+    <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+      <div style="width: 22px; height: 22px; background: #000;"></div>
+      <span style="font-size: 8pt; color: #555;">DHK OMR PRO ENGINE • SECURE ASSESSMENT SHEET</span>
+      <div style="width: 22px; height: 22px; background: #000;"></div>
+    </div>
+  </div>
 
   <script>
-    let currentKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
-    let totalQuestions = parseInt(localStorage.getItem('dhk_total_questions') || '58');
-    let marksPerQ = parseFloat(localStorage.getItem('dhk_marks_per_q') || '1');
-    let negEnabled = localStorage.getItem('dhk_neg_enabled') === 'true';
-    let negMark = parseFloat(localStorage.getItem('dhk_neg_mark') || '0.25');
+    let masterKeyMap = {};
+    const OPTIONS = ['A', 'B', 'C', 'D'];
 
-    function initPage() {
-      // Sync UI with saved settings
-      document.getElementById('marksPerQInput').value = marksPerQ;
-      document.getElementById('negMarkToggle').value = negEnabled ? 'on' : 'off';
-      document.getElementById('negPenaltySelect').value = String(negMark);
-      toggleNegativeMarking();
-
-      const selectEl = document.getElementById('questionCountSelect');
-      const standardVals = ['10','20','25','30','40','50','58','60','75','80','100'];
-      if (standardVals.includes(String(totalQuestions))) {
-        selectEl.value = String(totalQuestions);
-      } else {
-        selectEl.value = 'custom';
-        document.getElementById('customCountRow').style.display = 'flex';
-        document.getElementById('customCountInput').value = totalQuestions;
+    function loadSavedKey() {
+      const saved = localStorage.getItem('dhk_master_key');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          document.getElementById('examTitle').value = parsed.title || 'Annual Examination';
+          document.getElementById('totalQuestions').value = parsed.totalQ || 50;
+          document.getElementById('posMark').value = parsed.scheme ? parsed.scheme.pos : 1;
+          document.getElementById('negMark').value = parsed.scheme ? parsed.scheme.neg : 0;
+          masterKeyMap = parsed.keys || {};
+          document.getElementById('lockBadge').innerText = `Locked (${Object.keys(masterKeyMap).length} Qs)`;
+          document.getElementById('lockBadge').style.color = '#4ade80';
+        } catch (e) {
+          console.error("Error reading key", e);
+        }
       }
-
-      renderKeyGrid();
-      updateSummaryStats();
-      checkKeyLockStatus();
+      buildQuestionMatrix();
     }
 
-    function handleQuestionCountChange() {
-      const val = document.getElementById('questionCountSelect').value;
-      if (val === 'custom') {
-        document.getElementById('customCountRow').style.display = 'flex';
-        totalQuestions = parseInt(document.getElementById('customCountInput').value) || 58;
-      } else {
-        document.getElementById('customCountRow').style.display = 'none';
-        totalQuestions = parseInt(val);
-      }
-      renderKeyGrid();
-      updateSummaryStats();
-    }
-
-    function toggleNegativeMarking() {
-      const mode = document.getElementById('negMarkToggle').value;
-      document.getElementById('negDeductionRow').style.display = mode === 'on' ? 'flex' : 'none';
-      updateSummaryStats();
-    }
-
-    function updateSummaryStats() {
-      if (document.getElementById('questionCountSelect').value === 'custom') {
-        totalQuestions = parseInt(document.getElementById('customCountInput').value) || 58;
-      }
-      marksPerQ = parseFloat(document.getElementById('marksPerQInput').value) || 1;
-      negEnabled = document.getElementById('negMarkToggle').value === 'on';
-      negMark = parseFloat(document.getElementById('negPenaltySelect').value) || 0.25;
-
-      const maxMcq = Math.round(totalQuestions * marksPerQ * 100) / 100;
-      const negText = negEnabled ? `<b style="color: #fc8181;">ON (-${negMark} per wrong answer)</b>` : `<b style="color: #68d391;">OFF</b>`;
-
-      document.getElementById('examSummaryText').innerHTML = `
-        Total Questions: <b>${totalQuestions}</b> | Marks Per Correct: <b>${marksPerQ}</b> | Max MCQ Marks: <b>${maxMcq}</b><br>
-        Negative Marking: ${negText}
-      `;
-    }
-
-    function renderKeyGrid() {
-      if (document.getElementById('questionCountSelect').value === 'custom') {
-        totalQuestions = Math.min(100, Math.max(1, parseInt(document.getElementById('customCountInput').value) || 58));
-      }
-
-      const container = document.getElementById('keyGridContainer');
+    function buildQuestionMatrix() {
+      const total = parseInt(document.getElementById('totalQuestions').value) || 50;
+      const container = document.getElementById('manualMatrixContainer');
       container.innerHTML = '';
 
-      for (let q = 1; q <= totalQuestions; q++) {
-        const savedAns = currentKey[q] || '';
-        let optsHtml = '';
-        ['A','B','C','D'].forEach(opt => {
-          const isSelected = savedAns === opt ? 'selected' : '';
-          optsHtml += `<div class="bubble-opt ${isSelected}" onclick="setAnswer(${q}, '${opt}')">${opt}</div>`;
+      for (let i = 1; i <= total; i++) {
+        const row = document.createElement('div');
+        row.className = 'q-row';
+        
+        let bubblesHtml = '';
+        OPTIONS.forEach(opt => {
+          const isSelected = masterKeyMap[i] === opt;
+          bubblesHtml += `<div class="bubble ${isSelected ? 'selected' : ''}" onclick="selectBubble(${i}, '${opt}', this)">${opt}</div>`;
         });
 
-        container.innerHTML += `
-          <div class="key-row">
-            <span class="key-num">Q${q}</span>
-            <div class="bubble-opts" id="q_row_${q}">${optsHtml}</div>
-          </div>
+        row.innerHTML = `<span class="q-num">Q${i}</span><div class="bubble-group">${bubblesHtml}</div>`;
+        container.appendChild(row);
+      }
+      // Update dynamic print button text
+      document.getElementById('printOmrBtn').innerText = `🖨️ Print Universal OMR Sheet (${total} Qs)`;
+    }
+
+    function selectBubble(qNum, opt, el) {
+      const parent = el.parentNode;
+      parent.querySelectorAll('.bubble').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+      masterKeyMap[qNum] = opt;
+    }
+
+    function switchKeyMode(mode) {
+      if (mode === 'manual') {
+        document.getElementById('tabManual').classList.add('active');
+        document.getElementById('tabScan').classList.remove('active');
+        document.getElementById('manualMatrixContainer').style.display = 'grid';
+        document.getElementById('scanMasterContainer').style.display = 'none';
+      } else {
+        document.getElementById('tabScan').classList.add('active');
+        document.getElementById('tabManual').classList.remove('active');
+        document.getElementById('manualMatrixContainer').style.display = 'none';
+        document.getElementById('scanMasterContainer').style.display = 'block';
+      }
+    }
+
+    function launchMasterKeyScanner() {
+      // Save exam meta first
+      saveDraftScheme();
+      // Redirect to scanner with query param
+      window.location.href = `scan.html?mode=master_key&totalQ=${document.getElementById('totalQuestions').value}`;
+    }
+
+    function saveDraftScheme() {
+      const data = {
+        title: document.getElementById('examTitle').value,
+        totalQ: parseInt(document.getElementById('totalQuestions').value) || 50,
+        scheme: {
+          pos: parseFloat(document.getElementById('posMark').value) || 1,
+          neg: parseFloat(document.getElementById('negMark').value) || 0
+        },
+        keys: masterKeyMap
+      };
+      localStorage.setItem('dhk_master_key', JSON.stringify(data));
+    }
+
+    function lockMasterKey() {
+      saveDraftScheme();
+      document.getElementById('lockBadge').innerText = `Locked (${Object.keys(masterKeyMap).length} Qs)`;
+      alert("Master Answer Key locked successfully into offline storage!");
+    }
+
+    function resetMasterKey() {
+      if (!confirm("Reset all selected answers?")) return;
+      masterKeyMap = {};
+      buildQuestionMatrix();
+      document.getElementById('lockBadge').innerText = "Unlocked";
+      document.getElementById('lockBadge').style.color = "#f87171";
+      localStorage.removeItem('dhk_master_key');
+    }
+
+    function triggerUniversalOmrPrint() {
+      const total = parseInt(document.getElementById('totalQuestions').value) || 50;
+      const schoolInfo = JSON.parse(localStorage.getItem('dhk_school_info')) || {};
+      
+      document.getElementById('printSchoolHeader').innerText = (schoolInfo.name || "UNIVERSAL OMR EVALUATION SHEET").toUpperCase();
+      document.getElementById('printExamHeader').innerText = document.getElementById('examTitle').value;
+
+      const printQContainer = document.getElementById('printSheetQuestions');
+      printQContainer.innerHTML = '';
+
+      for (let i = 1; i <= total; i++) {
+        const item = document.createElement('div');
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
+        item.style.justifyContent = 'space-between';
+        item.style.padding = '2px 0';
+        item.style.borderBottom = '1px dotted #ccc';
+
+        item.innerHTML = `
+          <strong>${i}.</strong>
+          <span style="display:flex; gap:6px;">
+            <span style="display:inline-block; width:16px; height:16px; border:1px solid #000; border-radius:50%; text-align:center; font-size:8pt; line-height:16px;">A</span>
+            <span style="display:inline-block; width:16px; height:16px; border:1px solid #000; border-radius:50%; text-align:center; font-size:8pt; line-height:16px;">B</span>
+            <span style="display:inline-block; width:16px; height:16px; border:1px solid #000; border-radius:50%; text-align:center; font-size:8pt; line-height:16px;">C</span>
+            <span style="display:inline-block; width:16px; height:16px; border:1px solid #000; border-radius:50%; text-align:center; font-size:8pt; line-height:16px;">D</span>
+          </span>
         `;
-      }
-    }
-
-    function setAnswer(q, opt) {
-      if (currentKey[q] === opt) {
-        delete currentKey[q];
-      } else {
-        currentKey[q] = opt;
+        printQContainer.appendChild(item);
       }
 
-      // Re-render single row
-      const rowContainer = document.getElementById(`q_row_${q}`);
-      if (rowContainer) {
-        let optsHtml = '';
-        ['A','B','C','D'].forEach(o => {
-          const isSelected = currentKey[q] === o ? 'selected' : '';
-          optsHtml += `<div class="bubble-opt ${isSelected}" onclick="setAnswer(${q}, '${o}')">${o}</div>`;
-        });
-        rowContainer.innerHTML = optsHtml;
-      }
-    }
-
-    function lockAndSaveMasterKey() {
-      updateSummaryStats();
-
-      // Ensure key belongs to active range
-      const cleanedKey = {};
-      for (let q = 1; q <= totalQuestions; q++) {
-        if (currentKey[q]) cleanedKey[q] = currentKey[q];
-      }
-
-      currentKey = cleanedKey;
-      localStorage.setItem('dhk_master_key', JSON.stringify(currentKey));
-      localStorage.setItem('dhk_total_questions', String(totalQuestions));
-      localStorage.setItem('dhk_marks_per_q', String(marksPerQ));
-      localStorage.setItem('dhk_neg_enabled', String(negEnabled));
-      localStorage.setItem('dhk_neg_mark', String(negMark));
-
-      const countSet = Object.keys(currentKey).length;
-      checkKeyLockStatus();
-      alert(`Master Answer Key locked successfully!\nTotal Questions: ${totalQuestions}\nAnswered in Key: ${countSet}/${totalQuestions}\nMax Marks: ${totalQuestions * marksPerQ}`);
-    }
-
-    function checkKeyLockStatus() {
-      const badge = document.getElementById('keyStatusBadge');
-      const hasKey = Object.keys(currentKey).length > 0;
-      if (hasKey) {
-        badge.innerText = `Locked (${Object.keys(currentKey).length} Qs)`;
-        badge.style.background = '#22543d';
-        badge.style.color = '#9ae6b4';
-      } else {
-        badge.innerText = 'Unlocked / Empty';
-        badge.style.background = '#2d3748';
-        badge.style.color = '#a0aec0';
-      }
-    }
-
-    function clearMasterKey() {
-      if (confirm("Reset answer key for all questions?")) {
-        currentKey = {};
-        localStorage.removeItem('dhk_master_key');
-        renderKeyGrid();
-        checkKeyLockStatus();
-      }
-    }
-
-    /* Print Generator for Universal A4 OMR Sheets */
-    function printBlankSheet() {
-      const subject = document.getElementById('examSubjectInput').value || 'Evaluation Assessment';
-      const container = document.getElementById('printableOmrSheet');
-
-      let colsHtml = '';
-      const questionsPerCol = 25;
-      const numCols = Math.ceil(totalQuestions / questionsPerCol);
-
-      for (let c = 0; c < numCols; c++) {
-        let colItems = '';
-        const startQ = c * questionsPerCol + 1;
-        const endQ = Math.min(totalQuestions, (c + 1) * questionsPerCol);
-
-        for (let q = startQ; q <= endQ; q++) {
-          colItems += `
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 11px;">
-              <b style="width: 24px;">Q${q}</b>
-              <div style="display: flex; gap: 8px;">
-                <span style="width: 16px; height: 16px; border: 1.5px solid #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold;">A</span>
-                <span style="width: 16px; height: 16px; border: 1.5px solid #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold;">B</span>
-                <span style="width: 16px; height: 16px; border: 1.5px solid #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold;">C</span>
-                <span style="width: 16px; height: 16px; border: 1.5px solid #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold;">D</span>
-              </div>
-            </div>
-          `;
-        }
-
-        colsHtml += `<div style="flex: 1; border: 1px solid #333; padding: 10px; border-radius: 6px;">${colItems}</div>`;
-      }
-
-      container.innerHTML = `
-        <div style="border: 4px solid #000; padding: 18px; font-family: sans-serif; position: relative;">
-          <!-- Top Fiducial Markers -->
-          <div style="position: absolute; top: 8px; left: 8px; width: 18px; height: 18px; background: #000;"></div>
-          <div style="position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; background: #000;"></div>
-
-          <div style="text-align: center; margin-bottom: 14px; border-bottom: 2px solid #000; padding-bottom: 8px;">
-            <h2 style="margin: 0; font-size: 18px; text-transform: uppercase;">DHK OMR PRO • ASSESSMENT SHEET</h2>
-            <div style="font-size: 12px; margin-top: 4px;"><b>Subject / Exam:</b> ${subject} | <b>Max Questions:</b> ${totalQuestions}</div>
-          </div>
-
-          <!-- Student Meta Area -->
-          <div style="display: flex; gap: 12px; margin-bottom: 14px; font-size: 12px;">
-            <div style="flex: 2; border: 1px solid #000; padding: 8px;"><b>STUDENT NAME:</b> ___________________________</div>
-            <div style="flex: 1; border: 1px solid #000; padding: 8px;"><b>CLASS:</b> ________ <b>SEC:</b> ____</div>
-            <div style="flex: 1.5; border: 1px solid #000; padding: 8px;"><b>STUDENT ID:</b> ________________</div>
-          </div>
-
-          <!-- MCQ Grid -->
-          <div style="display: flex; gap: 12px; margin-bottom: 14px;">
-            ${colsHtml}
-          </div>
-
-          <!-- Bottom Fiducial Markers -->
-          <div style="position: absolute; bottom: 8px; left: 8px; width: 18px; height: 18px; background: #000;"></div>
-          <div style="position: absolute; bottom: 8px; right: 8px; width: 18px; height: 18px; background: #000;"></div>
-        </div>
-      `;
-
-      container.style.display = 'block';
       window.print();
-      container.style.display = 'none';
     }
 
-    initPage();
+    window.onload = loadSavedKey;
   </script>
 </body>
 </html>
