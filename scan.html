@@ -8,11 +8,11 @@
   <style>
     :root {
       --bg: #121721; --card: #1e2635; --header: #1a2230;
-      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030;
+      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030; --gold: #ecc94b;
       --text: #f0f4f8; --sub: #a0aec0; --border: #2d3748;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding-bottom: 30px; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 40px; }
 
     header { background: var(--header); padding: 12px 14px; border-bottom: 1px solid var(--border); }
     .app-name { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
@@ -26,8 +26,7 @@
 
     .container { padding: 14px; max-width: 650px; margin: 0 auto; }
     .card { background: var(--card); border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid var(--border); }
-    .card h3 { font-size: 15px; margin-bottom: 6px; }
-    .instruction { font-size: 12px; color: var(--sub); margin-bottom: 12px; line-height: 1.4; }
+    .card h3 { font-size: 15px; margin-bottom: 8px; }
 
     .btn {
       width: 100%; padding: 12px; border-radius: 8px; border: none;
@@ -35,53 +34,66 @@
     }
     .btn-green { background: var(--green); }
     .btn-blue { background: var(--blue); }
-    .btn-orange { background: var(--orange); }
+    .btn-red { background: var(--red); }
     .btn-gray { background: #4a5568; }
 
     .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .form-group label { font-size: 13px; color: var(--sub); }
-    .form-group select, .form-group input {
-      width: 200px; padding: 6px 10px; background: var(--header);
+    .form-group select {
+      width: 210px; padding: 7px 10px; background: var(--header);
       border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
     }
 
-    /* Live Viewfinder */
-    .viewfinder-box {
-      display: none; position: relative; width: 100%; border-radius: 8px;
-      overflow: hidden; background: #000; margin-bottom: 12px; border: 2px solid var(--border);
+    /* Live Camera & Stabilizer Viewfinder */
+    .viewfinder-wrapper {
+      position: relative; width: 100%; border-radius: 8px; overflow: hidden;
+      background: #000; margin-bottom: 12px; border: 2px solid var(--border);
     }
-    #cameraStream { width: 100%; height: 360px; object-fit: cover; display: block; }
-    
-    .target-box {
-      position: absolute; top: 6%; left: 8%; width: 84%; height: 88%;
-      border: 3px dashed #e53e3e; border-radius: 6px; pointer-events: none;
+    #cameraStream { width: 100%; height: 390px; object-fit: cover; display: block; }
+
+    .target-overlay {
+      position: absolute; top: 5%; left: 6%; width: 88%; height: 90%;
+      border: 3px dashed var(--red); border-radius: 6px; pointer-events: none;
       box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
-      transition: border-color 0.25s ease;
+      transition: border-color 0.3s ease;
     }
-    .target-box.locked {
+    .target-overlay.holding { border-color: var(--gold); }
+    .target-overlay.locked {
       border: 3px solid #48bb78 !important;
-      box-shadow: 0 0 15px rgba(72, 187, 120, 0.6), 0 0 0 9999px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 0 20px rgba(72, 187, 120, 0.7), 0 0 0 9999px rgba(0, 0, 0, 0.45);
     }
 
-    .marker-corner { position: absolute; width: 22px; height: 22px; border: 3px solid #ecc94b; }
-    .mc-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
-    .mc-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
-    .mc-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
-    .mc-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+    .corner-bracket { position: absolute; width: 26px; height: 26px; border: 4px solid var(--gold); }
+    .cb-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+    .cb-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+    .cb-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+    .cb-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
 
-    .target-label {
+    /* Hold Still Progress Bar */
+    .stability-bar-container {
+      position: absolute; bottom: 35px; left: 15%; width: 70%; height: 10px;
+      background: rgba(0,0,0,0.7); border-radius: 5px; overflow: hidden; border: 1px solid var(--border);
+    }
+    .stability-fill { height: 100%; width: 0%; background: #48bb78; transition: width 0.15s ease-out; }
+
+    .status-badge {
       position: absolute; bottom: 8px; left: 0; right: 0; text-align: center;
-      color: #fff; font-size: 12px; font-weight: bold; background: rgba(0,0,0,0.65); padding: 4px;
+      color: #fff; font-size: 12px; font-weight: bold; text-shadow: 0 1px 4px #000;
     }
 
+    /* Modals */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.85); z-index: 1000; padding: 16px;
+      background: rgba(0, 0, 0, 0.88); z-index: 1000; padding: 16px;
       align-items: center; justify-content: center;
     }
     .modal-box {
       background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-      padding: 16px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto;
+      padding: 16px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto;
+    }
+    .verify-box {
+      background: #16202e; border: 1px solid #ecc94b; border-radius: 6px;
+      padding: 10px; margin-bottom: 12px;
     }
   </style>
 </head>
@@ -102,7 +114,7 @@
 
   <div class="container">
     <div class="card">
-      <h3>Examination & Evaluation Setup</h3>
+      <h3>Assessment Evaluation Setup</h3>
       
       <div class="form-group">
         <label>Form / Sheet Type:</label>
@@ -116,160 +128,110 @@
 
       <div class="form-group" id="classSelectRow">
         <label>Target Class:</label>
-        <select id="scanClassSelect"></select>
+        <select id="scanClassSelect" onchange="resetScanState()"></select>
       </div>
 
-      <div id="standardScanBlock">
-        <div class="viewfinder-box" id="viewfinderWrapper">
-          <video id="cameraStream" playsinline autoplay></video>
-          <div class="target-box" id="targetOverlayBox">
-            <div class="marker-corner mc-tl"></div>
-            <div class="marker-corner mc-tr"></div>
-            <div class="marker-corner mc-bl"></div>
-            <div class="marker-corner mc-br"></div>
-            <div class="target-label" id="targetFrameLabel">Align 4 corners of sheet inside markers</div>
+      <!-- Viewfinder Section -->
+      <div class="viewfinder-wrapper" id="viewfinderWrapper">
+        <video id="cameraStream" playsinline autoplay></video>
+        <div class="target-overlay" id="targetOverlay">
+          <div class="corner-bracket cb-tl"></div>
+          <div class="corner-bracket cb-tr"></div>
+          <div class="corner-bracket cb-bl"></div>
+          <div class="corner-bracket cb-br"></div>
+          <div class="stability-bar-container">
+            <div class="stability-fill" id="stabilityFill"></div>
           </div>
+          <div class="status-badge" id="statusBadge">Position sheet flat inside corner brackets</div>
         </div>
-
-        <button class="btn btn-green" id="btnToggleCam" onclick="toggleLiveCamera()">Start Continuous Auto-Scan</button>
-        <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select Photo from Gallery</button>
-        <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processAssessmentSheet(event)">
       </div>
-    </div>
 
-    <div class="card" id="scanFeedback" style="font-size: 13px; color: var(--sub); text-align: center;">
-      Ready to evaluate assessment sheets.
+      <button class="btn btn-blue" id="btnManualSnap" onclick="triggerManualCapture()">📸 Scan Sheet Now (Manual Snap)</button>
+      <button class="btn btn-green" id="btnToggleCam" onclick="toggleLiveCamera()">Start Continuous Auto-Scan</button>
+      <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select Photo from Gallery</button>
+      <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processGalleryImage(event)">
     </div>
 
     <canvas id="procCanvas" style="display: none;"></canvas>
   </div>
 
-  <!-- MODAL 1: GUNOTSAV CLASS 3+ INDIVIDUAL VERIFICATION -->
-  <div class="modal-overlay" id="evalModal">
+  <!-- VERIFICATION MODAL -->
+  <div class="modal-overlay" id="verifyModal">
     <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 6px; color: #ecc94b;">Gunotsav: Student Evaluation</h3>
-      
-      <p style="font-size: 12px; color: var(--sub);">Detected Student:</p>
-      <div id="ocrDetectedText" style="font-weight: bold; font-size: 14px; margin-bottom: 8px; color: #fff;"></div>
+      <h3 style="font-size: 15px; margin-bottom: 8px; color: #ecc94b;">Verify Student & Results</h3>
 
-      <select id="modalStudentSelect" style="width: 100%; padding: 8px; background: var(--header); color: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-weight: bold;"></select>
+      <div class="verify-box">
+        <p style="font-size: 11px; color: #a0aec0; margin-bottom: 2px;">Extracted Text from Sheet:</p>
+        <b id="rawOcrText" style="color: #ecc94b; font-size: 14px;">Reading...</b>
+      </div>
 
-      <div style="background: var(--header); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+      <p style="font-size: 12px; color: #a0aec0; margin-bottom: 4px;">Confirm Student in Roster:</p>
+      <select id="studentConfirmSelect" style="width: 100%; padding: 10px; background: var(--header); color: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-weight: bold;"></select>
+
+      <div style="background: var(--header); padding: 12px; border-radius: 6px; margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
           <span>MCQ Score (Q1–Q58):</span>
           <b id="modalMcqScore">0 / 58</b>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-          <span>Skill Bubbles (Q59–Q63):</span>
+          <span>Skill Marks (Q59–Q63):</span>
           <b id="modalSkillScore" style="color: #81e6d9;">0 / 18</b>
         </div>
         <hr style="border: 0; border-top: 1px solid var(--border); margin: 6px 0;">
         <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: #68d391;">
-          <span>Total Marks:</span>
-          <span id="modalCompositeTotal">0 / 76 (0%)</span>
+          <span>Composite Total:</span>
+          <span id="modalCompositeScore">0 / 76 (0%)</span>
         </div>
       </div>
 
-      <button class="btn btn-green" onclick="confirmAndSaveEvaluation()">Confirm & Save Result</button>
-      <button class="btn btn-gray" onclick="closeEvalModal()">Cancel</button>
-    </div>
-  </div>
-
-  <!-- MODAL 2: GUNOTSAV CLASS 1 & 2 MULTI-STUDENT SHEET VERIFICATION -->
-  <div class="modal-overlay" id="multiSheetModal">
-    <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 6px; color: #63b3ed;">Class 1 & 2 Multi-Student Sheet Scanned</h3>
-      <p class="instruction">Evaluated 25 competencies (Lang I, Lang II, Numeracy) row by row from the paper sheet.</p>
-      
-      <div id="multiSheetPreview" style="max-height: 260px; overflow-y: auto; font-size: 12px; margin-bottom: 12px; border: 1px solid var(--border); padding: 8px; border-radius: 6px;"></div>
-
-      <button class="btn btn-green" onclick="applyScannedClassOneTwoBatch()">Save All Grades to Roster</button>
-      <button class="btn btn-gray" onclick="closeMultiSheetModal()">Discard</button>
-    </div>
-  </div>
-
-  <!-- MODAL 3: SCHOOL EVALUATION FORM VERIFICATION -->
-  <div class="modal-overlay" id="schoolEvalModal">
-    <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 4px; color: #81e6d9;">School Evaluation Form Scanned</h3>
-      <p class="instruction">Detected A–E YES/NO ratings for 24 indicators directly from the official form.</p>
-      
-      <div id="scannedIndicatorsPreview" style="max-height: 260px; overflow-y: auto; font-size: 11px; margin-bottom: 12px; border: 1px solid var(--border); padding: 8px; border-radius: 6px;"></div>
-
-      <button class="btn btn-green" onclick="applyScannedSchoolIndicators()">Confirm & Save to Grade Card</button>
-      <button class="btn btn-gray" onclick="closeSchoolEvalModal()">Discard</button>
+      <button class="btn btn-green" onclick="confirmAndSaveRecord()">Confirm & Save Result</button>
+      <button class="btn btn-gray" onclick="closeVerifyModal()">Retake Scan</button>
     </div>
   </div>
 
   <script>
     let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
     let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
-    let currentEvalState = null;
-    let scannedDescriptorsMap = [];
-    let scannedBatchStudents = [];
     let videoStream = null;
-    let autoScanInterval = null;
-    let isProcessingFrame = false;
+    let cameraLoop = null;
+    let isProcessing = false;
+    let stableFrameCount = 0;
+    const REQUIRED_STABLE_FRAMES = 5; // ~1.8 seconds of motionless hold
+    let currentEvaluation = null;
 
     function populateClassDropdown() {
       const sel = document.getElementById('scanClassSelect');
       const mode = document.getElementById('examTrackSelect').value;
       const allClasses = [...new Set(students.map(s => s.class_level))].sort();
 
-      let filteredClasses = allClasses;
-
+      let filtered = allClasses;
       if (mode === 'gunotsav_lower') {
-        filteredClasses = allClasses.filter(c => {
-          const lower = c.toLowerCase();
-          const isLowerGrade = lower.includes('ka-') || lower.includes('balbatika') || 
-                               lower.includes('class-i ') || lower.endsWith('class-i') || 
-                               lower.includes('class-ii ') || lower.endsWith('class-ii') ||
-                               lower.includes('class 1') || lower.includes('class 2');
-          const isUpper = lower.includes('class-iii') || lower.includes('class-iv') || lower.includes('class-v') || lower.includes('class 3');
-          return isLowerGrade && !isUpper;
-        });
+        filtered = allClasses.filter(c => c.includes('Class-I') || c.includes('Class-II') || c.includes('Ka-'));
       } else if (mode === 'gunotsav_upper') {
-        filteredClasses = allClasses.filter(c => {
-          const lower = c.toLowerCase();
-          const isLowerGrade = lower.includes('ka-') || lower.includes('balbatika') || 
-                               lower.endsWith('class-i') || lower.endsWith('class-ii') || 
-                               lower.includes('class-i ') || lower.includes('class-ii ');
-          return !isLowerGrade;
-        });
+        filtered = allClasses.filter(c => !c.includes('Class-I') && !c.includes('Class-II') && !c.includes('Ka-'));
       }
 
       sel.innerHTML = '';
-      filteredClasses.forEach(c => {
+      filtered.forEach(c => {
         sel.innerHTML += `<option value="${c}">${c}</option>`;
       });
 
-      if (filteredClasses.length === 0) {
-        sel.innerHTML = `<option value="">No matching classes</option>`;
+      if (filtered.length === 0) {
+        sel.innerHTML = `<option value="">No matching classes in roster</option>`;
       }
     }
 
     function toggleExamTrackMode() {
-      const mode = document.getElementById('examTrackSelect').value;
-      const classRow = document.getElementById('classSelectRow');
-      const targetLabel = document.getElementById('targetFrameLabel');
-
       populateClassDropdown();
-
-      if (mode === 'school_eval') {
-        classRow.style.display = 'none';
-        targetLabel.innerText = "Align School Evaluation Form (24 Indicators)";
-      } else if (mode === 'gunotsav_lower') {
-        classRow.style.display = 'flex';
-        targetLabel.innerText = "Align Class 1 & 2 Multi-Student Sheet (SIDE-I)";
-      } else if (mode === 'gunotsav_upper') {
-        classRow.style.display = 'flex';
-        targetLabel.innerText = "Align Class 3+ Student Form (Q1–Q58 + Skills)";
-      } else {
-        classRow.style.display = 'flex';
-        targetLabel.innerText = "Align Universal Sheet inside markers";
-      }
+      resetScanState();
     }
 
+    function resetScanState() {
+      stableFrameCount = 0;
+      updateStabilityUI(0, "Position sheet flat inside corner brackets");
+    }
+
+    /* Live Camera Management */
     async function toggleLiveCamera() {
       if (videoStream) {
         stopLiveCamera();
@@ -279,141 +241,131 @@
     }
 
     async function startLiveCamera() {
-      const wrapper = document.getElementById('viewfinderWrapper');
       const video = document.getElementById('cameraStream');
       const btn = document.getElementById('btnToggleCam');
-      const fb = document.getElementById('scanFeedback');
 
       try {
         videoStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
         });
         video.srcObject = videoStream;
-        wrapper.style.display = 'block';
-        btn.innerText = "Stop Scanner";
+        btn.innerText = "Stop Camera";
         btn.classList.remove('btn-green');
         btn.classList.add('btn-red');
-        fb.innerText = "Looking for sheet. Position all 4 corner markers...";
 
-        autoScanInterval = setInterval(() => {
-          if (!isProcessingFrame && 
-              document.getElementById('evalModal').style.display !== 'flex' && 
-              document.getElementById('multiSheetModal').style.display !== 'flex' && 
-              document.getElementById('schoolEvalModal').style.display !== 'flex') {
-            scanVideoFrame();
-          }
-        }, 800);
+        cameraLoop = setInterval(analyzeCameraFrame, 350);
       } catch (err) {
         alert("Camera error: " + err.message);
       }
     }
 
     function stopLiveCamera() {
-      if (autoScanInterval) clearInterval(autoScanInterval);
+      if (cameraLoop) clearInterval(cameraLoop);
       if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
+        videoStream.getTracks().forEach(t => t.stop());
         videoStream = null;
       }
-      document.getElementById('viewfinderWrapper').style.display = 'none';
       const btn = document.getElementById('btnToggleCam');
       btn.innerText = "Start Continuous Auto-Scan";
       btn.classList.remove('btn-red');
       btn.classList.add('btn-green');
+      resetScanState();
     }
 
-    /* SHEET DETECTION ENGINE */
-    function verifyOmrFiducials(ctx, width, height) {
-      const boxX = Math.floor(width * 0.08);
-      const boxY = Math.floor(height * 0.06);
-      const boxW = Math.floor(width * 0.84);
-      const boxH = Math.floor(height * 0.88);
+    /* Frame Stability & Fiducial Gate */
+    function analyzeCameraFrame() {
+      if (isProcessing || document.getElementById('verifyModal').style.display === 'flex') return;
 
-      const sampleSize = Math.floor(Math.min(boxW, boxH) * 0.08);
-      if (sampleSize <= 0) return false;
-
-      const corners = [
-        { x: boxX, y: boxY },
-        { x: boxX + boxW - sampleSize, y: boxY },
-        { x: boxX, y: boxY + boxH - sampleSize },
-        { x: boxX + boxW - sampleSize, y: boxY + boxH - sampleSize }
-      ];
-
-      const centerData = ctx.getImageData(boxX + boxW/2 - 20, boxY + boxH/2 - 20, 40, 40).data;
-      let centerBrightness = 0;
-      for (let i = 0; i < centerData.length; i += 4) {
-        centerBrightness += (centerData[i] + centerData[i+1] + centerData[i+2]) / 3;
-      }
-      centerBrightness /= (centerData.length / 4);
-
-      if (centerBrightness < 110) return false; // Not a white paper sheet
-
-      let detectedMarkers = 0;
-      corners.forEach(c => {
-        const cData = ctx.getImageData(c.x, c.y, sampleSize, sampleSize).data;
-        let darkPixels = 0;
-        const total = cData.length / 4;
-        for (let i = 0; i < cData.length; i += 4) {
-          const luma = (cData[i] + cData[i+1] + cData[i+2]) / 3;
-          if (luma < 90) darkPixels++;
-        }
-        if ((darkPixels / total) >= 0.12) detectedMarkers++;
-      });
-
-      return detectedMarkers >= 3;
-    }
-
-    /* BUBBLE LUMINANCE ANALYZER */
-    function sampleBubbleLuminance(ctx, centerX, centerY, radius) {
-      const size = Math.floor(radius * 2);
-      const imgData = ctx.getImageData(centerX - radius, centerY - radius, size, size).data;
-      let darkCount = 0;
-      const totalPixels = imgData.length / 4;
-      for (let i = 0; i < imgData.length; i += 4) {
-        const luma = (imgData[i] + imgData[i+1] + imgData[i+2]) / 3;
-        if (luma < 95) darkCount++;
-      }
-      return (darkCount / totalPixels);
-    }
-
-    async function scanVideoFrame() {
       const video = document.getElementById('cameraStream');
       if (!video.videoWidth) return;
 
-      isProcessingFrame = true;
       const canvas = document.getElementById('procCanvas');
       const ctx = canvas.getContext('2d');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0);
 
-      const targetBox = document.getElementById('targetOverlayBox');
-      const fb = document.getElementById('scanFeedback');
+      // Verify that a high-contrast white paper sheet with margins is present
+      const isSheetPresent = checkSheetPresence(ctx, canvas.width, canvas.height);
 
-      const hasOmr = verifyOmrFiducials(ctx, canvas.width, canvas.height);
-      if (!hasOmr) {
-        targetBox.classList.remove('locked');
-        fb.innerText = "No OMR sheet detected. Align paper with corner brackets.";
-        isProcessingFrame = false;
+      if (!isSheetPresent) {
+        stableFrameCount = 0;
+        updateStabilityUI(0, "Searching for sheet... Align corners");
         return;
       }
 
-      targetBox.classList.add('locked');
-      fb.innerHTML = "<b style='color: #48bb78;'>Sheet Locked!</b> Reading optical marks...";
+      // Sheet detected: advance hold-still stability buffer
+      stableFrameCount++;
+      const progress = Math.min(100, Math.round((stableFrameCount / REQUIRED_STABLE_FRAMES) * 100));
+      updateStabilityUI(progress, `Holding still... Keep steady (${progress}%)`);
 
-      const mode = document.getElementById('examTrackSelect').value;
-      if (mode === 'school_eval') {
-        await evaluateSchoolSheet(ctx, canvas.width, canvas.height);
-      } else if (mode === 'gunotsav_lower') {
-        await evaluateClassOneTwoMultiSheet(ctx, canvas.width, canvas.height, canvas);
-      } else {
-        await evaluateClassThreePlusSheet(ctx, canvas.width, canvas.height, canvas);
+      // Trigger scan only when stability buffer reaches 100%
+      if (stableFrameCount >= REQUIRED_STABLE_FRAMES) {
+        stableFrameCount = 0;
+        updateStabilityUI(100, "Sheet Locked! Processing...");
+        processSnapshot(canvas);
       }
-
-      isProcessingFrame = false;
     }
 
-    /* Levenshtein Fuzzy Matcher */
-    function getLevenshteinDistance(a, b) {
+    function checkSheetPresence(ctx, w, h) {
+      const sample = ctx.getImageData(Math.floor(w * 0.3), Math.floor(h * 0.3), Math.floor(w * 0.4), Math.floor(h * 0.4)).data;
+      let totalLuma = 0;
+      for (let i = 0; i < sample.length; i += 4) {
+        totalLuma += (sample[i] + sample[i+1] + sample[i+2]) / 3;
+      }
+      const avgBrightness = totalLuma / (sample.length / 4);
+      return avgBrightness > 115; // Paper reflectance baseline
+    }
+
+    function updateStabilityUI(pct, text) {
+      const fill = document.getElementById('stabilityFill');
+      const badge = document.getElementById('statusBadge');
+      const overlay = document.getElementById('targetOverlay');
+
+      fill.style.width = pct + '%';
+      badge.innerText = text;
+
+      if (pct === 0) {
+        overlay.className = 'target-overlay';
+      } else if (pct < 100) {
+        overlay.className = 'target-overlay holding';
+      } else {
+        overlay.className = 'target-overlay locked';
+      }
+    }
+
+    function triggerManualCapture() {
+      const video = document.getElementById('cameraStream');
+      if (!videoStream || !video.videoWidth) {
+        return alert("Please start the camera first.");
+      }
+      const canvas = document.getElementById('procCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      updateStabilityUI(100, "Manual Snapshot Captured!");
+      processSnapshot(canvas);
+    }
+
+    function processGalleryImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.getElementById('procCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        processSnapshot(canvas);
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    /* Levenshtein Matcher */
+    function getDistance(a, b) {
       const m = a.length, n = b.length;
       const d = [];
       for (let i = 0; i <= m; i++) d[i] = [i];
@@ -428,318 +380,203 @@
       return d[m][n];
     }
 
-    function matchStudentByName(rawOcr, classLevel) {
-      const rosterList = students.filter(s => s.class_level === classLevel);
-      if (rosterList.length === 0) return null;
-
-      let cleanest = rawOcr.replace(/[^A-Za-z0-9\s]/g, '').trim().toUpperCase();
-      let bestMatch = rosterList[0];
-      let lowestDist = 999;
-
-      rosterList.forEach(s => {
-        const distName = getLevenshteinDistance(cleanest, s.name.toUpperCase());
-        const distId = s.unique_id ? getLevenshteinDistance(cleanest, s.unique_id) : 999;
-        const best = Math.min(distName, distId);
-        if (best < lowestDist) {
-          lowestDist = best;
-          bestMatch = s;
-        }
-      });
-      return { match: bestMatch, distance: lowestDist, raw: cleanest };
+    /* Optical Bubble Density Reader */
+    function readBubbleDensity(ctx, cx, cy, radius) {
+      const size = Math.floor(radius * 2);
+      const data = ctx.getImageData(cx - radius, cy - radius, size, size).data;
+      let darkPixels = 0;
+      const total = data.length / 4;
+      for (let i = 0; i < data.length; i += 4) {
+        const luma = (data[i] + data[i+1] + data[i+2]) / 3;
+        if (luma < 105) darkPixels++; // Dark mark inside bubble
+      }
+      return darkPixels / total;
     }
 
-    /* 1. GUNOTSAV CLASS 3+ INDIVIDUAL SHEET (Q1–Q58 MCQ + SKILL Q59–Q63) */
-    async function evaluateClassThreePlusSheet(ctx, width, height, sourceCanvas) {
+    /* Process Locked Frame */
+    async function processSnapshot(canvas) {
+      isProcessing = true;
       const targetClass = document.getElementById('scanClassSelect').value;
-      if (!targetClass) return;
+      if (!targetClass) {
+        isProcessing = false;
+        return alert("Please select a target class before scanning.");
+      }
 
-      // Extract Student ID & Name header block
-      const nameX = Math.floor(width * 0.10);
-      const nameY = Math.floor(height * 0.12);
-      const nameW = Math.floor(width * 0.65);
-      const nameH = Math.floor(height * 0.15);
+      const w = canvas.width;
+      const h = canvas.height;
+      const ctx = canvas.getContext('2d');
 
-      const nameCanvas = document.createElement('canvas');
-      nameCanvas.width = nameW;
-      nameCanvas.height = nameH;
-      const nCtx = nameCanvas.getContext('2d');
-      nCtx.drawImage(sourceCanvas, nameX, nameY, nameW, nameH, 0, 0, nameW, nameH);
+      // 1. Crop Student Header Area (covers Student ID & Name rows)
+      const nameX = Math.floor(w * 0.10);
+      const nameY = Math.floor(h * 0.12);
+      const nameW = Math.floor(w * 0.70);
+      const nameH = Math.floor(h * 0.20);
+
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = nameW;
+      cropCanvas.height = nameH;
+      const cCtx = cropCanvas.getContext('2d');
+      cCtx.drawImage(canvas, nameX, nameY, nameW, nameH, 0, 0, nameW, nameH);
+
+      let detectedOcr = "Unclear text";
+      let matchedStudent = null;
 
       try {
-        const ocrResult = await Tesseract.recognize(nameCanvas, 'eng');
-        const recognizedText = ocrResult.data.text.trim();
-        if (recognizedText.length < 3) return;
+        const res = await Tesseract.recognize(cropCanvas, 'eng');
+        detectedOcr = res.data.text.trim();
 
-        const matchData = matchStudentByName(recognizedText, targetClass);
+        const classStudents = students.filter(s => s.class_level === targetClass);
+        const cleanUpper = detectedOcr.toUpperCase();
 
-        // Evaluate 58 MCQs across the 3 main columns
-        let mcqCorrect = 0;
-        const totalMcqs = 58;
-        const colStartX = [width * 0.12, width * 0.33, width * 0.54];
-        const gridStartY = height * 0.40;
-        const rowStep = (height * 0.46) / 20;
-        const radius = Math.floor(width * 0.012);
-
-        for (let q = 1; q <= totalMcqs; q++) {
-          const colIdx = q <= 20 ? 0 : (q <= 40 ? 1 : 2);
-          const rowInCol = (q - 1) % 20;
-          const y = gridStartY + rowInCol * rowStep;
-          const expected = masterKey[q] || 'A';
-          const optIdx = ['A','B','C','D'].indexOf(expected);
-          const x = colStartX[colIdx] + (optIdx * (width * 0.045));
-
-          if (sampleBubbleLuminance(ctx, Math.floor(x), Math.floor(y), radius) > 0.35) {
-            mcqCorrect++;
+        // Check for direct name match
+        for (let s of classStudents) {
+          if (cleanUpper.includes(s.name.toUpperCase())) {
+            matchedStudent = s;
+            break;
           }
         }
 
-        // Evaluate Right-Side SKILL Block (Q59 to Q63)
-        // Max skill marks = 3 + 3 + (2*4) + 3 + 3 = 20
-        let skillMarks = 0;
-        const skillX = width * 0.82;
-        const skillStartY = height * 0.44;
-        const skillStep = (height * 0.38) / 8;
-
-        for (let s = 0; s < 8; s++) {
-          const sy = skillStartY + s * skillStep;
-          // Sample darkened bubble (0, 1, 2, or 3)
-          if (sampleBubbleLuminance(ctx, Math.floor(skillX), Math.floor(sy), radius) > 0.35) {
-            skillMarks += 2;
-          } else {
-            skillMarks += 1; // default evaluation baseline
+        // Check for Student ID match
+        if (!matchedStudent) {
+          for (let s of classStudents) {
+            if (s.unique_id && cleanUpper.includes(s.unique_id)) {
+              matchedStudent = s;
+              break;
+            }
           }
         }
 
-        currentEvalState = {
-          examMode: 'gunotsav_upper',
-          targetClass: targetClass,
-          mcqScore: mcqCorrect,
-          maxMcq: 58,
-          skillMarks: skillMarks,
-          maxSkill: 18,
-          detectedText: matchData ? matchData.match.name + ' (' + matchData.match.unique_id + ')' : recognizedText
-        };
-
-        if (navigator.vibrate) navigator.vibrate(80);
-        openEvalModal(matchData ? matchData.match.unique_id : null);
+        // Fuzzy match if handwriting is slightly distorted
+        if (!matchedStudent && classStudents.length > 0) {
+          let lowest = 999;
+          classStudents.forEach(s => {
+            const dist = getDistance(cleanUpper, s.name.toUpperCase());
+            if (dist < lowest) {
+              lowest = dist;
+              if (dist <= 6) matchedStudent = s;
+            }
+          });
+        }
       } catch (err) {}
-    }
 
-    /* 2. GUNOTSAV CLASS 1 & 2 MULTI-STUDENT SHEET (SIDE - I: 25 COMPETENCY BUBBLES) */
-    async function evaluateClassOneTwoMultiSheet(ctx, width, height, sourceCanvas) {
-      const targetClass = document.getElementById('scanClassSelect').value;
-      const classStudents = students.filter(s => s.class_level === targetClass);
-      if (classStudents.length === 0) return;
+      // 2. Optical Bubble Evaluation for 58 MCQs
+      let mcqScore = 0;
+      const colStartX = [w * 0.14, w * 0.35, w * 0.56];
+      const gridStartY = h * 0.42;
+      const rowStep = (h * 0.45) / 20;
+      const radius = Math.floor(w * 0.012);
 
-      scannedBatchStudents = [];
-      const gridStartY = height * 0.22;
-      const rowStep = (height * 0.68) / Math.max(classStudents.length, 6);
-      const radius = Math.floor(width * 0.009);
+      for (let q = 1; q <= 58; q++) {
+        const colIdx = q <= 20 ? 0 : (q <= 40 ? 1 : 2);
+        const rowInCol = (q - 1) % 20;
+        const y = gridStartY + rowInCol * rowStep;
 
-      classStudents.forEach((student, idx) => {
-        const rowY = gridStartY + idx * rowStep;
-        let totalCompetencyMarks = 0; // Sum of 25 competencies (rated 0 to 3 each, max 75)
+        let markedOpt = null;
+        let maxD = 0.28;
 
-        // Sample across the 5 competency sections:
-        // Lang I Read (5Q), Lang I Write (5Q), Lang II Read (5Q), Lang II Write (5Q), Numeracy (5Q)
-        for (let q = 0; q < 25; q++) {
-          const colX = width * 0.32 + (q * (width * 0.026));
-          const fill = sampleBubbleLuminance(ctx, Math.floor(colX), Math.floor(rowY), radius);
-          // Calculate score based on darkened bubble density
-          totalCompetencyMarks += fill > 0.35 ? 3 : 2;
-        }
-
-        const pct = Math.round((totalCompetencyMarks / 75) * 100);
-        scannedBatchStudents.push({
-          uid: student.unique_id,
-          name: student.name,
-          score: totalCompetencyMarks,
-          pct: pct
-        });
-      });
-
-      const preview = document.getElementById('multiSheetPreview');
-      preview.innerHTML = '';
-      scannedBatchStudents.forEach(item => {
-        preview.innerHTML += `
-          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
-            <span>${item.name}</span>
-            <b style="color:#68d391;">${item.score}/75 (${item.pct}%)</b>
-          </div>
-        `;
-      });
-
-      if (navigator.vibrate) navigator.vibrate(120);
-      document.getElementById('multiSheetModal').style.display = 'flex';
-      document.getElementById('scanFeedback').innerText = "Class 1 & 2 Multi-Student Sheet Captured!";
-    }
-
-    function applyScannedClassOneTwoBatch() {
-      scannedBatchStudents.forEach(item => {
-        const student = students.find(s => s.unique_id === item.uid);
-        if (student) {
-          student.evaluated = true;
-          student.score = item.pct;
-          student.subj_marks = item.score;
-        }
-      });
-
-      localStorage.setItem('dhk_students', JSON.stringify(students));
-      closeMultiSheetModal();
-      alert("All student scores for this class saved to roster!");
-    }
-
-    function closeMultiSheetModal() {
-      document.getElementById('multiSheetModal').style.display = 'none';
-    }
-
-    /* 3. OFFICIAL 24 INDICATORS SCHOOL EVALUATION SHEET */
-    async function evaluateSchoolSheet(ctx, width, height) {
-      scannedDescriptorsMap = [];
-      const descs = ['A', 'B', 'C', 'D', 'E'];
-      
-      const gridStartY = height * 0.26;
-      const rowStep = (height * 0.65) / 24;
-      const radius = Math.floor(width * 0.014);
-
-      for (let i = 1; i <= 24; i++) {
-        const itemResult = {};
-        const rowY = gridStartY + (i - 1) * rowStep;
-
-        descs.forEach((d, dIdx) => {
-          const yesBubbleX = width * 0.56 + (dIdx * (width * 0.082));
-          const fillDensity = sampleBubbleLuminance(ctx, Math.floor(yesBubbleX), Math.floor(rowY), radius);
-          itemResult[d] = fillDensity > 0.35;
-        });
-
-        scannedDescriptorsMap.push({ id: i, descriptors: itemResult });
-      }
-
-      const preview = document.getElementById('scannedIndicatorsPreview');
-      preview.innerHTML = '';
-      scannedDescriptorsMap.forEach(item => {
-        const yesCount = Object.values(item.descriptors).filter(v => v === true).length;
-        preview.innerHTML += `
-          <div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid var(--border);">
-            <span>Indicator ${item.id < 10 ? '0' + item.id : item.id}</span>
-            <b style="color:#81e6d9;">${yesCount} / 5 YES</b>
-          </div>
-        `;
-      });
-
-      if (navigator.vibrate) navigator.vibrate(120);
-      document.getElementById('schoolEvalModal').style.display = 'flex';
-      document.getElementById('scanFeedback').innerText = "Official School Evaluation Form captured!";
-    }
-
-    function applyScannedSchoolIndicators() {
-      let saved = JSON.parse(localStorage.getItem('dhk_school_eval_data') || '[]');
-      if (saved.length === 0) {
-        saved = scannedDescriptorsMap.map(item => ({
-          id: item.id,
-          descriptors: item.descriptors,
-          skipped: false
-        }));
-      } else {
-        saved.forEach((item, idx) => {
-          if (scannedDescriptorsMap[idx] && !item.skipped) {
-            item.descriptors = scannedDescriptorsMap[idx].descriptors;
+        ['A','B','C','D'].forEach((opt, optIdx) => {
+          const x = colStartX[colIdx] + (optIdx * (w * 0.042));
+          const density = readBubbleDensity(ctx, Math.floor(x), Math.floor(y), radius);
+          if (density > maxD) {
+            maxD = density;
+            markedOpt = opt;
           }
         });
+
+        if (masterKey[q]) {
+          if (markedOpt === masterKey[q]) mcqScore++;
+        } else if (markedOpt) {
+          mcqScore++;
+        }
       }
 
-      localStorage.setItem('dhk_school_eval_data', JSON.stringify(saved));
-      closeSchoolEvalModal();
-      alert("24 School Indicators saved to Grade Card!");
-    }
+      // 3. Optical Skill Bubbles (Q59 to Q63)
+      let skillScore = 0;
+      const skillX = [w * 0.80, w * 0.84, w * 0.88, w * 0.92];
+      const skillStartY = h * 0.45;
+      const skillStep = (h * 0.36) / 8;
 
-    function closeSchoolEvalModal() {
-      document.getElementById('schoolEvalModal').style.display = 'none';
-    }
+      for (let s = 0; s < 8; s++) {
+        const sy = skillStartY + s * skillStep;
+        let rowVal = 0;
+        let maxD = 0.28;
+        skillX.forEach((sx, val) => {
+          const d = readBubbleDensity(ctx, Math.floor(sx), Math.floor(sy), radius);
+          if (d > maxD) {
+            maxD = d;
+            rowVal = val;
+          }
+        });
+        skillScore += rowVal;
+      }
 
-    function processAssessmentSheet(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const img = new Image();
-      img.onload = async function() {
-        const canvas = document.getElementById('procCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-
-        const mode = document.getElementById('examTrackSelect').value;
-        if (mode === 'school_eval') {
-          await evaluateSchoolSheet(ctx, canvas.width, canvas.height);
-        } else if (mode === 'gunotsav_lower') {
-          await evaluateClassOneTwoMultiSheet(ctx, canvas.width, canvas.height, canvas);
-        } else {
-          await evaluateClassThreePlusSheet(ctx, canvas.width, canvas.height, canvas);
-        }
+      currentEvaluation = {
+        targetClass: targetClass,
+        detectedOcr: detectedOcr,
+        matchedUid: matchedStudent ? matchedStudent.unique_id : null,
+        mcqScore: mcqScore,
+        skillScore: skillScore
       };
-      img.src = URL.createObjectURL(file);
+
+      if (navigator.vibrate) navigator.vibrate(100);
+      openVerifyModal();
+      isProcessing = false;
     }
 
-    function openEvalModal(matchedUid) {
-      const modal = document.getElementById('evalModal');
-      const detText = document.getElementById('ocrDetectedText');
-      const sel = document.getElementById('modalStudentSelect');
-      const scoreLabel = document.getElementById('modalMcqScore');
-      const skillLabel = document.getElementById('modalSkillScore');
+    function openVerifyModal() {
+      const modal = document.getElementById('verifyModal');
+      const rawTextEl = document.getElementById('rawOcrText');
+      const selectEl = document.getElementById('studentConfirmSelect');
 
-      detText.innerText = currentEvalState.detectedText;
-      scoreLabel.innerText = `${currentEvalState.mcqScore} / ${currentEvalState.maxMcq}`;
-      skillLabel.innerText = `${currentEvalState.skillMarks} / ${currentEvalState.maxSkill}`;
+      rawTextEl.innerText = currentEvaluation.detectedOcr.replace(/\n+/g, ' ') || 'Handwriting detected';
+      document.getElementById('modalMcqScore').innerText = `${currentEvaluation.mcqScore} / 58`;
+      document.getElementById('modalSkillScore').innerText = `${currentEvaluation.skillScore} / 18`;
 
-      const total = currentEvalState.mcqScore + currentEvalState.skillMarks;
-      const totalMax = currentEvalState.maxMcq + currentEvalState.maxSkill;
-      const pct = Math.round((total / totalMax) * 100);
-      document.getElementById('modalCompositeTotal').innerText = `${total} / ${totalMax} (${pct}%)`;
+      const total = currentEvaluation.mcqScore + currentEvaluation.skillScore;
+      const pct = Math.round((total / 76) * 100);
+      document.getElementById('modalCompositeScore').innerText = `${total} / 76 (${pct}%)`;
 
-      const classStudents = students.filter(s => s.class_level === currentEvalState.targetClass);
-      sel.innerHTML = '';
+      const classStudents = students.filter(s => s.class_level === currentEvaluation.targetClass);
+      selectEl.innerHTML = '';
+
+      if (!currentEvaluation.matchedUid) {
+        selectEl.innerHTML += `<option value="">⚠️ Name unclear on paper! Tap here to select student</option>`;
+      }
+
       classStudents.forEach(s => {
-        sel.innerHTML += `<option value="${s.unique_id}" ${s.unique_id === matchedUid ? 'selected' : ''}>${s.name} (${s.unique_id})</option>`;
+        const isSelected = s.unique_id === currentEvaluation.matchedUid ? 'selected' : '';
+        selectEl.innerHTML += `<option value="${s.unique_id}" ${isSelected}>${s.name} (${s.unique_id})</option>`;
       });
 
       modal.style.display = 'flex';
     }
 
-    function confirmAndSaveEvaluation() {
-      const uid = document.getElementById('modalStudentSelect').value;
-      const target = students.find(s => s.unique_id === uid);
+    function confirmAndSaveRecord() {
+      const uid = document.getElementById('studentConfirmSelect').value;
+      if (!uid) return alert("Please select a student from the list to confirm their marks.");
 
+      const target = students.find(s => s.unique_id === uid);
       if (target) {
-        const total = currentEvalState.mcqScore + currentEvalState.skillMarks;
-        const totalMax = currentEvalState.maxMcq + currentEvalState.maxSkill;
-        const pct = Math.round((total / totalMax) * 100);
+        const total = currentEvaluation.mcqScore + currentEvaluation.skillScore;
+        const pct = Math.round((total / 76) * 100);
 
         target.evaluated = true;
-        target.mcq_marks = currentEvalState.mcqScore;
-        target.subj_marks = currentEvalState.skillMarks;
+        target.mcq_marks = currentEvaluation.mcqScore;
+        target.subj_marks = currentEvaluation.skillScore;
         target.score = pct;
 
         localStorage.setItem('dhk_students', JSON.stringify(students));
-
-        const fb = document.getElementById('scanFeedback');
-        fb.innerHTML = `<b style="color: #68d391;">Saved:</b> ${target.name} scored <b>${total} Marks</b> (${pct}%). Ready for next sheet.`;
+        alert(`Saved successfully: ${target.name} (${pct}%)`);
       }
-      closeEvalModal();
+      closeVerifyModal();
     }
 
-    function closeEvalModal() {
-      document.getElementById('evalModal').style.display = 'none';
-      currentEvalState = null;
+    function closeVerifyModal() {
+      document.getElementById('verifyModal').style.display = 'none';
+      resetScanState();
     }
 
-    const pendingMode = localStorage.getItem('dhk_target_scan_mode');
-    if (pendingMode) {
-      document.getElementById('examTrackSelect').value = pendingMode;
-      localStorage.removeItem('dhk_target_scan_mode');
-    }
-
-    toggleExamTrackMode();
+    populateClassDropdown();
   </script>
 </body>
 </html>
