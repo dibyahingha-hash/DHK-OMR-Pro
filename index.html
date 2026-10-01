@@ -26,13 +26,15 @@
 
     .container { padding: 14px; max-width: 600px; margin: 0 auto; }
     .btn {
-      padding: 12px; border-radius: 8px; border: none; font-weight: bold;
-      font-size: 14px; color: #fff; cursor: pointer; text-align: center;
+      padding: 10px 12px; border-radius: 8px; border: none; font-weight: bold;
+      font-size: 13px; color: #fff; cursor: pointer; text-align: center;
     }
     .btn-green { background: var(--green); }
+    .btn-blue { background: var(--blue); }
     .btn-red { background: var(--red); }
+    .btn-gray { background: #4a5568; }
 
-    .controls-grid { display: flex; gap: 10px; margin-bottom: 14px; }
+    .controls-grid { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
     .class-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; }
     .tab-btn {
       padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: bold;
@@ -53,7 +55,24 @@
     .badge-evaluated { background: #22543d; color: #9ae6b4; border: 1px solid #38a169; }
 
     .btn-del {
-      background: transparent; border: none; color: #fc8181; font-size: 16px; cursor: pointer; padding: 4px 8px;
+      background: transparent; border: none; color: #fc8181; font-size: 18px; cursor: pointer; padding: 4px 8px;
+    }
+
+    /* Modal Form for Manual Student Entry */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85); z-index: 1000; padding: 16px;
+      align-items: center; justify-content: center;
+    }
+    .modal-box {
+      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; width: 100%; max-width: 440px;
+    }
+    .form-row { margin-bottom: 12px; }
+    .form-row label { display: block; font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+    .form-row input, .form-row select {
+      width: 100%; padding: 9px 12px; background: var(--header);
+      border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
     }
   </style>
 </head>
@@ -75,10 +94,12 @@
   <div class="container">
     <div class="controls-grid">
       <button class="btn btn-green" style="flex: 2;" onclick="document.getElementById('excelFileInput').click()">Upload Shiksha Setu (.xlsx)</button>
+      <button class="btn btn-blue" style="flex: 1.5;" onclick="openAddStudentModal()">➕ Add Student</button>
       <button class="btn btn-red" style="flex: 1;" onclick="clearAllStudents()">Clear List</button>
       <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleExcelUpload(event)">
     </div>
 
+    <!-- Dynamic Class Tabs -->
     <div class="class-tabs" id="classTabsContainer"></div>
 
     <div style="font-size: 13px; color: var(--sub); margin-bottom: 10px; display: flex; justify-content: space-between;">
@@ -87,6 +108,52 @@
     </div>
 
     <div id="studentsListContainer"></div>
+  </div>
+
+  <!-- MODAL: ADD STUDENT MANUALLY -->
+  <div class="modal-overlay" id="addStudentModal">
+    <div class="modal-box">
+      <h3 style="font-size: 15px; margin-bottom: 12px; color: #63b3ed;">Add Student Manually</h3>
+      
+      <div class="form-row">
+        <label>Student Full Name:</label>
+        <input type="text" id="manualName" placeholder="e.g. BIPLOB CHETIA">
+      </div>
+
+      <div class="form-row">
+        <label>Class Level:</label>
+        <select id="manualClass">
+          <option value="Ka-Shreni">Ka-Shreni / Balbatika</option>
+          <option value="Class-I">Class-I</option>
+          <option value="Class-II">Class-II</option>
+          <option value="Class-III" selected>Class-III</option>
+          <option value="Class-IV">Class-IV</option>
+          <option value="Class-V">Class-V</option>
+          <option value="Class-VI">Class-VI</option>
+          <option value="Class-VII">Class-VII</option>
+          <option value="Class-VIII">Class-VIII</option>
+          <option value="Class-IX">Class-IX</option>
+          <option value="Class-X">Class-X</option>
+          <option value="Class-XI">Class-XI</option>
+          <option value="Class-XII">Class-XII</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Student Code / ID (16-Digit UDISE or School ID):</label>
+        <input type="text" id="manualUid" placeholder="e.g. 18150302801210036">
+      </div>
+
+      <div class="form-row">
+        <label>Section:</label>
+        <input type="text" id="manualSec" value="A">
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 14px;">
+        <button class="btn btn-green" style="flex: 1;" onclick="saveManualStudent()">Save Student</button>
+        <button class="btn btn-gray" style="flex: 1;" onclick="closeAddStudentModal()">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -100,21 +167,19 @@
       if (s.includes('ka') || s.includes('balbatika') || s.includes('pre') || s.includes('nursery') || s.includes('kg')) {
         return 'Ka-Shreni';
       }
-      if (s.includes('class-i ') || s.includes('class 1') || s.includes('class-1') || s.endsWith('class-i') || s === 'class-i' || s === 'class i') {
-        return 'Class-I';
-      }
-      if (s.includes('class-ii ') || s.includes('class 2') || s.includes('class-2') || s.endsWith('class-ii') || s === 'class-ii' || s === 'class ii') {
-        return 'Class-II';
-      }
-      if (s.includes('class-iii') || s.includes('class 3') || s.includes('class-3') || s.endsWith('class-iii') || s === 'class-iii' || s === 'class iii') {
-        return 'Class-III';
-      }
-      if (s.includes('class-iv') || s.includes('class 4') || s.includes('class-4') || s.endsWith('class-iv') || s === 'class-iv' || s === 'class iv') {
-        return 'Class-IV';
-      }
-      if (s.includes('class-v') || s.includes('class 5') || s.includes('class-5') || s.endsWith('class-v') || s === 'class-v' || s === 'class v') {
-        return 'Class-V';
-      }
+      if (s.includes('class-xii') || s.includes('class 12') || s.includes('class-12') || s === 'xii' || s === '12') return 'Class-XII';
+      if (s.includes('class-xi') || s.includes('class 11') || s.includes('class-11') || s === 'xi' || s === '11') return 'Class-XI';
+      if (s.includes('class-x') || s.includes('class 10') || s.includes('class-10') || s === 'x' || s === '10') return 'Class-X';
+      if (s.includes('class-ix') || s.includes('class 9') || s.includes('class-9') || s === 'ix' || s === '9') return 'Class-IX';
+      if (s.includes('class-viii') || s.includes('class 8') || s.includes('class-8') || s === 'viii' || s === '8') return 'Class-VIII';
+      if (s.includes('class-vii') || s.includes('class 7') || s.includes('class-7') || s === 'vii' || s === '7') return 'Class-VII';
+      if (s.includes('class-vi') || s.includes('class 6') || s.includes('class-6') || s === 'vi' || s === '6') return 'Class-VI';
+      if (s.includes('class-v') || s.includes('class 5') || s.includes('class-5') || s === 'v' || s === '5') return 'Class-V';
+      if (s.includes('class-iv') || s.includes('class 4') || s.includes('class-4') || s === 'iv' || s === '4') return 'Class-IV';
+      if (s.includes('class-iii') || s.includes('class 3') || s.includes('class-3') || s === 'iii' || s === '3') return 'Class-III';
+      if (s.includes('class-ii') || s.includes('class 2') || s.includes('class-2') || s === 'ii' || s === '2') return 'Class-II';
+      if (s.includes('class-i') || s.includes('class 1') || s.includes('class-1') || s === 'i' || s === '1') return 'Class-I';
+      
       return String(val).trim();
     }
 
@@ -132,7 +197,6 @@
           const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
           if (rawRows.length < 2) return alert("The Excel file has no student data.");
 
-          // Find header row containing 'student' or 'name'
           let headerRowIndex = 0;
           for (let r = 0; r < Math.min(rawRows.length, 10); r++) {
             const rowText = rawRows[r].map(c => String(c).toLowerCase()).join(' ');
@@ -144,15 +208,14 @@
 
           const header = rawRows[headerRowIndex].map(c => String(c).trim().toLowerCase());
 
-          // Identify columns specifically
           let nameCol = header.findIndex(h => h.includes('student name') || h === 'name');
-          if (nameCol === -1) nameCol = 2; // Default for Shiksha Setu is Column C (index 2)
+          if (nameCol === -1) nameCol = 2;
 
           let idCol = header.findIndex(h => h.includes('uniqueid') || h.includes('student code') || h.includes('student id') || h.includes('pen'));
           if (idCol === -1) idCol = 1;
 
           let classCol = header.findIndex(h => h.includes('class') || h.includes('standard') || h.includes('grade'));
-          if (classCol === -1) classCol = 4; // Default for Shiksha Setu is Column E (index 4)
+          if (classCol === -1) classCol = 4;
 
           const parsedList = [];
 
@@ -160,15 +223,12 @@
             const row = rawRows[r];
             if (!row || row.length === 0) continue;
 
-            // Student Name (Col 2)
             let sName = String(row[nameCol] || '').trim();
             if (!sName || sName.toLowerCase() === 'student name') continue;
 
-            // Class (Col 4)
             let sClassRaw = String(row[classCol] || '').trim();
             let finalClass = parseClassField(sClassRaw);
 
-            // Student ID (Col 1 or fallback generated UID)
             let rawId = String(row[idCol] || '').replace(/\D/g, '').trim();
             let finalId = (rawId.length >= 6) ? rawId : String(1815030280000000 + (r));
 
@@ -185,7 +245,7 @@
           }
 
           if (parsedList.length === 0) {
-            return alert("Could not read students from this file. Please verify the format.");
+            return alert("Could not read students from this file.");
           }
 
           students = parsedList;
@@ -193,7 +253,7 @@
           activeClassFilter = 'ALL';
           renderClassTabs();
           renderStudents();
-          alert(`Successfully loaded ${students.length} students across all classes!`);
+          alert(`Successfully imported ${students.length} students!`);
         } catch (err) {
           alert("Error parsing file: " + err.message);
         }
@@ -202,9 +262,51 @@
       event.target.value = '';
     }
 
+    function openAddStudentModal() {
+      document.getElementById('manualName').value = '';
+      document.getElementById('manualUid').value = '';
+      document.getElementById('manualSec').value = 'A';
+      document.getElementById('addStudentModal').style.display = 'flex';
+    }
+
+    function closeAddStudentModal() {
+      document.getElementById('addStudentModal').style.display = 'none';
+    }
+
+    function saveManualStudent() {
+      const name = document.getElementById('manualName').value.trim();
+      const cls = document.getElementById('manualClass').value;
+      const rawUid = document.getElementById('manualUid').value.trim();
+      const sec = document.getElementById('manualSec').value.trim().toUpperCase() || 'A';
+
+      if (!name) return alert("Please enter the student's name.");
+
+      const uid = rawUid ? rawUid : String(1815030280000000 + (students.length + 1));
+
+      students.push({
+        unique_id: uid,
+        name: name.toUpperCase(),
+        class_level: cls,
+        section: sec,
+        evaluated: false,
+        score: null,
+        mcq_marks: 0,
+        subj_marks: 0
+      });
+
+      localStorage.setItem('dhk_students', JSON.stringify(students));
+      closeAddStudentModal();
+      renderClassTabs();
+      renderStudents();
+      alert(`Added ${name.toUpperCase()} to ${cls}!`);
+    }
+
     function renderClassTabs() {
       const container = document.getElementById('classTabsContainer');
-      const standardOrder = ['ALL', 'Ka-Shreni', 'Class-I', 'Class-II', 'Class-III', 'Class-IV', 'Class-V'];
+      const standardOrder = [
+        'ALL', 'Ka-Shreni', 'Class-I', 'Class-II', 'Class-III', 'Class-IV', 
+        'Class-V', 'Class-VI', 'Class-VII', 'Class-VIII', 'Class-IX', 'Class-X', 'Class-XI', 'Class-XII'
+      ];
       const presentClasses = [...new Set(students.map(s => s.class_level))];
 
       const tabsToRender = standardOrder.filter(c => c === 'ALL' || presentClasses.includes(c));
