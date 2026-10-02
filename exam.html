@@ -1,729 +1,263 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DHK OMR Pro • Exam & Key Master</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DHK OMR Pro - Answer Key Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    :root {
-      --bg-dark: #0f172a;
-      --card-bg: #1e293b;
-      --card-border: #334155;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent-blue: #2563eb;
-      --accent-green: #16a34a;
-      --accent-yellow: #eab308;
-      --accent-red: #dc2626;
-      --accent-purple: #7c3aed;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg-dark); color: var(--text-main); padding: 12px; }
-
-    /* Top Nav */
-    .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; }
-    .nav-title { font-size: 1.1rem; font-weight: 700; color: #fff; }
-    .nav-tabs { display: flex; gap: 6px; overflow-x: auto; }
-    .nav-tab { background: #1e293b; border: 1px solid var(--card-border); color: var(--text-muted); padding: 6px 10px; border-radius: 6px; text-decoration: none; font-size: 0.8rem; white-space: nowrap; }
-    .nav-tab.active { background: #1d4ed8; color: #fff; border-color: #3b82f6; }
-
-    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
-    .card-title { font-size: 0.95rem; font-weight: 700; color: #facc15; margin-bottom: 12px; }
-
-    .control-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
-    .control-group { display: flex; flex-direction: column; gap: 4px; }
-    .control-group label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
-    .control-input { background: #0f172a; border: 1px solid var(--card-border); color: #fff; padding: 6px 8px; border-radius: 6px; font-size: 0.85rem; }
-
-    .btn { display: inline-block; width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-align: center; margin-bottom: 8px; }
-    .btn-green { background: var(--accent-green); color: #fff; }
-    .btn-blue { background: var(--accent-blue); color: #fff; }
-    .btn-purple { background: var(--accent-purple); color: #fff; }
-    .btn-gray { background: #4a5568; color: #fff; }
-    .btn-outline { background: transparent; border: 1px solid var(--card-border); color: var(--text-main); }
-
-    /* Answer Key Grid */
-    .key-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; max-height: 250px; overflow-y: auto; padding: 6px; background: #0f172a; border-radius: 6px; border: 1px solid var(--card-border); margin-bottom: 12px; }
-    .key-item { display: flex; align-items: center; justify-content: space-between; background: #1e293b; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
-    .key-opt-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 0.7rem; font-weight: bold; cursor: pointer; margin-left: 2px; }
-    .key-opt-btn.active { background: #2563eb; border-color: #60a5fa; color: #fff; }
-
-    /* Key Scanner Modal */
-    .modal-overlay {
-      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.9); z-index: 1000; padding: 14px;
-      align-items: center; justify-content: center;
-    }
-    .modal-box {
-      background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px;
-      padding: 16px; width: 100%; max-width: 500px;
-    }
-    .viewfinder-wrapper {
-      position: relative; width: 100%; height: 260px; border-radius: 6px; overflow: hidden;
-      background: #000; margin-bottom: 10px; border: 2px solid var(--card-border);
-    }
-    #keyVideo { width: 100%; height: 100%; object-fit: cover; }
-
-    /* --- PRINT STYLES --- */
-    #printArea { display: none; }
-
-    @media print {
-      body { background: #fff !important; color: #000 !important; padding: 0 !important; margin: 0 !important; }
-      .no-print, .nav-bar, .card, .btn, .modal-overlay { display: none !important; }
-      #printArea { display: block !important; width: 100%; }
-
-      @page {
-        size: A4 portrait;
-        margin: 5mm 5mm 5mm 5mm;
-      }
-
-      .sheet-container {
-        position: relative;
-        width: 100%;
-        max-width: 200mm;
-        margin: 0 auto;
-        border: 2px solid #000;
-        padding: 4mm 4mm;
-        background: #fff;
-        color: #000;
-        box-sizing: border-box;
-      }
-
-      /* 4 Corner Solid Registration Anchors (8mm x 8mm) */
-      .reg-block {
-        position: absolute;
-        width: 8mm;
-        height: 8mm;
-        background: #000 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-      .reg-tl { top: -1px; left: -1px; }
-      .reg-tr { top: -1px; right: -1px; }
-      .reg-bl { bottom: -1px; left: -1px; }
-      .reg-br { bottom: -1px; right: -1px; }
-
-      /* Sheet Header */
-      .sheet-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5mm;
-        margin-left: 5mm;
-        margin-right: 5mm;
-      }
-      .school-title { font-size: 14pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
-      .sheet-badge { font-size: 8.5pt; font-weight: bold; border: 1.5px solid #000; padding: 2px 6px; }
-
-      /* Warning Strip */
-      .warning-strip {
-        border-top: 1.5px solid #000;
-        border-bottom: 1.5px solid #000;
-        padding: 1.2mm 2mm;
-        font-size: 6.8pt;
-        font-weight: 800;
-        letter-spacing: 0.2px;
-        text-align: center;
-        margin-bottom: 3mm;
-        margin-left: 5mm;
-        margin-right: 5mm;
-        background: #fff;
-      }
-
-      /* Character Boxes */
-      .meta-grid {
-        display: grid;
-        grid-template-columns: 2.2fr 1fr 1fr;
-        gap: 3mm;
-        margin-bottom: 3.5mm;
-        margin-left: 5mm;
-        margin-right: 5mm;
-      }
-      .char-box-wrapper { display: flex; flex-direction: column; gap: 2px; }
-      .char-box-label { font-size: 7.5pt; font-weight: 800; text-transform: uppercase; }
-      .char-boxes { display: flex; border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; border-left: 1.5px solid #000; }
-      .c-box {
-        flex: 1;
-        height: 5.8mm;
-        border-right: 1.5px solid #000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 8pt;
-        font-weight: bold;
-        background: #fff;
-      }
-
-      /* Core Layout */
-      .omr-body {
-        display: flex;
-        position: relative;
-        margin-left: 1mm;
-      }
-
-      /* Timing Track Column */
-      .timing-track {
-        display: flex;
-        flex-direction: column;
-        width: 4.5mm;
-        margin-right: 2mm;
-        padding-top: 4.5mm;
-      }
-      .timing-block-group {
-        border-top: 1.5px solid transparent;
-        margin-bottom: 2.5mm;
-        padding-top: 1mm;
-      }
-      .timing-dash {
-        width: 4.5mm;
-        height: 2.6mm;
-        background: #000 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-        margin-bottom: 1.7mm;
-      }
-
-      /* Columns */
-      .omr-columns {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 3.5mm;
-        flex: 1;
-      }
-
-      .omr-col {
-        display: flex;
-        flex-direction: column;
-        gap: 2.5mm;
-      }
-
-      /* 5-Question Enclosed Border Box */
-      .q-group-box {
-        border: 1.5px solid #000;
-        border-radius: 2px;
-        padding: 1.5mm 1.5mm;
-        background: #fff;
-      }
-
-      .q-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 4.3mm;
-        margin-bottom: 1.2mm;
-      }
-      .q-row:last-child {
-        margin-bottom: 0;
-      }
-
-      .q-num {
-        font-size: 8pt;
-        font-weight: 800;
-        width: 5.5mm;
-        text-align: right;
-        margin-right: 1mm;
-      }
-      .bubbles-group {
-        display: flex;
-        gap: 1.8mm;
-      }
-      .bubble {
-        width: 3.6mm;
-        height: 3.6mm;
-        border: 1.3px solid #000;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 6.5pt;
-        font-weight: 800;
-      }
-
-      /* Footer */
-      .sheet-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-        border-top: 1.5px solid #000;
-        padding-top: 2mm;
-        margin-top: 2.5mm;
-        margin-left: 5mm;
-        margin-right: 5mm;
-        font-size: 7.5pt;
-        font-weight: bold;
-      }
-      .sig-line {
-        border-top: 1px dashed #000;
-        width: 45mm;
-        text-align: center;
-        padding-top: 1.5mm;
-      }
-    }
+    body { -webkit-tap-highlight-color: transparent; }
   </style>
 </head>
-<body>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
-  <div class="nav-bar no-print">
-    <div class="nav-title">DHK OMR Pro</div>
-    <div class="nav-tabs">
-      <a href="index.html" class="nav-tab">👥 Roster</a>
-      <a href="exam.html" class="nav-tab active">📝 Exam & Key</a>
-      <a href="scan.html" class="nav-tab">📷 Scanner</a>
-      <a href="grade.html" class="nav-tab">🏆 Grade Card</a>
-    </div>
-  </div>
-
-  <div class="card no-print">
-    <div class="card-title">1. Exam & Universal Sheet Setup</div>
-    <div class="control-row">
-      <div class="control-group">
-        <label for="subjectPresetSelect">Subject / Assessment Type:</label>
-        <div style="display: flex; gap: 6px;">
-          <select id="subjectPresetSelect" class="control-input" onchange="onSubjectChange()" style="min-width: 175px;">
-            <option value="Gunotsav" selected>Gunotsav (Composite)</option>
-            <option value="Language I (Assamese)">Language I (Assamese)</option>
-            <option value="Language II (English)">Language II (English)</option>
-            <option value="Mathematics">Mathematics</option>
-            <option value="Environmental Studies (EVS)">Environmental Studies (EVS)</option>
-            <option value="General Science">General Science</option>
-            <option value="Social Studies">Social Studies</option>
-            <option value="__custom__">✏️ Other (Type Manually)...</option>
-          </select>
-          <input type="text" id="customSubjectInput" class="control-input" placeholder="Type Subject..." style="display: none; width: 140px;" oninput="onCustomSubjectInput()">
+  <!-- TOP HEADER -->
+  <header class="bg-slate-900 border-b border-slate-800 p-3 shadow-md z-20 sticky top-0">
+    <div class="flex items-center justify-between max-w-2xl mx-auto">
+      <div class="flex items-center gap-2">
+        <a href="index.html" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div>
+          <h1 class="text-sm font-bold text-white tracking-wide uppercase">Answer Key Configuration</h1>
+          <div id="keyStatusBadge" class="text-xs text-amber-400 font-medium">Select a class to edit</div>
         </div>
       </div>
 
-      <div class="control-group">
-        <label for="totalQuestionsSelect">Total Questions:</label>
-        <select id="totalQuestionsSelect" class="control-input" onchange="onTotalQuestionsChanged()">
-          <option value="30">30 Questions (Class 1-2 / Unit Tests)</option>
-          <option value="58" selected>58 Questions (Gunotsav Standard)</option>
-          <option value="75">75 Questions</option>
-          <option value="100">100 Questions (Full Mock)</option>
+      <div class="flex items-center gap-2">
+        <button id="lockKeyBtn" onclick="toggleKeyLock()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-xs font-bold text-slate-200 transition">
+          <i data-lucide="lock" id="lockKeyIcon" class="w-4 h-4"></i>
+          <span id="lockKeyText">Lock Key</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- CLASS & QUESTION COUNT STRIP -->
+    <div class="grid grid-cols-2 gap-2 mt-3 max-w-2xl mx-auto pt-2 border-t border-slate-800 text-xs">
+      <div>
+        <label class="block text-slate-400 font-semibold mb-1 uppercase text-[10px]">Active Class</label>
+        <select id="examClass" onchange="switchExamClass(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold focus:outline-none focus:border-indigo-500">
+          <option value="">-- Choose Class --</option>
+          <option value="I">Class I</option>
+          <option value="II">Class II</option>
+          <option value="III">Class III</option>
+          <option value="IV">Class IV</option>
+          <option value="V">Class V</option>
+          <option value="IX">Class IX</option>
+          <option value="X">Class X</option>
         </select>
       </div>
 
-      <div class="control-group">
-        <label for="marksPerQInput">Marks Per Question:</label>
-        <input type="number" id="marksPerQInput" class="control-input" value="1" min="0.5" step="0.5" style="width: 70px;" onchange="saveKeyMaster()">
-      </div>
-    </div>
-    <button class="btn btn-blue" onclick="prepareAndPrint()">🖨️ Print Tamper-Proof Universal OMR Sheet</button>
-  </div>
-
-  <!-- Master Key Config Card -->
-  <div class="card no-print">
-    <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
-      <span>2. Master Answer Key Configuration</span>
       <div>
-        <button class="btn btn-outline" style="width:auto; padding:4px 8px; margin:0;" onclick="randomizeMasterKey()">🎲 Demo</button>
-        <button class="btn btn-outline" style="width:auto; padding:4px 8px; margin:0; border-color:#dc2626; color:#f87171;" onclick="clearMasterKey()">🧹 Clear</button>
+        <label class="block text-slate-400 font-semibold mb-1 uppercase text-[10px]">Total Questions</label>
+        <select id="examTotalQ" onchange="changeQuestionCount(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold focus:outline-none focus:border-indigo-500">
+          <option value="58">58 Questions (Gunotsav Primary)</option>
+          <option value="75">75 Questions</option>
+          <option value="100">100 Questions (Universal DHK)</option>
+          <option value="50">50 Questions</option>
+          <option value="30">30 Questions</option>
+        </select>
       </div>
     </div>
-    
-    <div style="display:flex; gap:8px; margin-bottom:10px;">
-      <button class="btn btn-purple" style="margin:0;" onclick="openKeyScannerModal()">📷 Scan Master Sheet to Set Key</button>
-      <button class="btn btn-gray" style="margin:0;" onclick="document.getElementById('keyGalleryInput').click()">📁 Gallery</button>
-      <input type="file" id="keyGalleryInput" accept="image/*" style="display:none;" onchange="processKeyGalleryImage(event)">
+  </header>
+
+  <!-- ANSWER KEY GRID -->
+  <main class="flex-1 max-w-2xl mx-auto w-full p-4 overflow-y-auto">
+    <div id="gridContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pb-20">
+      <!-- Generated via JS -->
     </div>
+  </main>
 
-    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">
-      <b>Option A:</b> Tap any option below to set manually. <br>
-      <b>Option B:</b> Tap <i>Scan Master Sheet</i> above to automatically read a shaded teacher's sheet.
-    </p>
-
-    <div class="key-grid" id="keyGrid"></div>
-    <button class="btn btn-green" onclick="saveKeyMaster(true)">💾 Save & Lock Answer Key</button>
-  </div>
-
-  <!-- Scan Key Modal -->
-  <div class="modal-overlay" id="keyScanModal">
-    <div class="modal-box">
-      <h3 style="font-size: 14px; margin-bottom: 8px; color: #facc15;">Scan Master Answer Sheet</h3>
-      <div class="viewfinder-wrapper">
-        <video id="keyVideo" playsinline autoplay muted></video>
-      </div>
-      <button class="btn btn-purple" onclick="captureAndDetectKey()">📸 Capture & Extract Key</button>
-      <button class="btn btn-gray" onclick="closeKeyScannerModal()">Close</button>
+  <!-- BOTTOM ACTION BAR -->
+  <footer class="bg-slate-900 border-t border-slate-800 p-3 sticky bottom-0 z-20 shadow-xl">
+    <div class="max-w-2xl mx-auto flex items-center justify-between gap-3">
+      <button onclick="clearCurrentKey()" id="clearKeyBtn" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-900/40 text-rose-400 border border-slate-700 text-xs font-bold transition">
+        Reset Key
+      </button>
+      <a href="scan.html" class="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold py-2.5 rounded-xl transition text-sm">
+        <i data-lucide="scan-line" class="w-4 h-4"></i>
+        <span>Proceed to Scanner</span>
+      </a>
     </div>
-  </div>
-
-  <canvas id="keyCanvas" style="display:none;"></canvas>
-
-  <!-- --- PRINTABLE UNIVERSAL OMR SHEET --- -->
-  <div id="printArea">
-    <div class="sheet-container">
-      <div class="reg-block reg-tl"></div>
-      <div class="reg-block reg-tr"></div>
-      <div class="reg-block reg-bl"></div>
-      <div class="reg-block reg-br"></div>
-
-      <div class="sheet-header">
-        <div>
-          <div class="school-title">EVALUATION OMR</div>
-          <div id="printSubjectHeader" style="font-size: 8.5pt; font-weight: 800; margin-top: 1mm;">SUBJECT: GUNOTSAV (COMPOSITE)</div>
-        </div>
-        <div class="sheet-badge" id="printBadgeText">58 QUESTIONS</div>
-      </div>
-
-      <div class="warning-strip">
-        DO NOT FOLD OR TEAR OMR SHEET • USE BLACK OR BLUE BALL POINT PEN ONLY • DARKEN BUBBLE COMPLETELY • DO NOT OVERWRITE
-      </div>
-
-      <div class="meta-grid">
-        <div class="char-box-wrapper">
-          <span class="char-box-label">STUDENT NAME (CAPITAL LETTERS ONLY):</span>
-          <div class="char-boxes">
-            <div class="c-box"></div><div class="c-box"></div><div class="c-box"></div><div class="c-box"></div>
-            <div class="c-box"></div><div class="c-box"></div><div class="c-box"></div><div class="c-box"></div>
-            <div class="c-box"></div><div class="c-box"></div><div class="c-box"></div><div class="c-box"></div>
-            <div class="c-box"></div><div class="c-box"></div><div class="c-box"></div><div class="c-box"></div>
-          </div>
-        </div>
-        <div class="char-box-wrapper">
-          <span class="char-box-label">CLASS:</span>
-          <div class="char-boxes">
-            <div class="c-box"></div><div class="c-box"></div><div class="c-box"></div><div class="c-box"></div>
-          </div>
-        </div>
-        <div class="char-box-wrapper">
-          <span class="char-box-label">ROLL NO:</span>
-          <div class="char-boxes">
-            <div class="c-box"></div><div class="c-box"></div><div class="c-box"></div><div class="c-box"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="omr-body">
-        <div class="timing-track" id="timingTrackCol"></div>
-        <div class="omr-columns" id="printOmrColumns"></div>
-      </div>
-
-      <div class="sheet-footer">
-        <div>DHK OMR PRO UNIVERSAL ENGINE</div>
-        <div class="sig-line">Signature of Invigilator</div>
-        <div class="sig-line">Signature of Head Master / Evaluator</div>
-      </div>
-    </div>
-  </div>
+  </footer>
 
   <script>
-    let totalQuestions = parseInt(localStorage.getItem('dhk_total_questions') || '58');
-    let marksPerQ = parseFloat(localStorage.getItem('dhk_marks_per_q') || '1');
-    let masterKey = {};
-    let keyStream = null;
+    let activeClass = "";
+    let activeKey = {};
+    let isKeyLocked = false;
 
-    try {
-      const saved = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
-      masterKey = saved.keys || saved || {};
-    } catch(e) { masterKey = {}; }
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      const lastClass = localStorage.getItem('dhk_locked_class') || "III";
+      document.getElementById('examClass').value = lastClass;
+      switchExamClass(lastClass);
+    });
 
-    function onSubjectChange() {
-      const preset = document.getElementById('subjectPresetSelect').value;
-      const customField = document.getElementById('customSubjectInput');
-      if (preset === '__custom__') {
-        customField.style.display = 'block';
-        customField.focus();
+    function switchExamClass(className) {
+      if (!className) {
+        document.getElementById('gridContainer').innerHTML = `
+          <div class="col-span-full py-12 text-center text-slate-500 text-sm">
+            Please choose a class from above to configure its answer key.
+          </div>`;
+        document.getElementById('keyStatusBadge').innerText = "Select a class to edit";
+        return;
+      }
+
+      activeClass = className;
+      localStorage.setItem('dhk_locked_class', activeClass);
+
+      // Load class-specific key from local storage
+      const stored = localStorage.getItem(`dhk_key_${activeClass}`);
+      if (stored) {
+        try {
+          activeKey = JSON.parse(stored);
+        } catch(e) {
+          activeKey = {};
+        }
       } else {
-        customField.style.display = 'none';
-        localStorage.setItem('dhk_active_subject', preset);
+        activeKey = {};
+      }
+
+      // Check if locked
+      isKeyLocked = localStorage.getItem(`dhk_key_locked_${activeClass}`) === 'true';
+
+      const totalQ = Object.keys(activeKey).length > 58 ? Object.keys(activeKey).length : 58;
+      document.getElementById('examTotalQ').value = totalQ;
+
+      renderGrid(totalQ);
+      applyLockUI();
+    }
+
+    function changeQuestionCount(count) {
+      renderGrid(parseInt(count, 10));
+      saveCurrentKey();
+    }
+
+    function renderGrid(total) {
+      const container = document.getElementById('gridContainer');
+      container.innerHTML = "";
+
+      for (let q = 1; q <= total; q++) {
+        const selected = activeKey[q] || "";
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between bg-slate-900 border border-slate-800 p-2 rounded-xl key-row";
+        row.id = `q_row_${q}`;
+
+        let optionsHtml = ['A', 'B', 'C', 'D'].map(opt => `
+          <button type="button" 
+                  onclick="selectOption(${q}, '${opt}')" 
+                  data-q="${q}" data-opt="${opt}"
+                  class="bubble-btn w-8 h-8 rounded-full border text-xs font-bold transition flex items-center justify-center ${selected === opt ? 'bg-indigo-600 border-indigo-400 text-white shadow-md' : 'bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-500'}">
+            ${opt}
+          </button>
+        `).join('');
+
+        row.innerHTML = `
+          <span class="text-xs font-mono font-bold text-slate-400 w-10">Q${q < 10 ? '0' + q : q}</span>
+          <div class="flex items-center gap-2">
+            ${optionsHtml}
+          </div>
+        `;
+        container.appendChild(row);
       }
     }
 
-    function onCustomSubjectInput() {
-      const val = document.getElementById('customSubjectInput').value.trim();
-      localStorage.setItem('dhk_active_subject', val || 'General');
-    }
+    function selectOption(q, opt) {
+      if (isKeyLocked) return;
 
-    function getActiveSubject() {
-      const preset = document.getElementById('subjectPresetSelect').value;
-      if (preset === '__custom__') {
-        return document.getElementById('customSubjectInput').value.trim() || 'General';
-      }
-      return preset;
-    }
-
-    function onTotalQuestionsChanged() {
-      totalQuestions = parseInt(document.getElementById('totalQuestionsSelect').value);
-      renderKeyGrid();
-      saveKeyMaster();
-    }
-
-    function renderKeyGrid() {
-      const grid = document.getElementById('keyGrid');
-      grid.innerHTML = '';
-      const opts = ['A', 'B', 'C', 'D'];
-
-      for (let i = 1; i <= totalQuestions; i++) {
-        const item = document.createElement('div');
-        item.className = 'key-item';
-
-        const lbl = document.createElement('span');
-        lbl.innerText = `Q${i}:`;
-        item.appendChild(lbl);
-
-        const btnWrap = document.createElement('div');
-        opts.forEach(opt => {
-          const btn = document.createElement('button');
-          btn.className = `key-opt-btn ${masterKey[i] === opt ? 'active' : ''}`;
-          btn.innerText = opt;
-          btn.onclick = () => {
-            masterKey[i] = opt;
-            renderKeyGrid();
-            saveKeyMaster();
-          };
-          btnWrap.appendChild(btn);
-        });
-        item.appendChild(btnWrap);
-        grid.appendChild(item);
-      }
-    }
-
-    function getActiveKeyCount() {
-      const keys = Object.keys(masterKey).map(Number).filter(k => masterKey[k]);
-      return keys.length > 0 ? Math.max(...keys) : 0;
-    }
-
-    function saveKeyMaster(showToast = false) {
-      const activeCount = getActiveKeyCount();
-      const effectiveTotal = activeCount > 0 ? activeCount : totalQuestions;
-
-      localStorage.setItem('dhk_total_questions', effectiveTotal.toString());
-      localStorage.setItem('dhk_marks_per_q', document.getElementById('marksPerQInput').value);
-      localStorage.setItem('dhk_master_key', JSON.stringify({
-        totalQuestions: effectiveTotal,
-        marksPerQ: parseFloat(document.getElementById('marksPerQInput').value) || 1,
-        keys: masterKey
-      }));
-      if (showToast) alert(`Master Key locked! Active exam set to ${effectiveTotal} questions.`);
-    }
-
-    function randomizeMasterKey() {
-      const opts = ['A', 'B', 'C', 'D'];
-      for (let i = 1; i <= totalQuestions; i++) {
-        masterKey[i] = opts[Math.floor(Math.random() * opts.length)];
-      }
-      renderKeyGrid();
-      saveKeyMaster();
-    }
-
-    function clearMasterKey() {
-      if (!confirm("Clear active answer key?")) return;
-      masterKey = {};
-      localStorage.removeItem('dhk_master_key');
-      renderKeyGrid();
-      saveKeyMaster(false);
-    }
-
-    /* --- SCAN MASTER KEY MODAL LOGIC --- */
-    async function openKeyScannerModal() {
-      document.getElementById('keyScanModal').style.display = 'flex';
-      const video = document.getElementById('keyVideo');
-      try {
-        keyStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-        });
-        video.srcObject = keyStream;
-        await video.play();
-      } catch(e) {
-        alert("Camera preview not available. Please use Gallery upload option.");
-      }
-    }
-
-    function closeKeyScannerModal() {
-      if (keyStream) {
-        keyStream.getTracks().forEach(t => t.stop());
-        keyStream = null;
-      }
-      document.getElementById('keyScanModal').style.display = 'none';
-    }
-
-    function captureAndDetectKey() {
-      const video = document.getElementById('keyVideo');
-      const canvas = document.getElementById('keyCanvas');
-      if (!video || !video.videoWidth) return;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      detectKeyFromCanvas(canvas);
-      closeKeyScannerModal();
-    }
-
-    function processKeyGalleryImage(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        const img = new Image();
-        img.onload = function() {
-          const canvas = document.getElementById('keyCanvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          detectKeyFromCanvas(canvas);
-        };
-        img.src = evt.target.result;
-      };
-      reader.readAsDataURL(file);
-      e.target.value = '';
-    }
-
-    function detectKeyFromCanvas(canvas) {
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      const w = canvas.width;
-      const h = canvas.height;
-
-      const gridLeft = w * 0.075;
-      const gridRight = w * 0.720;
-      const colWidth = (gridRight - gridLeft) / 3;
-      const blockTops = [h * 0.495, h * 0.602, h * 0.708, h * 0.814];
-      const blockHeight = h * 0.082;
-      const rowStep = blockHeight / 5;
-
-      const options = ['A', 'B', 'C', 'D'];
-      let detectedCount = 0;
-
-      for (let q = 1; q <= Math.min(totalQuestions, 58); q++) {
-        let col = 0, rowInCol = 0;
-        if (q <= 20) { col = 0; rowInCol = q - 1; }
-        else if (q <= 40) { col = 1; rowInCol = q - 21; }
-        else if (q <= 60) { col = 2; rowInCol = q - 41; }
-
-        const blockIdx = Math.floor(rowInCol / 5);
-        const rowInBlock = rowInCol % 5;
-        const y = blockTops[blockIdx] + (rowInBlock * rowStep) + (rowStep * 0.5);
-        const colStartX = gridLeft + (col * colWidth);
-
-        let darkestOpt = null;
-        let minBrightness = 255;
-        let readings = [];
-
-        options.forEach((opt, idx) => {
-          const xCenter = colStartX + (colWidth * 0.28) + (idx * (colWidth * 0.178));
-          const p = ctx.getImageData(Math.round(xCenter - 2), Math.round(y - 2), 5, 5).data;
-          let sum = 0;
-          for (let i = 0; i < p.length; i += 4) {
-            sum += (p[i] * 0.299 + p[i+1] * 0.587 + p[i+2] * 0.114);
-          }
-          const avg = sum / (p.length / 4);
-          readings.push({ opt, avg });
-          if (avg < minBrightness) {
-            minBrightness = avg;
-            darkestOpt = opt;
-          }
-        });
-
-        readings.sort((a, b) => a.avg - b.avg);
-        if (readings[1].avg - readings[0].avg > 20) {
-          masterKey[q] = darkestOpt;
-          detectedCount++;
-        }
-      }
-
-      renderKeyGrid();
-      saveKeyMaster();
-      alert(`Master Key scanned successfully! Extracted ${detectedCount} out of ${totalQuestions} keys.`);
-    }
-
-    /* --- PRINT PREPARATION --- */
-    function prepareAndPrint() {
-      const activeSub = getActiveSubject().toUpperCase();
-      document.getElementById('printSubjectHeader').innerText = `SUBJECT: ${activeSub}`;
-      document.getElementById('printBadgeText').innerText = `${totalQuestions} QUESTIONS`;
-
-      const numCols = 3;
-      const rowsPerCol = Math.ceil(totalQuestions / numCols);
-      const numBlocks = Math.ceil(rowsPerCol / 5);
-
-      const timingTrack = document.getElementById('timingTrackCol');
-      timingTrack.innerHTML = '';
-      for (let b = 0; b < numBlocks; b++) {
-        const grp = document.createElement('div');
-        grp.className = 'timing-block-group';
-        const rowsInThisBlock = Math.min(5, rowsPerCol - (b * 5));
-        for (let r = 0; r < rowsInThisBlock; r++) {
-          const dash = document.createElement('div');
-          dash.className = 'timing-dash';
-          grp.appendChild(dash);
-        }
-        timingTrack.appendChild(grp);
-      }
-
-      const colContainer = document.getElementById('printOmrColumns');
-      colContainer.innerHTML = '';
-      const opts = ['A', 'B', 'C', 'D'];
-
-      for (let c = 0; c < numCols; c++) {
-        const colDiv = document.createElement('div');
-        colDiv.className = 'omr-col';
-
-        for (let b = 0; b < numBlocks; b++) {
-          const groupBox = document.createElement('div');
-          groupBox.className = 'q-group-box';
-          let hasQuestions = false;
-
-          for (let r = 0; r < 5; r++) {
-            const rowInCol = (b * 5) + r;
-            const qNum = (c * rowsPerCol) + rowInCol + 1;
-
-            if (qNum <= totalQuestions && rowInCol < rowsPerCol) {
-              hasQuestions = true;
-              const qRow = document.createElement('div');
-              qRow.className = 'q-row';
-
-              const numSpan = document.createElement('span');
-              numSpan.className = 'q-num';
-              numSpan.innerText = qNum;
-              qRow.appendChild(numSpan);
-
-              const bg = document.createElement('div');
-              bg.className = 'bubbles-group';
-              opts.forEach(o => {
-                const bubble = document.createElement('div');
-                bubble.className = 'bubble';
-                bubble.innerText = o;
-                bg.appendChild(bubble);
-              });
-              qRow.appendChild(bg);
-              groupBox.appendChild(qRow);
-            }
-          }
-
-          if (hasQuestions) {
-            colDiv.appendChild(groupBox);
-          }
-        }
-        colContainer.appendChild(colDiv);
-      }
-
-      window.print();
-    }
-
-    window.onload = function() {
-      document.getElementById('totalQuestionsSelect').value = totalQuestions;
-      document.getElementById('marksPerQInput').value = marksPerQ;
-      
-      const savedSub = localStorage.getItem('dhk_active_subject') || 'Gunotsav';
-      const sel = document.getElementById('subjectPresetSelect');
-      if (['Gunotsav', 'Language I (Assamese)', 'Language II (English)', 'Mathematics', 'Environmental Studies (EVS)', 'General Science', 'Social Studies'].includes(savedSub)) {
-        sel.value = savedSub;
+      if (activeKey[q] === opt) {
+        delete activeKey[q];
       } else {
-        sel.value = '__custom__';
-        const customInput = document.getElementById('customSubjectInput');
-        customInput.style.display = 'block';
-        customInput.value = savedSub;
+        activeKey[q] = opt;
       }
 
-      renderKeyGrid();
-    };
-  </script>
+      updateRowUI(q);
+      saveCurrentKey();
+    }
 
-  <!-- Offline Service Worker Activation -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    function updateRowUI(q) {
+      const row = document.getElementById(`q_row_${q}`);
+      if (!row) return;
+
+      const selected = activeKey[q] || "";
+      row.querySelectorAll('.bubble-btn').forEach(btn => {
+        const opt = btn.getAttribute('data-opt');
+        if (opt === selected) {
+          btn.className = "bubble-btn w-8 h-8 rounded-full border text-xs font-bold transition flex items-center justify-center bg-indigo-600 border-indigo-400 text-white shadow-md";
+        } else {
+          btn.className = "bubble-btn w-8 h-8 rounded-full border text-xs font-bold transition flex items-center justify-center bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-500";
+        }
+      });
+    }
+
+    function saveCurrentKey() {
+      if (!activeClass) return;
+      localStorage.setItem(`dhk_key_${activeClass}`, JSON.stringify(activeKey));
+      localStorage.setItem('dhk_master_key', JSON.stringify(activeKey)); // legacy fallback
+      updateStatusBadge();
+    }
+
+    function toggleKeyLock() {
+      if (!activeClass) {
+        alert("Select a class first.");
+        return;
+      }
+      isKeyLocked = !isKeyLocked;
+      localStorage.setItem(`dhk_key_locked_${activeClass}`, isKeyLocked ? 'true' : 'false');
+      applyLockUI();
+    }
+
+    function applyLockUI() {
+      const lockBtnText = document.getElementById('lockKeyText');
+      const lockIcon = document.getElementById('lockKeyIcon');
+      const clearBtn = document.getElementById('clearKeyBtn');
+      const totalQSelect = document.getElementById('examTotalQ');
+
+      // Physical locking of DOM elements
+      document.querySelectorAll('.bubble-btn').forEach(btn => {
+        btn.disabled = isKeyLocked;
+        btn.style.pointerEvents = isKeyLocked ? 'none' : 'auto';
+      });
+      totalQSelect.disabled = isKeyLocked;
+      clearBtn.disabled = isKeyLocked;
+      clearBtn.style.opacity = isKeyLocked ? '0.4' : '1';
+
+      if (isKeyLocked) {
+        lockBtnText.innerText = "Unlock Key";
+        lockIcon.setAttribute('data-lucide', 'unlock');
+      } else {
+        lockBtnText.innerText = "Lock Key";
+        lockIcon.setAttribute('data-lucide', 'lock');
+      }
+      lucide.createIcons();
+      updateStatusBadge();
+    }
+
+    function updateStatusBadge() {
+      const badge = document.getElementById('keyStatusBadge');
+      const count = Object.keys(activeKey).length;
+      if (!activeClass) {
+        badge.innerText = "Select a class to edit";
+        badge.className = "text-xs text-amber-400 font-medium";
+        return;
+      }
+
+      if (isKeyLocked) {
+        badge.innerHTML = `<span class="text-emerald-400 font-bold">🔒 Class ${activeClass} Locked (${count} Keys Set)</span>`;
+      } else {
+        badge.innerHTML = `<span class="text-amber-400 font-medium">✏️ Editing Class ${activeClass} (${count} Keys Set)</span>`;
+      }
+    }
+
+    function clearCurrentKey() {
+      if (isKeyLocked) return;
+      if (confirm(`Clear all answers for Class ${activeClass}?`)) {
+        activeKey = {};
+        saveCurrentKey();
+        const total = parseInt(document.getElementById('examTotalQ').value, 10);
+        renderGrid(total);
+      }
     }
   </script>
 </body>
