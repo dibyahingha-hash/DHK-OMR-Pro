@@ -277,6 +277,23 @@
     <div class="card-title">1. Exam & Universal Sheet Setup</div>
     <div class="control-row">
       <div class="control-group">
+        <label for="subjectPresetSelect">Subject / Assessment Type:</label>
+        <div style="display: flex; gap: 6px;">
+          <select id="subjectPresetSelect" class="control-input" onchange="onSubjectChange()" style="min-width: 175px;">
+            <option value="Gunotsav" selected>Gunotsav (Composite)</option>
+            <option value="Language I (Assamese)">Language I (Assamese)</option>
+            <option value="Language II (English)">Language II (English)</option>
+            <option value="Mathematics">Mathematics</option>
+            <option value="Environmental Studies (EVS)">Environmental Studies (EVS)</option>
+            <option value="General Science">General Science</option>
+            <option value="Social Studies">Social Studies</option>
+            <option value="__custom__">✏️ Other (Type Manually)...</option>
+          </select>
+          <input type="text" id="customSubjectInput" class="control-input" placeholder="Type Subject..." style="display: none; width: 140px;" oninput="onCustomSubjectInput()">
+        </div>
+      </div>
+
+      <div class="control-group">
         <label for="totalQuestionsSelect">Total Questions:</label>
         <select id="totalQuestionsSelect" class="control-input" onchange="onTotalQuestionsChanged()">
           <option value="30">30 Questions (Class 1-2 / Unit Tests)</option>
@@ -285,6 +302,7 @@
           <option value="100">100 Questions (Full Mock)</option>
         </select>
       </div>
+
       <div class="control-group">
         <label for="marksPerQInput">Marks Per Question:</label>
         <input type="number" id="marksPerQInput" class="control-input" value="1" min="0.5" step="0.5" style="width: 70px;" onchange="saveKeyMaster()">
@@ -297,7 +315,10 @@
   <div class="card no-print">
     <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
       <span>2. Master Answer Key Configuration</span>
-      <button class="btn btn-outline" style="width:auto; padding:4px 8px; margin:0;" onclick="randomizeMasterKey()">🎲 Demo Fill</button>
+      <div>
+        <button class="btn btn-outline" style="width:auto; padding:4px 8px; margin:0;" onclick="randomizeMasterKey()">🎲 Demo</button>
+        <button class="btn btn-outline" style="width:auto; padding:4px 8px; margin:0; border-color:#dc2626; color:#f87171;" onclick="clearMasterKey()">🧹 Clear</button>
+      </div>
     </div>
     
     <div style="display:flex; gap:8px; margin-bottom:10px;">
@@ -338,7 +359,10 @@
       <div class="reg-block reg-br"></div>
 
       <div class="sheet-header">
-        <div class="school-title">EVALUATION OMR</div>
+        <div>
+          <div class="school-title">EVALUATION OMR</div>
+          <div id="printSubjectHeader" style="font-size: 8.5pt; font-weight: 800; margin-top: 1mm;">SUBJECT: GUNOTSAV (COMPOSITE)</div>
+        </div>
         <div class="sheet-badge" id="printBadgeText">58 QUESTIONS</div>
       </div>
 
@@ -394,6 +418,31 @@
       masterKey = saved.keys || saved || {};
     } catch(e) { masterKey = {}; }
 
+    function onSubjectChange() {
+      const preset = document.getElementById('subjectPresetSelect').value;
+      const customField = document.getElementById('customSubjectInput');
+      if (preset === '__custom__') {
+        customField.style.display = 'block';
+        customField.focus();
+      } else {
+        customField.style.display = 'none';
+        localStorage.setItem('dhk_active_subject', preset);
+      }
+    }
+
+    function onCustomSubjectInput() {
+      const val = document.getElementById('customSubjectInput').value.trim();
+      localStorage.setItem('dhk_active_subject', val || 'General');
+    }
+
+    function getActiveSubject() {
+      const preset = document.getElementById('subjectPresetSelect').value;
+      if (preset === '__custom__') {
+        return document.getElementById('customSubjectInput').value.trim() || 'General';
+      }
+      return preset;
+    }
+
     function onTotalQuestionsChanged() {
       totalQuestions = parseInt(document.getElementById('totalQuestionsSelect').value);
       renderKeyGrid();
@@ -430,15 +479,23 @@
       }
     }
 
+    function getActiveKeyCount() {
+      const keys = Object.keys(masterKey).map(Number).filter(k => masterKey[k]);
+      return keys.length > 0 ? Math.max(...keys) : 0;
+    }
+
     function saveKeyMaster(showToast = false) {
-      localStorage.setItem('dhk_total_questions', totalQuestions.toString());
+      const activeCount = getActiveKeyCount();
+      const effectiveTotal = activeCount > 0 ? activeCount : totalQuestions;
+
+      localStorage.setItem('dhk_total_questions', effectiveTotal.toString());
       localStorage.setItem('dhk_marks_per_q', document.getElementById('marksPerQInput').value);
       localStorage.setItem('dhk_master_key', JSON.stringify({
-        totalQuestions,
-        marksPerQ: parseFloat(document.getElementById('marksPerQInput').value),
+        totalQuestions: effectiveTotal,
+        marksPerQ: parseFloat(document.getElementById('marksPerQInput').value) || 1,
         keys: masterKey
       }));
-      if (showToast) alert("Master Answer Key locked and saved successfully!");
+      if (showToast) alert(`Master Key locked! Active exam set to ${effectiveTotal} questions.`);
     }
 
     function randomizeMasterKey() {
@@ -448,6 +505,14 @@
       }
       renderKeyGrid();
       saveKeyMaster();
+    }
+
+    function clearMasterKey() {
+      if (!confirm("Clear active answer key?")) return;
+      masterKey = {};
+      localStorage.removeItem('dhk_master_key');
+      renderKeyGrid();
+      saveKeyMaster(false);
     }
 
     /* --- SCAN MASTER KEY MODAL LOGIC --- */
@@ -505,7 +570,6 @@
       e.target.value = '';
     }
 
-    // Auto-detect darkest bubble for each question from the master teacher sheet
     function detectKeyFromCanvas(canvas) {
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const w = canvas.width;
@@ -565,6 +629,8 @@
 
     /* --- PRINT PREPARATION --- */
     function prepareAndPrint() {
+      const activeSub = getActiveSubject().toUpperCase();
+      document.getElementById('printSubjectHeader').innerText = `SUBJECT: ${activeSub}`;
       document.getElementById('printBadgeText').innerText = `${totalQuestions} QUESTIONS`;
 
       const numCols = 3;
@@ -638,8 +704,27 @@
     window.onload = function() {
       document.getElementById('totalQuestionsSelect').value = totalQuestions;
       document.getElementById('marksPerQInput').value = marksPerQ;
+      
+      const savedSub = localStorage.getItem('dhk_active_subject') || 'Gunotsav';
+      const sel = document.getElementById('subjectPresetSelect');
+      if (['Gunotsav', 'Language I (Assamese)', 'Language II (English)', 'Mathematics', 'Environmental Studies (EVS)', 'General Science', 'Social Studies'].includes(savedSub)) {
+        sel.value = savedSub;
+      } else {
+        sel.value = '__custom__';
+        const customInput = document.getElementById('customSubjectInput');
+        customInput.style.display = 'block';
+        customInput.value = savedSub;
+      }
+
       renderKeyGrid();
     };
+  </script>
+
+  <!-- Offline Service Worker Activation -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    }
   </script>
 </body>
 </html>
