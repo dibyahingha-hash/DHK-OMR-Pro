@@ -94,10 +94,10 @@
         <div class="bg-black/60 px-2 py-0.5 rounded text-[10px] text-amber-300 font-mono" id="modeIndicator">GUNOTSAV 43-PIECE</div>
       </div>
       <div class="border-b border-dashed border-red-500/60 w-full text-right pr-1">
-        <span class="text-[9px] text-red-400 bg-black/60 px-1 rounded">STUDENT NAME ZONE</span>
+        <span class="text-[9px] text-red-400 bg-black/60 px-1 rounded">STUDENT NAME ZONE (PIECE #17)</span>
       </div>
       <div class="text-[10px] text-center text-slate-300 bg-black/60 py-1 rounded">
-        Align Left Timing Dashes Along Red Guide Strip
+        Align Left Timing Dashes Inside the Guide Box
       </div>
     </div>
   </main>
@@ -122,8 +122,10 @@
 
       <div class="space-y-2 text-sm">
         <div>
-          <span class="text-slate-400 text-xs block">Identified Student:</span>
-          <div id="resStudent" class="text-white font-semibold text-base">Searching...</div>
+          <span class="text-slate-400 text-xs block mb-1">Identified Student:</span>
+          <select id="resStudentSelect" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white font-semibold text-sm focus:outline-none focus:border-indigo-500">
+            <!-- Dynamically populated -->
+          </select>
         </div>
         <div class="grid grid-cols-3 gap-2 bg-slate-900 p-2 rounded text-center text-xs font-mono">
           <div><span class="text-slate-500 block">Attempted</span><span id="resAttempted" class="text-emerald-400 font-bold">0</span></div>
@@ -184,9 +186,9 @@
 
     async function toggleTorch() {
       if (!videoTrack) return;
-      const caps = videoTrack.getCapabilities();
+      const caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
       if (!caps.torch) {
-        alert("Flashlight/Torch hardware not supported on this device.");
+        alert("Flashlight/Torch hardware not supported on this device/browser.");
         return;
       }
       try {
@@ -253,14 +255,12 @@
 
     // 3. Timing-Dash Extraction Engine
     function locateTimingDashes(ctx, width, height) {
-      // Analyze the left rail margin between 1% and 7% width
       const startX = Math.floor(width * 0.01);
-      const endX = Math.floor(width * 0.07);
+      const endX = Math.floor(width * 0.08);
       const imgData = ctx.getImageData(startX, 0, endX - startX, height);
       const data = imgData.data;
       const rowDarkness = new Array(height).fill(0);
 
-      // Horizontal integration of dark pixels
       for (let y = 0; y < height; y++) {
         let count = 0;
         for (let x = 0; x < (endX - startX); x++) {
@@ -271,11 +271,10 @@
         rowDarkness[y] = count;
       }
 
-      // Group continuous dark bands into distinct dash blocks
       const dashes = [];
       let inDash = false;
       let startY = 0;
-      const minThreshold = (endX - startX) * 0.35;
+      const minThreshold = (endX - startX) * 0.30;
 
       for (let y = 0; y < height; y++) {
         if (rowDarkness[y] > minThreshold && !inDash) {
@@ -292,7 +291,7 @@
       return dashes;
     }
 
-    // 4. Evaluation Pipeline Execution
+    // 4. Trigger & Upload Handling
     async function triggerScan() {
       const locked = document.getElementById('lockedClass').value;
       if (!locked) {
@@ -326,6 +325,10 @@
     }
 
     async function processSheet(canvas) {
+      const btn = document.getElementById('scanActionBtn');
+      btn.disabled = true;
+      btn.classList.add('opacity-50');
+
       const ctx = canvas.getContext('2d');
       const w = canvas.width;
       const h = canvas.height;
@@ -333,57 +336,77 @@
 
       const mode = document.getElementById('sheetFormat').value;
 
-      if (mode === 'gunotsav') {
-        await evaluateGunotsav(ctx, w, h, dashes);
-      } else {
-        await evaluateUniversal(ctx, w, h, dashes);
+      try {
+        if (mode === 'gunotsav') {
+          await evaluateGunotsav(ctx, w, h, dashes);
+        } else {
+          await evaluateUniversal(ctx, w, h, dashes);
+        }
+      } catch (err) {
+        console.error("Evaluation failure:", err);
+        alert("Evaluation error. Please retake the photo.");
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
       }
     }
 
-    // 5. Gunotsav Engine
+    // 5. Gunotsav Precision Engine (Locked to Piece #17)
     async function evaluateGunotsav(ctx, w, h, dashes) {
-      // Gunotsav Sheet: Student Name locked to Piece #17
-      let nameCropY = h * 0.32;
-      let nameCropH = h * 0.035;
+      let nameBoxY, nameBoxH;
 
-      if (dashes.length >= 17) {
-        nameCropY = dashes[16].center - (dashes[16].height * 1.5);
-        nameCropH = dashes[16].height * 3;
+      // Lock to Piece #17
+      if (dashes && dashes.length >= 17) {
+        nameBoxY = dashes[16].center - Math.floor(dashes[16].height * 1.2);
+        nameBoxH = Math.floor(dashes[16].height * 2.4);
+      } else {
+        nameBoxY = Math.floor(h * 0.345);
+        nameBoxH = Math.floor(h * 0.035);
       }
+
+      // Crop strictly the value box (skips printed "STUDENT NAME :-" text)
+      const nameBoxX = Math.floor(w * 0.35);
+      const nameBoxW = Math.floor(w * 0.42);
 
       const nameCanvas = document.createElement('canvas');
-      nameCanvas.width = w * 0.54;
-      nameCanvas.height = nameCropH;
-      nameCanvas.getContext('2d').drawImage(
-        ctx.canvas,
-        w * 0.24, nameCropY, w * 0.54, nameCropH,
-        0, 0, nameCanvas.width, nameCanvas.height
-      );
+      nameCanvas.width = nameBoxW;
+      nameCanvas.height = nameBoxH;
+      const nCtx = nameCanvas.getContext('2d');
+      nCtx.drawImage(ctx.canvas, nameBoxX, nameBoxY, nameBoxW, nameBoxH, 0, 0, nameBoxW, nameBoxH);
 
-      // Perform selective OCR strictly on the isolated name row
-      let recognizedName = "UNKNOWN";
+      // Contrast binarization for clean OCR
+      const nData = nCtx.getImageData(0, 0, nameBoxW, nameBoxH);
+      const d = nData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const v = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) > 130 ? 255 : 0;
+        d[i] = d[i + 1] = d[i + 2] = v;
+      }
+      nCtx.putImageData(nData, 0, 0);
+
+      // Targeted OCR strictly for uppercase alphabets
+      let recognizedName = "";
       try {
-        const ocrRes = await Tesseract.recognize(nameCanvas, 'eng');
-        recognizedName = ocrRes.data.text.trim().replace(/[^a-zA-Z\s]/g, "");
+        const ocrRes = await Tesseract.recognize(nameCanvas, 'eng', {
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
+        });
+        recognizedName = ocrRes.data.text.trim().replace(/[^A-Z\s]/g, "");
       } catch (e) {
-        console.warn("OCR failure:", e);
+        console.warn("OCR Error:", e);
       }
 
-      // Bubble Evaluation: Dashes #24 to #43 (20 rows)
+      // MCQ Evaluation: Dashes #24 to #43 (20 rows)
       const answers = {};
-      const colStarts = [0.09, 0.32, 0.54, 0.76]; // 4-column dynamic support
+      const colStarts = [0.09, 0.32, 0.54, 0.76];
       const bubbleSpacing = 0.035;
 
-      // Define row Y coordinates using detected dashes or geometric fallback
       const rowYList = [];
-      if (dashes.length >= 43) {
+      if (dashes && dashes.length >= 43) {
         for (let i = 23; i < dashes.length; i++) rowYList.push(dashes[i].center);
       } else {
-        const step = (h * 0.39) / 20;
-        for (let i = 0; i < 20; i++) rowYList.push((h * 0.50) + (i * step));
+        const step = (h * 0.395) / 20;
+        for (let i = 0; i < 20; i++) rowYList.push((h * 0.525) + (i * step));
       }
 
-      // Check max questions from Master Key (default to 58 for Primary Gunotsav)
       const maxQ = Object.keys(masterKey).length > 0 ? Object.keys(masterKey).length : 58;
 
       let qIndex = 1;
@@ -418,36 +441,41 @@
       compileResults(recognizedName, answers, maxQ);
     }
 
-    // 6. Universal Engine
+    // 6. Universal Engine (Locked to Piece #1 Header)
     async function evaluateUniversal(ctx, w, h, dashes) {
-      // Universal Sheet: Name in boxed strip above Piece #1
-      const nameCropY = h * 0.165;
-      const nameCropH = h * 0.035;
+      const nameCropY = Math.floor(h * 0.165);
+      const nameCropH = Math.floor(h * 0.035);
 
       const nameCanvas = document.createElement('canvas');
-      nameCanvas.width = w * 0.44;
+      nameCanvas.width = Math.floor(w * 0.44);
       nameCanvas.height = nameCropH;
-      nameCanvas.getContext('2d').drawImage(
-        ctx.canvas,
-        w * 0.07, nameCropY, w * 0.44, nameCropH,
-        0, 0, nameCanvas.width, nameCanvas.height
-      );
+      const nCtx = nameCanvas.getContext('2d');
+      nCtx.drawImage(ctx.canvas, Math.floor(w * 0.07), nameCropY, nameCanvas.width, nameCropH, 0, 0, nameCanvas.width, nameCropH);
 
-      let recognizedName = "UNKNOWN";
+      const nData = nCtx.getImageData(0, 0, nameCanvas.width, nameCropH);
+      const d = nData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const v = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) > 130 ? 255 : 0;
+        d[i] = d[i + 1] = d[i + 2] = v;
+      }
+      nCtx.putImageData(nData, 0, 0);
+
+      let recognizedName = "";
       try {
-        const ocrRes = await Tesseract.recognize(nameCanvas, 'eng');
-        recognizedName = ocrRes.data.text.trim().replace(/[^a-zA-Z\s]/g, "");
+        const ocrRes = await Tesseract.recognize(nameCanvas, 'eng', {
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
+        });
+        recognizedName = ocrRes.data.text.trim().replace(/[^A-Z\s]/g, "");
       } catch (e) {
-        console.warn("OCR failure:", e);
+        console.warn("OCR Error:", e);
       }
 
-      // Bubble Evaluation: Dashes #1 to #34 (34 rows)
       const answers = {};
       const colStarts = [0.12, 0.41, 0.70];
       const bubbleSpacing = 0.045;
 
       const rowYList = [];
-      if (dashes.length >= 34) {
+      if (dashes && dashes.length >= 34) {
         for (let i = 0; i < 34; i++) rowYList.push(dashes[i].center);
       } else {
         const step = (h * 0.69) / 34;
@@ -488,45 +516,50 @@
       compileResults(recognizedName, answers, maxQ);
     }
 
-    // 7. Bubble Density Measurement Helper
+    // 7. Bubble Density Measurement Helper (Complete & Untruncated)
     function sampleBubbleDensity(ctx, cx, cy, radius) {
-      const imgData = ctx.getImageData(cx - radius, cy - radius, radius * 2, radius * 2);
-      const data = imgData.data;
-      let darkPixels = 0;
-      let totalPixels = 0;
+      try {
+        const imgData = ctx.getImageData(Math.floor(cx - radius), Math.floor(cy - radius), radius * 2, radius * 2);
+        const data = imgData.data;
+        let darkPixels = 0;
+        let totalPixels = 0;
 
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (gray < 110) darkPixels++;
-        totalPixels++;
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          if (gray < 110) darkPixels++;
+          totalPixels++;
+        }
+        return totalPixels > 0 ? (darkPixels / totalPixels) : 0;
+      } catch (e) {
+        return 0;
       }
-      return darkPixels / totalPixels;
     }
 
-    // 8. Result Compilation & Duplicate Safeguard
+    // 8. Result Compilation & Fuzzy Student Matcher
     function compileResults(rawName, answers, totalQuestions) {
       const locked = document.getElementById('lockedClass').value;
       const targetStudents = classRoster.filter(s => s.class === locked);
 
-      // Match extracted name against locked class roster
-      let matchedStudent = targetStudents.find(s => s.name.toUpperCase() === rawName.toUpperCase());
-      if (!matchedStudent && targetStudents.length > 0) {
-        // Nearest string match fallback
-        matchedStudent = targetStudents[0];
+      // Levenshtein Fuzzy Matcher
+      let matchedStudent = null;
+      let highestSimilarity = 0;
+
+      if (rawName && rawName.length > 2) {
+        targetStudents.forEach(s => {
+          const sim = stringSimilarity(rawName.toUpperCase(), s.name.toUpperCase());
+          if (sim > highestSimilarity) {
+            highestSimilarity = sim;
+            matchedStudent = s;
+          }
+        });
       }
 
-      const studentName = matchedStudent ? matchedStudent.name : (rawName || "Unknown Student");
-      const studentRoll = matchedStudent ? matchedStudent.roll : "N/A";
-
-      // Duplicate Scan Alert Check
-      const existingIdx = scannedRecords.findIndex(r => r.class === locked && r.name === studentName);
-      if (existingIdx !== -1) {
-        if (!confirm(`Warning: Student "${studentName}" is already evaluated. Do you want to rescan and overwrite?`)) {
-          return;
-        }
+      // If similarity is below 40%, do not blindly assign
+      if (highestSimilarity < 0.40) {
+        matchedStudent = null;
       }
 
-      // Compute Score against Master Key
+      // Calculate Scores
       let score = 0;
       let attempted = 0;
       let blank = 0;
@@ -543,34 +576,96 @@
         }
       }
 
+      // Render Dropdown of Class Roster
+      const selectBox = document.getElementById('resStudentSelect');
+      selectBox.innerHTML = '';
+
+      if (!matchedStudent) {
+        const defOpt = document.createElement('option');
+        defOpt.value = "";
+        defOpt.innerText = `⚠️ OCR: "${rawName || 'No Name'}" - Tap to Pick Student`;
+        selectBox.appendChild(defOpt);
+      }
+
+      targetStudents.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.name;
+        opt.innerText = `${s.name} (Roll: ${s.roll})`;
+        if (matchedStudent && matchedStudent.name === s.name) opt.selected = true;
+        selectBox.appendChild(opt);
+      });
+
       currentEvaluation = {
-        name: studentName,
-        roll: studentRoll,
         class: locked,
         score: score,
         total: totalQuestions,
         answers: answers
       };
 
-      // Populate & Open Confirmation Modal
-      document.getElementById('resStudent').innerText = `${studentName} (Roll: ${studentRoll})`;
       document.getElementById('scoreBadge').innerText = `Score: ${score}/${totalQuestions}`;
       document.getElementById('resAttempted').innerText = attempted;
       document.getElementById('resBlank').innerText = blank;
       document.getElementById('resMulti').innerText = multi;
 
       document.getElementById('evalModal').classList.remove('hidden');
-
-      // Haptic confirmation
       if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
     }
 
-    function saveAndNext() {
-      if (!currentEvaluation) return;
+    // Levenshtein Similarity (0.0 to 1.0)
+    function stringSimilarity(s1, s2) {
+      let longer = s1;
+      let shorter = s2;
+      if (s1.length < s2.length) { longer = s2; shorter = s1; }
+      const longerLength = longer.length;
+      if (longerLength === 0) return 1.0;
+      return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
+    }
 
-      const idx = scannedRecords.findIndex(r => r.class === currentEvaluation.class && r.name === currentEvaluation.name);
-      if (idx !== -1) {
-        scannedRecords[idx] = currentEvaluation;
+    function editDistance(s1, s2) {
+      s1 = s1.toLowerCase();
+      s2 = s2.toLowerCase();
+      const costs = [];
+      for (let i = 0; i <= s1.length; i++) {
+        let lastValue = i;
+        for (let j = 0; j <= s2.length; j++) {
+          if (i === 0) costs[j] = j;
+          else {
+            if (j > 0) {
+              let newValue = costs[j - 1];
+              if (s1.charAt(i - 1) !== s2.charAt(j - 1))
+                newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+              costs[j - 1] = lastValue;
+              lastValue = newValue;
+            }
+          }
+        }
+        if (i > 0) costs[s2.length] = lastValue;
+      }
+      return costs[s2.length];
+    }
+
+    function saveAndNext() {
+      const selectBox = document.getElementById('resStudentSelect');
+      const selectedName = selectBox.value;
+
+      if (!selectedName) {
+        alert("Please select the student name before saving.");
+        return;
+      }
+
+      const locked = document.getElementById('lockedClass').value;
+      const targetStudent = classRoster.find(s => s.class === locked && s.name === selectedName);
+
+      currentEvaluation.name = selectedName;
+      currentEvaluation.roll = targetStudent ? targetStudent.roll : "N/A";
+
+      // Duplicate Check
+      const existingIdx = scannedRecords.findIndex(r => r.class === locked && r.name === selectedName);
+      if (existingIdx !== -1) {
+        if (!confirm(`Notice: "${selectedName}" has already been scanned. Overwrite existing score?`)) {
+          return;
+        }
+        scannedRecords[existingIdx] = currentEvaluation;
       } else {
         scannedRecords.push(currentEvaluation);
       }
