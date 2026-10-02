@@ -81,7 +81,7 @@
           </div>
           <div>
             <h3 class="text-xs font-bold text-white uppercase">MCQ OMR Scanner</h3>
-            <p class="text-[11px] text-slate-400">Classes III, IV, V, IX, X • Gunotsav 43-Rail</p>
+            <p class="text-[11px] text-slate-400">Classes III to XII • Gunotsav & Universal 100-Q</p>
           </div>
         </div>
         <div class="flex items-center gap-1 text-indigo-400 font-bold text-xs">
@@ -146,7 +146,7 @@
         </div>
       </div>
       <p class="text-[10px] text-slate-500 leading-tight">
-        * Standard Gunotsav applies 90% Scholastic evaluation + 10% Institutional 24 Indicators[span_2](start_span)[span_2](end_span).
+        * Standard Gunotsav applies 90% Scholastic evaluation + 10% Institutional 24 Indicators[span_0](start_span)[span_0](end_span).
       </p>
     </section>
 
@@ -204,7 +204,7 @@
       </p>
       <div class="space-y-1.5 pt-1 text-xs">
         <button onclick="resetDataset('mcq')" class="w-full text-left p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-rose-500/50 text-slate-300 flex justify-between items-center">
-          <span>Clear MCQ Scores (Class III-X)</span>
+          <span>Clear MCQ Scores (Class III-XII)</span>
           <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500"></i>
         </button>
         <button onclick="resetDataset('primary')" class="w-full text-left p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-rose-500/50 text-slate-300 flex justify-between items-center">
@@ -232,7 +232,8 @@
     let primaryScores = [];
     let schoolIndicators = null;
 
-    const allClasses = ['I', 'II', 'III', 'IV', 'V', 'IX', 'X'];
+    // Supports full school span from Class I through Class XII
+    const allClasses = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
@@ -244,7 +245,7 @@
       const r = localStorage.getItem('dhk_roster');
       roster = r ? JSON.parse(r) : [];
 
-      // 2. MCQ Evaluations (Class III-X)
+      // 2. MCQ Evaluations (Class III-XII)
       const m = localStorage.getItem('dhk_scores_mcq');
       mcqScores = m ? JSON.parse(m) : [];
 
@@ -386,7 +387,7 @@
     }
 
     function resetDataset(type) {
-      if (type === 'mcq' && confirm("Clear all Class III-X MCQ scores?")) {
+      if (type === 'mcq' && confirm("Clear all Class III-XII MCQ scores?")) {
         localStorage.removeItem('dhk_scores_mcq');
       } else if (type === 'primary' && confirm("Clear all Class I-II Primary scores?")) {
         localStorage.removeItem('dhk_scores_primary');
@@ -405,13 +406,13 @@
     function exportCSV() {
       let csv = "Student Name,Class,Roll,Type,Score,Max Score,Percentage\n";
 
-      // 1. Primary
+      // 1. Primary Records
       primaryScores.forEach(s => {
         const pct = ((s.totalScore / s.maxScore) * 100).toFixed(1);
         csv += `"${s.name}","${s.class}","${s.roll || ''}","Primary FLN",${s.totalScore},${s.maxScore},${pct}%\n`;
       });
 
-      // 2. MCQ
+      // 2. MCQ Records
       mcqScores.forEach(s => {
         const pct = ((s.score / s.total) * 100).toFixed(1);
         csv += `"${s.name}","${s.class}","${s.roll || ''}","MCQ",${s.score},${s.total},${pct}%\n`;
