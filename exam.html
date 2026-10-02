@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>DHK OMR Pro - Answer Key & Sheet Generator</title>
+  <title>DHK OMR Pro - Answer Keys & Generator</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -15,6 +15,7 @@
         left: 0 !important;
         top: 0 !important;
         width: 100% !important;
+        height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
         display: block !important;
@@ -22,7 +23,7 @@
       }
       @page {
         size: A4 portrait;
-        margin: 6mm;
+        margin: 0;
       }
     }
     * {
@@ -33,7 +34,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
-  <!-- APP VIEW (Hidden during printing) -->
+  <!-- TOP HEADER -->
   <header class="bg-slate-900 border-b border-slate-800 p-3 sticky top-0 z-30 shadow-lg">
     <div class="flex items-center justify-between max-w-lg mx-auto">
       <div class="flex items-center gap-2">
@@ -42,12 +43,11 @@
         </a>
         <div>
           <h1 class="text-xs font-black uppercase tracking-wider text-white">Answer Key & Sheets</h1>
-          <div id="keyStatusBadge" class="text-[11px] font-medium text-amber-400">Editing Class III (0 Keys Set)</div>
+          <div id="keyStatusBadge" class="text-[11px] font-medium text-amber-400">Class III (0 Keys Set)</div>
         </div>
       </div>
 
-      <!-- Print Sheet Trigger -->
-      <button onclick="printCustomSheet()" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 shadow">
+      <button onclick="printCalibratedSheet()" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 shadow">
         <i data-lucide="printer" class="w-3.5 h-3.5"></i>
         <span>Print Sheet</span>
       </button>
@@ -58,10 +58,7 @@
       <div>
         <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Active Class</label>
         <select id="selectedClass" onchange="onClassChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold">
-          <option value="Ka-Shreni">Ka-Shreni</option>
-          <option value="I">Class I</option>
-          <option value="II">Class II</option>
-          <option value="III" selected>Class III</option>
+          <option value="III">Class III</option>
           <option value="IV">Class IV</option>
           <option value="V">Class V</option>
           <option value="VI">Class VI</option>
@@ -99,51 +96,48 @@
     </div>
   </footer>
 
-  <!-- FULL OMR PRINTABLE CONTAINER WITH TIMING RAILS & FIDUCIALS -->
+  <!-- EXACT SCANNER-ALIGNED PRINT CONTAINER (1000 x 1414 Coordinate Space) -->
   <div id="printableArea" class="hidden text-black font-sans">
-    <div style="position: relative; width: 100%; border: 2.5px solid #000; padding: 14px 10px; background: #fff; box-sizing: border-box;">
-      
-      <!-- 4 SOLID CORNER FIDUCIAL MARKERS -->
-      <div style="position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: #000;"></div>
-      <div style="position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; background: #000;"></div>
-      <div style="position: absolute; bottom: 3px; left: 3px; width: 20px; height: 20px; background: #000;"></div>
-      <div style="position: absolute; bottom: 3px; right: 3px; width: 20px; height: 20px; background: #000;"></div>
+    <svg id="omrSvg" viewBox="0 0 1000 1414" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="background:#fff;">
+      <!-- Outer Target Border -->
+      <rect x="25" y="25" width="950" height="1364" fill="none" stroke="#000" stroke-width="3" />
 
-      <!-- HEADER -->
-      <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin: 0 20px;">
-        <h2 id="printTitle" style="font-size: 15pt; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">DHK Precision OMR Answer Sheet</h2>
-        <p id="printSub" style="font-size: 8pt; margin: 2px 0 0 0; font-weight: bold; color: #222;">Class <span id="printClassVal">III</span> • <span id="printCountVal">58</span> Questions • Calibration Rail Enabled</p>
-      </div>
+      <!-- 4 High-Precision Solid Black Fiducials -->
+      <rect x="25" y="25" width="45" height="45" fill="#000" />
+      <rect x="930" y="25" width="45" height="45" fill="#000" />
+      <rect x="25" y="1344" width="45" height="45" fill="#000" />
+      <rect x="930" y="1344" width="45" height="45" fill="#000" />
 
-      <!-- STUDENT METADATA ROW -->
-      <div style="display: grid; grid-template-columns: 2.5fr 1fr 1fr; gap: 8px; margin: 8px 20px; border: 1.5px solid #000; padding: 5px 8px; font-size: 8.5pt;">
-        <div><b>Candidate Name:</b> ___________________________</div>
-        <div><b>Class / Sec:</b> <span id="printClassVal2">III</span></div>
-        <div><b>Roll No:</b> _________</div>
-      </div>
+      <!-- Sheet Header -->
+      <text x="500" y="100" text-anchor="middle" font-size="24" font-weight="900" font-family="Arial" letter-spacing="1">DHK PRECISION OMR ANSWER SHEET</text>
+      <text x="500" y="130" text-anchor="middle" font-size="13" font-weight="bold" font-family="Arial" fill="#444">Universal 34-Timing Rail Engine • Standard Vision Grid</text>
 
-      <!-- TIMING RAILS + QUESTION GRID CONTAINER -->
-      <div style="display: flex; justify-content: space-between; align-items: stretch; margin: 6px 4px;">
-        
-        <!-- LEFT 34-DASH TIMING RAIL -->
-        <div id="printLeftRail" style="width: 14px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 2px 0;"></div>
+      <!-- Exact Name OCR Box (x=7% to 51%, y=16.5% to 20%) -->
+      <rect x="70" y="233" width="440" height="49" fill="none" stroke="#000" stroke-width="2" />
+      <text x="80" y="222" font-size="11" font-weight="bold" font-family="Arial">CANDIDATE NAME (IN CAPITAL LETTERS)</text>
 
-        <!-- MAIN QUESTION BUBBLE GRID -->
-        <div id="printGrid" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 6px;"></div>
+      <!-- Student Metadata Side-Boxes -->
+      <rect x="530" y="233" width="200" height="49" fill="none" stroke="#000" stroke-width="1.5" />
+      <text x="540" y="222" font-size="11" font-weight="bold" font-family="Arial">CLASS / SEC</text>
 
-        <!-- RIGHT 34-DASH TIMING RAIL -->
-        <div id="printRightRail" style="width: 14px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 2px 0;"></div>
+      <rect x="750" y="233" width="180" height="49" fill="none" stroke="#000" stroke-width="1.5" />
+      <text x="760" y="222" font-size="11" font-weight="bold" font-family="Arial">ROLL / ID NO</text>
 
-      </div>
+      <!-- Left 34 Timing Dashes (x=1.5% to 8% of width => x=30 to 70) -->
+      <g id="svgLeftRail"></g>
 
-      <!-- BOTTOM INSTRUCTION / FOOTER -->
-      <div style="margin: 6px 20px 0 20px; border-top: 1.5px solid #000; padding-top: 4px; font-size: 7pt; display: flex; justify-content: space-between; font-weight: bold;">
-        <span>• Use Blue or Black Ballpoint Pen only</span>
-        <span>• Darken bubbles completely: [ ● ]</span>
-        <span>DHK OMR PRO 34-RAIL VISION SYSTEM</span>
-      </div>
+      <!-- Right Timing Rail (Symmetry Anchor) -->
+      <g id="svgRightRail"></g>
 
-    </div>
+      <!-- Exact 3-Column Bubble Matrix -->
+      <g id="svgGrid"></g>
+
+      <!-- Footer Instructions -->
+      <line x1="70" y1="1310" x2="930" y2="1310" stroke="#000" stroke-width="1.5" />
+      <text x="70" y="1335" font-size="12" font-weight="bold" font-family="Arial">• Use Blue or Black Ballpoint Pen only</text>
+      <text x="450" y="1335" font-size="12" font-weight="bold" font-family="Arial">• Darken bubbles completely: [ ● ]</text>
+      <text x="930" y="1335" text-anchor="end" font-size="12" font-weight="bold" font-family="Arial">DHK 34-RAIL VISION SYSTEM</text>
+    </svg>
   </div>
 
   <script>
@@ -158,8 +152,16 @@
 
     function loadKeyForClass(cls) {
       currentClass = cls;
-      const stored = localStorage.getItem(`dhk_key_${cls}`);
-      answerKey = stored ? JSON.parse(stored) : {};
+      const stored = localStorage.getItem(`dhk_key_${cls}`) || localStorage.getItem('dhk_master_key');
+      answerKey = {};
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          answerKey = parsed[cls] ? parsed[cls] : parsed;
+        } catch (e) {
+          answerKey = {};
+        }
+      }
 
       const storedQCount = localStorage.getItem(`dhk_qcount_${cls}`);
       if (storedQCount) {
@@ -222,12 +224,13 @@
 
     function updateStatusBadge() {
       const count = Object.keys(answerKey).length;
-      document.getElementById('keyStatusBadge').innerText = `Editing Class ${currentClass} (${count}/${questionCount} Keys Set)`;
+      document.getElementById('keyStatusBadge').innerText = `Class ${currentClass} (${count}/${questionCount} Keys Set)`;
     }
 
     function saveState() {
       localStorage.setItem(`dhk_key_${currentClass}`, JSON.stringify(answerKey));
       localStorage.setItem(`dhk_qcount_${currentClass}`, questionCount);
+      localStorage.setItem('dhk_master_key', JSON.stringify(answerKey));
     }
 
     function resetCurrentKey() {
@@ -243,61 +246,104 @@
       saveState();
       localStorage.setItem('dhk_locked_class', currentClass);
       localStorage.setItem('dhk_active_total_q', questionCount);
-      window.location.href = `scan-mcq.html?total=${questionCount}`;
+      window.location.href = `scan.html`;
     }
 
-    function printCustomSheet() {
-      document.getElementById('printClassVal').innerText = currentClass;
-      document.getElementById('printClassVal2').innerText = currentClass;
-      document.getElementById('printCountVal').innerText = questionCount;
+    // DRAW EXACT SCANNER-ALIGNED SHEET
+    function printCalibratedSheet() {
+      const H = 1414;
+      const W = 1000;
 
-      // 1. Populate the 34 solid black timing dashes on left and right borders
-      const leftRail = document.getElementById('printLeftRail');
-      const rightRail = document.getElementById('printRightRail');
-      leftRail.innerHTML = '';
-      rightRail.innerHTML = '';
+      // 1. EXACT Y-COORDINATES MATCHING scan.html FALLBACK & TIMING RAIL:
+      // In scan.html: step = (h * 0.69) / 34, start = h * 0.21
+      const startY = H * 0.21;          // 296.94px
+      const totalGridHeight = H * 0.69;  // 975.66px
+      const stepY = totalGridHeight / 34; // 28.69px per question row
 
-      const timingDashes = 34;
-      for (let d = 0; d < timingDashes; d++) {
-        const dash1 = document.createElement('div');
-        dash1.style.cssText = "width: 12px; height: 4px; background: #000; margin: 2px 0;";
-        leftRail.appendChild(dash1);
+      const leftRailSvg = document.getElementById('svgLeftRail');
+      const rightRailSvg = document.getElementById('svgRightRail');
+      const gridSvg = document.getElementById('svgGrid');
+      leftRailSvg.innerHTML = '';
+      rightRailSvg.innerHTML = '';
+      gridSvg.innerHTML = '';
 
-        const dash2 = document.createElement('div');
-        dash2.style.cssText = "width: 12px; height: 4px; background: #000; margin: 2px 0;";
-        rightRail.appendChild(dash2);
+      // Draw the 34 solid black timing dashes along both margins
+      for (let r = 0; r < 34; r++) {
+        const cy = startY + (r * stepY);
+        const dashH = 10;
+        const dashW = 35;
+
+        // Left rail (inside x=30 to x=65, precisely inside scanner's 0.015-0.08 window)
+        const dLeft = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        dLeft.setAttribute("x", "30");
+        dLeft.setAttribute("y", cy - (dashH / 2));
+        dLeft.setAttribute("width", dashW);
+        dLeft.setAttribute("height", dashH);
+        dLeft.setAttribute("fill", "#000");
+        leftRailSvg.appendChild(dLeft);
+
+        // Right rail
+        const dRight = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        dRight.setAttribute("x", "935");
+        dRight.setAttribute("y", cy - (dashH / 2));
+        dRight.setAttribute("width", dashW);
+        dRight.setAttribute("height", dashH);
+        dRight.setAttribute("fill", "#000");
+        rightRailSvg.appendChild(dRight);
       }
 
-      // 2. Populate the Question & Option Bubble Columns
-      const grid = document.getElementById('printGrid');
-      grid.innerHTML = '';
+      // 2. EXACT COLUMN & OPTION BUBBLES MATCHING scan.html:
+      // colBaseX = [0.12, 0.41, 0.70] => W * 0.12 = 120, W * 0.41 = 410, W * 0.70 = 700
+      // optionGap = 0.045 => W * 0.045 = 45px between A, B, C, D
+      const colBaseX = [120, 410, 700];
+      const gapX = 45;
+      const opts = ['A', 'B', 'C', 'D'];
+      let qNum = 1;
 
-      const cols = questionCount > 40 ? 3 : 2;
-      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-      const perCol = Math.ceil(questionCount / cols);
+      for (let c = 0; c < 3; c++) {
+        for (let r = 0; r < 34; r++) {
+          if (qNum > questionCount) break;
 
-      for (let c = 0; c < cols; c++) {
-        const colDiv = document.createElement('div');
-        colDiv.style.cssText = "border: 1px solid #777; border-radius: 4px; padding: 4px; display: flex; flex-direction: column; justify-content: space-between;";
+          const cy = startY + (r * stepY);
+          const baseX = colBaseX[c];
 
-        const start = c * perCol + 1;
-        const end = Math.min((c + 1) * perCol, questionCount);
+          // Question Number
+          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          txt.setAttribute("x", baseX - 12);
+          txt.setAttribute("y", cy + 4);
+          txt.setAttribute("text-anchor", "end");
+          txt.setAttribute("font-size", "11");
+          txt.setAttribute("font-family", "monospace");
+          txt.setAttribute("font-weight", "bold");
+          txt.textContent = String(qNum).padStart(2, '0');
+          gridSvg.appendChild(txt);
 
-        for (let q = start; q <= end; q++) {
-          const row = document.createElement('div');
-          row.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 2px 2px; border-bottom: 0.5px dashed #ccc; height: 18px;";
-          row.innerHTML = `
-            <span style="font-family: monospace; font-size: 7pt; font-weight: bold; width: 24px;">Q${String(q).padStart(2, '0')}</span>
-            <span style="display: flex; gap: 4px;">
-              <span style="display:inline-block; width:13px; height:13px; border:1.2px solid #000; border-radius:50%; text-align:center; line-height:12px; font-size:6pt; font-weight:bold;">A</span>
-              <span style="display:inline-block; width:13px; height:13px; border:1.2px solid #000; border-radius:50%; text-align:center; line-height:12px; font-size:6pt; font-weight:bold;">B</span>
-              <span style="display:inline-block; width:13px; height:13px; border:1.2px solid #000; border-radius:50%; text-align:center; line-height:12px; font-size:6pt; font-weight:bold;">C</span>
-              <span style="display:inline-block; width:13px; height:13px; border:1.2px solid #000; border-radius:50%; text-align:center; line-height:12px; font-size:6pt; font-weight:bold;">D</span>
-            </span>
-          `;
-          colDiv.appendChild(row);
+          // 4 Bubbles (A, B, C, D)
+          opts.forEach((opt, idx) => {
+            const bx = baseX + (idx * gapX);
+
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", bx);
+            circle.setAttribute("cy", cy);
+            circle.setAttribute("r", "10");
+            circle.setAttribute("fill", "#fff");
+            circle.setAttribute("stroke", "#000");
+            circle.setAttribute("stroke-width", "1.8");
+            gridSvg.appendChild(circle);
+
+            const optTxt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            optTxt.setAttribute("x", bx);
+            optTxt.setAttribute("y", cy + 3.5);
+            optTxt.setAttribute("text-anchor", "middle");
+            optTxt.setAttribute("font-size", "9");
+            optTxt.setAttribute("font-family", "Arial");
+            optTxt.setAttribute("font-weight", "bold");
+            optTxt.textContent = opt;
+            gridSvg.appendChild(optTxt);
+          });
+
+          qNum++;
         }
-        grid.appendChild(colDiv);
       }
 
       window.print();
