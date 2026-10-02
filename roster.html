@@ -1,1 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DHK OMR Pro - Roster Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
+  <!-- HEADER -->
+  <header class="bg-slate-900 border-b border-slate-800 p-3 sticky top-0 z-30">
+    <div class="flex items-center justify-between max-w-lg mx-auto">
+      <div class="flex items-center gap-2">
+        <a href="index.html" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        </a>
+        <h1 class="text-xs font-black uppercase tracking-wider text-white">Student Roster Manager</h1>
+      </div>
+      <div class="text-[11px] font-mono text-emerald-400 font-bold" id="enrolledCount">
+        Total: 0 Students
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-lg mx-auto w-full p-3.5 space-y-3 pb-16">
+    <!-- TOP ACTIONS -->
+    <div class="grid grid-cols-3 gap-2">
+      <label class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-2.5 rounded-xl text-center text-xs flex flex-col items-center justify-center cursor-pointer shadow">
+        <i data-lucide="upload" class="w-4 h-4 mb-0.5"></i>
+        <span>Upload XLSX</span>
+        <input type="file" id="xlsxUpload" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)" />
+      </label>
+
+      <button onclick="openAddStudentModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-2.5 rounded-xl text-center text-xs flex flex-col items-center justify-center shadow">
+        <i data-lucide="user-plus" class="w-4 h-4 mb-0.5"></i>
+        <span>Add Student</span>
+      </button>
+
+      <button onclick="clearRoster()" class="bg-rose-700 hover:bg-rose-600 text-white font-bold p-2.5 rounded-xl text-center text-xs flex flex-col items-center justify-center shadow">
+        <i data-lucide="trash-2" class="w-4 h-4 mb-0.5"></i>
+        <span>Clear List</span>
+      </button>
+    </div>
+
+    <!-- CLASS FILTER TABS -->
+    <div class="flex gap-1.5 overflow-x-auto pb-1 text-xs font-bold scrollbar-none" id="classFilters">
+      <button onclick="filterClass('ALL')" class="filter-tab px-3 py-1.5 rounded-lg bg-indigo-600 text-white shrink-0">All Classes</button>
+      <button onclick="filterClass('Ka-Shreni')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Ka-Shreni</button>
+      <button onclick="filterClass('I')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Class-I</button>
+      <button onclick="filterClass('II')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Class-II</button>
+      <button onclick="filterClass('III')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Class-III</button>
+      <button onclick="filterClass('IV')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Class-IV</button>
+      <button onclick="filterClass('V')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Class-V</button>
+    </div>
+
+    <!-- STUDENT LIST -->
+    <div id="studentContainer" class="space-y-2">
+      <!-- Dynamically populated student cards -->
+    </div>
+  </main>
+
+  <script>
+    let roster = [];
+    let currentFilter = 'ALL';
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      loadRoster();
+    });
+
+    function loadRoster() {
+      const stored = localStorage.getItem('dhk_roster');
+      roster = stored ? JSON.parse(stored) : [];
+      renderStudents();
+    }
+
+    function renderStudents() {
+      const container = document.getElementById('studentContainer');
+      document.getElementById('enrolledCount').innerText = `Total: ${roster.length} Students`;
+      container.innerHTML = '';
+
+      const filtered = currentFilter === 'ALL' ? roster : roster.filter(s => s.class === currentFilter);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-500">No students found. Upload Shiksha Setu XLSX or add manually.</div>`;
+        return;
+      }
+
+      filtered.forEach((s, idx) => {
+        const div = document.createElement('div');
+        div.className = "flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800";
+        div.innerHTML = `
+          <div>
+            <div class="font-bold text-white text-xs">${s.name}</div>
+            <div class="text-[10px] text-slate-400">Class-${s.class} ${s.sec ? '(Sec ' + s.sec + ')' : ''} | ID: ${s.roll || 'N/A'}</div>
+          </div>
+          <button onclick="deleteStudent(${idx})" class="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        `;
+        container.appendChild(div);
+      });
+      lucide.createIcons();
+    }
+
+    function filterClass(cls) {
+      currentFilter = cls;
+      document.querySelectorAll('.filter-tab').forEach(b => {
+        b.className = "filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0";
+      });
+      event.target.className = "filter-tab px-3 py-1.5 rounded-lg bg-indigo-600 text-white shrink-0";
+      renderStudents();
+    }
+
+    function handleExcelUpload(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(firstSheet);
+
+        const newStudents = json.map(r => ({
+          name: String(r['Student Name'] || r['name'] || r['NAME'] || '').trim(),
+          class: String(r['Class'] || r['class'] || r['CLASS'] || 'III').replace(/Class[- ]?/i, '').trim(),
+          roll: String(r['Student ID'] || r['ID'] || r['Roll'] || '').trim(),
+          sec: String(r['Section'] || 'A').trim()
+        })).filter(s => s.name.length > 0);
+
+        roster = roster.concat(newStudents);
+        localStorage.setItem('dhk_roster', JSON.stringify(roster));
+        renderStudents();
+        alert(`Successfully imported ${newStudents.length} students!`);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function deleteStudent(index) {
+      roster.splice(index, 1);
+      localStorage.setItem('dhk_roster', JSON.stringify(roster));
+      renderStudents();
+    }
+
+    function clearRoster() {
+      if (confirm("Clear all students from roster?")) {
+        roster = [];
+        localStorage.removeItem('dhk_roster');
+        renderStudents();
+      }
+    }
+  </script>
+</body>
+</html>
