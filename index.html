@@ -1,389 +1,432 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DHK OMR Pro • Student Roster</title>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DHK OMR Pro - Gunotsav Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    :root {
-      --bg: #121721; --card: #1e2635; --header: #1a2230;
-      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030;
-      --text: #f0f4f8; --sub: #a0aec0; --border: #2d3748;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding-bottom: 40px; }
-
-    header { background: var(--header); padding: 12px 14px; border-bottom: 1px solid var(--border); }
-    .app-name { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
-    .nav-links { display: flex; gap: 6px; overflow-x: auto; }
-    .nav-btn {
-      flex: 1; text-align: center; padding: 8px 10px; border-radius: 6px;
-      font-size: 12px; font-weight: bold; text-decoration: none;
-      background: var(--card); color: var(--sub); border: 1px solid var(--border); white-space: nowrap;
-    }
-    .nav-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
-
-    .container { padding: 14px; max-width: 600px; margin: 0 auto; }
-    .btn {
-      padding: 10px 12px; border-radius: 8px; border: none; font-weight: bold;
-      font-size: 13px; color: #fff; cursor: pointer; text-align: center;
-    }
-    .btn-green { background: var(--green); }
-    .btn-blue { background: var(--blue); }
-    .btn-red { background: var(--red); }
-    .btn-gray { background: #4a5568; }
-
-    .controls-grid { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-    .class-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; }
-    .tab-btn {
-      padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: bold;
-      background: var(--header); color: var(--sub); border: 1px solid var(--border); cursor: pointer; white-space: nowrap;
-    }
-    .tab-btn.active { background: var(--blue); color: #fff; border-color: #63b3ed; }
-
-    .student-card {
-      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-      padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
-    }
-    .st-name { font-size: 15px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; color: #fff; }
-    .st-meta { font-size: 11px; color: var(--sub); }
-    .badge {
-      padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold;
-    }
-    .badge-pending { background: #2d3748; color: var(--sub); }
-    .badge-evaluated { background: #22543d; color: #9ae6b4; border: 1px solid #38a169; }
-
-    .btn-del {
-      background: transparent; border: none; color: #fc8181; font-size: 18px; cursor: pointer; padding: 4px 8px;
-    }
-
-    /* Modal Form for Manual Student Entry */
-    .modal-overlay {
-      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.85); z-index: 1000; padding: 16px;
-      align-items: center; justify-content: center;
-    }
-    .modal-box {
-      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-      padding: 16px; width: 100%; max-width: 440px;
-    }
-    .form-row { margin-bottom: 12px; }
-    .form-row label { display: block; font-size: 12px; color: var(--sub); margin-bottom: 4px; }
-    .form-row input, .form-row select {
-      width: 100%; padding: 9px 12px; background: var(--header);
-      border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
-    }
+    body { -webkit-tap-highlight-color: transparent; }
   </style>
 </head>
-<body>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none overflow-x-hidden">
 
-  <header>
-    <div class="app-name">
-      <span>DHK OMR Pro</span>
-      <span style="font-size: 12px; color: #68d391;">Roster Page</span>
-    </div>
-    <div class="nav-links">
-      <a href="index.html" class="nav-btn active">👥 Roster</a>
-      <a href="exam.html" class="nav-btn">📝 Exam & Key</a>
-      <a href="scan.html" class="nav-btn">📷 Scanner</a>
-      <a href="grade.html" class="nav-btn">🏆 Grade Card</a>
+  <!-- TOP HEADER / NAV BAR -->
+  <header class="bg-slate-900 border-b border-slate-800 p-3 z-30 sticky top-0 shadow-lg">
+    <div class="flex items-center justify-between max-w-xl mx-auto">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white text-sm shadow">
+          DHK
+        </div>
+        <div>
+          <h1 class="text-sm font-black text-white tracking-wider uppercase">DHK OMR Pro</h1>
+          <p class="text-[10px] text-slate-400 font-medium">Gunotsav School Evaluation Suite</p>
+        </div>
+      </div>
+
+      <!-- Quick Nav Buttons -->
+      <div class="flex items-center gap-1.5">
+        <a href="roster.html" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition">
+          <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span>Roster</span>
+        </a>
+        <a href="exam.html" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition">
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Keys</span>
+        </a>
+        <button onclick="openResetModal()" class="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-700 transition">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+      </div>
     </div>
   </header>
 
-  <div class="container">
-    <div class="controls-grid">
-      <button class="btn btn-green" style="flex: 2;" onclick="document.getElementById('excelFileInput').click()">Upload Shiksha Setu (.xlsx)</button>
-      <button class="btn btn-blue" style="flex: 1.5;" onclick="openAddStudentModal()">➕ Add Student</button>
-      <button class="btn btn-red" style="flex: 1;" onclick="clearAllStudents()">Clear List</button>
-      <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleExcelUpload(event)">
-    </div>
+  <!-- MAIN SCROLLABLE DASHBOARD -->
+  <main class="flex-1 max-w-xl mx-auto w-full p-3.5 space-y-4 pb-20">
 
-    <!-- Dynamic Class Tabs -->
-    <div class="class-tabs" id="classTabsContainer"></div>
-
-    <div style="font-size: 13px; color: var(--sub); margin-bottom: 10px; display: flex; justify-content: space-between;">
-      <span id="studentCountText">Total: 0 Students</span>
-      <span id="evaluatedCountText" style="color: #68d391;">0 Evaluated</span>
-    </div>
-
-    <div id="studentsListContainer"></div>
-  </div>
-
-  <!-- MODAL: ADD STUDENT MANUALLY -->
-  <div class="modal-overlay" id="addStudentModal">
-    <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 12px; color: #63b3ed;">Add Student Manually</h3>
-      
-      <div class="form-row">
-        <label>Student Full Name:</label>
-        <input type="text" id="manualName" placeholder="e.g. BIPLOB CHETIA">
+    <!-- 1. COMPOSITE INSTITUTIONAL SUMMARY CARDS -->
+    <div class="grid grid-cols-3 gap-2">
+      <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl text-center shadow">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Evaluated</span>
+        <span id="evaluatedRatio" class="text-base font-black text-white font-mono">0 / 0</span>
+        <span id="evaluatedPct" class="text-[10px] text-slate-500 block mt-0.5 font-medium">0% Completed</span>
       </div>
 
-      <div class="form-row">
-        <label>Class Level:</label>
-        <select id="manualClass">
-          <option value="Ka-Shreni">Ka-Shreni / Balbatika</option>
-          <option value="Class-I">Class-I</option>
-          <option value="Class-II">Class-II</option>
-          <option value="Class-III" selected>Class-III</option>
-          <option value="Class-IV">Class-IV</option>
-          <option value="Class-V">Class-V</option>
-          <option value="Class-VI">Class-VI</option>
-          <option value="Class-VII">Class-VII</option>
-          <option value="Class-VIII">Class-VIII</option>
-          <option value="Class-IX">Class-IX</option>
-          <option value="Class-X">Class-X</option>
-          <option value="Class-XI">Class-XI</option>
-          <option value="Class-XII">Class-XII</option>
-        </select>
+      <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl text-center shadow">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Scholastic Avg</span>
+        <span id="scholasticAvg" class="text-base font-black text-indigo-400 font-mono">0.0%</span>
+        <span class="text-[10px] text-slate-500 block mt-0.5 font-medium">90% Weight</span>
       </div>
 
-      <div class="form-row">
-        <label>Student Code / ID (16-Digit UDISE or School ID):</label>
-        <input type="text" id="manualUid" placeholder="e.g. 18150302801210036">
-      </div>
-
-      <div class="form-row">
-        <label>Section:</label>
-        <input type="text" id="manualSec" value="A">
-      </div>
-
-      <div style="display: flex; gap: 8px; margin-top: 14px;">
-        <button class="btn btn-green" style="flex: 1;" onclick="saveManualStudent()">Save Student</button>
-        <button class="btn btn-gray" style="flex: 1;" onclick="closeAddStudentModal()">Cancel</button>
+      <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl text-center shadow">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">School Grade</span>
+        <span id="compositeGrade" class="text-base font-black text-amber-400 font-mono">Pending</span>
+        <span id="compositeScore" class="text-[10px] text-slate-500 block mt-0.5 font-medium">-- / 100</span>
       </div>
     </div>
-  </div>
 
-  <script>
-    let students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
-    let activeClassFilter = 'ALL';
+    <!-- 2. MODULAR SCANNER LAUNCHPAD (THE THREE ENGINES) -->
+    <section class="space-y-2">
+      <h2 class="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+        <i data-lucide="camera" class="w-3.5 h-3.5 text-indigo-400"></i>
+        <span>Evaluation Engines</span>
+      </h2>
 
-    function parseClassField(val) {
-      if (!val) return 'Class-I';
-      let s = String(val).toLowerCase().trim();
-
-      if (s.includes('ka') || s.includes('balbatika') || s.includes('pre') || s.includes('nursery') || s.includes('kg')) {
-        return 'Ka-Shreni';
-      }
-      if (s.includes('class-xii') || s.includes('class 12') || s.includes('class-12') || s === 'xii' || s === '12') return 'Class-XII';
-      if (s.includes('class-xi') || s.includes('class 11') || s.includes('class-11') || s === 'xi' || s === '11') return 'Class-XI';
-      if (s.includes('class-x') || s.includes('class 10') || s.includes('class-10') || s === 'x' || s === '10') return 'Class-X';
-      if (s.includes('class-ix') || s.includes('class 9') || s.includes('class-9') || s === 'ix' || s === '9') return 'Class-IX';
-      if (s.includes('class-viii') || s.includes('class 8') || s.includes('class-8') || s === 'viii' || s === '8') return 'Class-VIII';
-      if (s.includes('class-vii') || s.includes('class 7') || s.includes('class-7') || s === 'vii' || s === '7') return 'Class-VII';
-      if (s.includes('class-vi') || s.includes('class 6') || s.includes('class-6') || s === 'vi' || s === '6') return 'Class-VI';
-      if (s.includes('class-v') || s.includes('class 5') || s.includes('class-5') || s === 'v' || s === '5') return 'Class-V';
-      if (s.includes('class-iv') || s.includes('class 4') || s.includes('class-4') || s === 'iv' || s === '4') return 'Class-IV';
-      if (s.includes('class-iii') || s.includes('class 3') || s.includes('class-3') || s === 'iii' || s === '3') return 'Class-III';
-      if (s.includes('class-ii') || s.includes('class 2') || s.includes('class-2') || s === 'ii' || s === '2') return 'Class-II';
-      if (s.includes('class-i') || s.includes('class 1') || s.includes('class-1') || s === 'i' || s === '1') return 'Class-I';
-      
-      return String(val).trim();
-    }
-
-    function handleExcelUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-          const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-          if (rawRows.length < 2) return alert("The Excel file has no student data.");
-
-          let headerRowIndex = 0;
-          for (let r = 0; r < Math.min(rawRows.length, 10); r++) {
-            const rowText = rawRows[r].map(c => String(c).toLowerCase()).join(' ');
-            if (rowText.includes('student name') || rowText.includes('student') || rowText.includes('name')) {
-              headerRowIndex = r;
-              break;
-            }
-          }
-
-          const header = rawRows[headerRowIndex].map(c => String(c).trim().toLowerCase());
-
-          let nameCol = header.findIndex(h => h.includes('student name') || h === 'name');
-          if (nameCol === -1) nameCol = 2;
-
-          let idCol = header.findIndex(h => h.includes('uniqueid') || h.includes('student code') || h.includes('student id') || h.includes('pen'));
-          if (idCol === -1) idCol = 1;
-
-          let classCol = header.findIndex(h => h.includes('class') || h.includes('standard') || h.includes('grade'));
-          if (classCol === -1) classCol = 4;
-
-          const parsedList = [];
-
-          for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
-            const row = rawRows[r];
-            if (!row || row.length === 0) continue;
-
-            let sName = String(row[nameCol] || '').trim();
-            if (!sName || sName.toLowerCase() === 'student name') continue;
-
-            let sClassRaw = String(row[classCol] || '').trim();
-            let finalClass = parseClassField(sClassRaw);
-
-            let rawId = String(row[idCol] || '').replace(/\D/g, '').trim();
-            let finalId = (rawId.length >= 6) ? rawId : String(1815030280000000 + (r));
-
-            parsedList.push({
-              unique_id: finalId,
-              name: sName.toUpperCase(),
-              class_level: finalClass,
-              section: 'A',
-              evaluated: false,
-              score: null,
-              mcq_marks: 0,
-              subj_marks: 0
-            });
-          }
-
-          if (parsedList.length === 0) {
-            return alert("Could not read students from this file.");
-          }
-
-          students = parsedList;
-          localStorage.setItem('dhk_students', JSON.stringify(students));
-          activeClassFilter = 'ALL';
-          renderClassTabs();
-          renderStudents();
-          alert(`Successfully imported ${students.length} students!`);
-        } catch (err) {
-          alert("Error parsing file: " + err.message);
-        }
-      };
-      reader.readAsArrayBuffer(file);
-      event.target.value = '';
-    }
-
-    function openAddStudentModal() {
-      document.getElementById('manualName').value = '';
-      document.getElementById('manualUid').value = '';
-      document.getElementById('manualSec').value = 'A';
-      document.getElementById('addStudentModal').style.display = 'flex';
-    }
-
-    function closeAddStudentModal() {
-      document.getElementById('addStudentModal').style.display = 'none';
-    }
-
-    function saveManualStudent() {
-      const name = document.getElementById('manualName').value.trim();
-      const cls = document.getElementById('manualClass').value;
-      const rawUid = document.getElementById('manualUid').value.trim();
-      const sec = document.getElementById('manualSec').value.trim().toUpperCase() || 'A';
-
-      if (!name) return alert("Please enter the student's name.");
-
-      const uid = rawUid ? rawUid : String(1815030280000000 + (students.length + 1));
-
-      students.push({
-        unique_id: uid,
-        name: name.toUpperCase(),
-        class_level: cls,
-        section: sec,
-        evaluated: false,
-        score: null,
-        mcq_marks: 0,
-        subj_marks: 0
-      });
-
-      localStorage.setItem('dhk_students', JSON.stringify(students));
-      closeAddStudentModal();
-      renderClassTabs();
-      renderStudents();
-      alert(`Added ${name.toUpperCase()} to ${cls}!`);
-    }
-
-    function renderClassTabs() {
-      const container = document.getElementById('classTabsContainer');
-      const standardOrder = [
-        'ALL', 'Ka-Shreni', 'Class-I', 'Class-II', 'Class-III', 'Class-IV', 
-        'Class-V', 'Class-VI', 'Class-VII', 'Class-VIII', 'Class-IX', 'Class-X', 'Class-XI', 'Class-XII'
-      ];
-      const presentClasses = [...new Set(students.map(s => s.class_level))];
-
-      const tabsToRender = standardOrder.filter(c => c === 'ALL' || presentClasses.includes(c));
-
-      container.innerHTML = '';
-      tabsToRender.forEach(c => {
-        const label = c === 'ALL' ? 'All Classes' : c;
-        const isActive = activeClassFilter === c ? 'active' : '';
-        container.innerHTML += `<button class="tab-btn ${isActive}" onclick="filterByClass('${c}')">${label}</button>`;
-      });
-    }
-
-    function filterByClass(cls) {
-      activeClassFilter = cls;
-      renderClassTabs();
-      renderStudents();
-    }
-
-    function renderStudents() {
-      const container = document.getElementById('studentsListContainer');
-      container.innerHTML = '';
-
-      const filtered = activeClassFilter === 'ALL' 
-        ? students 
-        : students.filter(s => s.class_level === activeClassFilter);
-
-      document.getElementById('studentCountText').innerText = `Total: ${filtered.length} Students`;
-      const evalCount = filtered.filter(s => s.evaluated).length;
-      document.getElementById('evaluatedCountText').innerText = `${evalCount} Evaluated`;
-
-      if (filtered.length === 0) {
-        container.innerHTML = `<div style="text-align: center; color: var(--sub); padding: 30px;">No students found in ${activeClassFilter}.</div>`;
-        return;
-      }
-
-      filtered.forEach((st) => {
-        container.innerHTML += `
-          <div class="student-card">
-            <div>
-              <div class="st-name">${st.name}</div>
-              <div class="st-meta">${st.class_level} (Sec ${st.section}) | ID: ${st.unique_id}</div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="badge ${st.evaluated ? 'badge-evaluated' : 'badge-pending'}">
-                ${st.evaluated ? st.score + '%' : 'Pending'}
-              </span>
-              <button class="btn-del" onclick="deleteStudent('${st.unique_id}')">&times;</button>
-            </div>
+      <!-- Engine 1: MCQ Scanner -->
+      <a href="scan-mcq.html" class="flex items-center justify-between p-3.5 bg-slate-900 hover:bg-slate-850 active:scale-[0.99] border border-slate-800 hover:border-indigo-500/60 rounded-2xl shadow transition">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+            <i data-lucide="scan-line" class="w-5 h-5"></i>
           </div>
+          <div>
+            <h3 class="text-xs font-bold text-white uppercase">MCQ OMR Scanner</h3>
+            <p class="text-[11px] text-slate-400">Classes III, IV, V, IX, X • Gunotsav 43-Rail</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 text-indigo-400 font-bold text-xs">
+          <span>Launch</span>
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </div>
+      </a>
+
+      <!-- Engine 2: Primary Card (Classes I & II) -->
+      <a href="scan-primary.html" class="flex items-center justify-between p-3.5 bg-slate-900 hover:bg-slate-850 active:scale-[0.99] border border-slate-800 hover:border-emerald-500/60 rounded-2xl shadow transition">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+            <i data-lucide="book-open" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-white uppercase">Primary Foundational Card</h3>
+            <p class="text-[11px] text-slate-400">Classes I & II • FLN Reading, Writing & Numeracy</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 text-emerald-400 font-bold text-xs">
+          <span>Launch</span>
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </div>
+      </a>
+
+      <!-- Engine 3: 24 School Indicators -->
+      <a href="scan-school.html" class="flex items-center justify-between p-3.5 bg-slate-900 hover:bg-slate-850 active:scale-[0.99] border border-slate-800 hover:border-amber-500/60 rounded-2xl shadow transition">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+            <i data-lucide="award" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-white uppercase">24 School Indicators</h3>
+            <p class="text-[11px] text-slate-400">10% Institutional Weight • Infrastructure & SMC</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 text-amber-400 font-bold text-xs">
+          <span id="indicatorsQuickScore">0 / 24</span>
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </div>
+      </a>
+    </section>
+
+    <!-- 3. GUNOTSAV WEIGHTING CONFIGURATION -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 shadow">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+          <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+          <span>1. Assessment & Weight Configuration</span>
+        </h2>
+        <span class="text-[10px] text-slate-500 font-bold">Gunotsav Official</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <label class="block text-slate-400 text-[10px] font-semibold mb-1 uppercase">Scholastic Weight (%)</label>
+          <input type="number" id="scholasticWeight" value="90" onchange="updateWeights()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold font-mono focus:outline-none" />
+        </div>
+        <div>
+          <label class="block text-slate-400 text-[10px] font-semibold mb-1 uppercase">School Indicators (%)</label>
+          <input type="number" id="indicatorWeight" value="10" onchange="updateWeights()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold font-mono focus:outline-none" />
+        </div>
+      </div>
+      <p class="text-[10px] text-slate-500 leading-tight">
+        * Standard Gunotsav applies 90% Scholastic evaluation + 10% Institutional 24 Indicators[span_2](start_span)[span_2](end_span).
+      </p>
+    </section>
+
+    <!-- 4. CLASS-WISE SCHOLASTIC SUMMARY TABLE -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-3 shadow">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+          <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i>
+          <span>2. Class-Wise Scholastic Summary</span>
+        </h2>
+        <a href="roster.html" class="text-[10px] font-bold text-indigo-400 underline">Manage Students</a>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-500 uppercase text-[9px] tracking-wider">
+              <th class="pb-2 font-bold">Class</th>
+              <th class="pb-2 text-center font-bold">Enrolled</th>
+              <th class="pb-2 text-center font-bold">Evaluated</th>
+              <th class="pb-2 text-right font-bold">Avg Score</th>
+              <th class="pb-2 text-right font-bold">Grade</th>
+            </tr>
+          </thead>
+          <tbody id="classSummaryBody" class="divide-y divide-slate-800/60 font-mono">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5. EXPORT ACTIONS -->
+    <section class="flex gap-2">
+      <button onclick="exportCSV()" class="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-slate-900 hover:bg-slate-850 active:scale-95 border border-slate-800 text-slate-300 text-xs font-bold transition">
+        <i data-lucide="download" class="w-4 h-4 text-emerald-400"></i>
+        <span>Export CSV Report</span>
+      </button>
+      <button onclick="printSummary()" class="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-slate-900 hover:bg-slate-850 active:scale-95 border border-slate-800 text-slate-300 text-xs font-bold transition">
+        <i data-lucide="printer" class="w-4 h-4 text-indigo-400"></i>
+        <span>Print Summary</span>
+      </button>
+    </section>
+
+  </main>
+
+  <!-- DATA RESET MODAL -->
+  <div id="resetModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-4 shadow-2xl space-y-3">
+      <div class="flex items-center gap-2 text-rose-400">
+        <i data-lucide="alert-octagon" class="w-5 h-5"></i>
+        <h3 class="text-xs font-bold uppercase tracking-wider">Data Cleanup Utility</h3>
+      </div>
+      <p class="text-xs text-slate-300 leading-relaxed">
+        Choose which isolated dataset you wish to reset. Other files will remain completely unaffected:
+      </p>
+      <div class="space-y-1.5 pt-1 text-xs">
+        <button onclick="resetDataset('mcq')" class="w-full text-left p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-rose-500/50 text-slate-300 flex justify-between items-center">
+          <span>Clear MCQ Scores (Class III-X)</span>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500"></i>
+        </button>
+        <button onclick="resetDataset('primary')" class="w-full text-left p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-rose-500/50 text-slate-300 flex justify-between items-center">
+          <span>Clear Primary Scores (Class I-II)</span>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500"></i>
+        </button>
+        <button onclick="resetDataset('indicators')" class="w-full text-left p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-rose-500/50 text-slate-300 flex justify-between items-center">
+          <span>Clear 24 School Indicators</span>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500"></i>
+        </button>
+        <button onclick="resetDataset('all')" class="w-full text-left p-2.5 rounded-xl bg-rose-950/40 border border-rose-900/60 text-rose-300 flex justify-between items-center">
+          <span class="font-bold">Reset Entire Gunotsav Evaluation</span>
+          <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-400"></i>
+        </button>
+      </div>
+      <button onclick="closeResetModal()" class="w-full py-2 bg-slate-800 text-slate-400 rounded-xl text-xs font-bold mt-2">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let roster = [];
+    let mcqScores = [];
+    let primaryScores = [];
+    let schoolIndicators = null;
+
+    const allClasses = ['I', 'II', 'III', 'IV', 'V', 'IX', 'X'];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      loadAllDatasets();
+    });
+
+    function loadAllDatasets() {
+      // 1. Roster
+      const r = localStorage.getItem('dhk_roster');
+      roster = r ? JSON.parse(r) : [];
+
+      // 2. MCQ Evaluations (Class III-X)
+      const m = localStorage.getItem('dhk_scores_mcq');
+      mcqScores = m ? JSON.parse(m) : [];
+
+      // 3. Primary Evaluations (Class I-II)
+      const p = localStorage.getItem('dhk_scores_primary');
+      primaryScores = p ? JSON.parse(p) : [];
+
+      // 4. School 24 Indicators
+      const s = localStorage.getItem('dhk_school_indicators');
+      schoolIndicators = s ? JSON.parse(s) : null;
+
+      computeDashboardMetrics();
+    }
+
+    function computeDashboardMetrics() {
+      const totalEnrolled = roster.length;
+      const scannedMCQ = mcqScores.length;
+      const scannedPrimary = primaryScores.length;
+      const totalEvaluated = scannedMCQ + scannedPrimary;
+
+      // Update Evaluated Box
+      document.getElementById('evaluatedRatio').innerText = `${totalEvaluated} / ${totalEnrolled}`;
+      const evalPct = totalEnrolled > 0 ? ((totalEvaluated / totalEnrolled) * 100).toFixed(0) : 0;
+      document.getElementById('evaluatedPct').innerText = `${evalPct}% Completed`;
+
+      // 24 Indicators Score
+      const indRaw = (schoolIndicators && schoolIndicators.rawTotal !== undefined) ? schoolIndicators.rawTotal : 0;
+      document.getElementById('indicatorsQuickScore').innerText = `${indRaw} / 24`;
+
+      // Class-wise calculations
+      const summaryBody = document.getElementById('classSummaryBody');
+      summaryBody.innerHTML = '';
+
+      let scholasticSumPercentages = 0;
+      let scholasticEvaluatedCount = 0;
+
+      allClasses.forEach(cls => {
+        const enrolledInClass = roster.filter(s => s.class === cls).length;
+        if (enrolledInClass === 0 && !hasEvaluationsInClass(cls)) return;
+
+        let evalCount = 0;
+        let avgPct = 0;
+
+        if (cls === 'I' || cls === 'II') {
+          const classScores = primaryScores.filter(s => s.class === cls);
+          evalCount = classScores.length;
+          if (evalCount > 0) {
+            const sumScore = classScores.reduce((acc, s) => acc + (s.totalScore / s.maxScore) * 100, 0);
+            avgPct = sumScore / evalCount;
+          }
+        } else {
+          const classScores = mcqScores.filter(s => s.class === cls);
+          evalCount = classScores.length;
+          if (evalCount > 0) {
+            const sumScore = classScores.reduce((acc, s) => acc + (s.score / s.total) * 100, 0);
+            avgPct = sumScore / evalCount;
+          }
+        }
+
+        if (evalCount > 0) {
+          scholasticSumPercentages += (avgPct * evalCount);
+          scholasticEvaluatedCount += evalCount;
+        }
+
+        const grade = evalCount > 0 ? getGrade(avgPct) : '-';
+        const gradeColor = evalCount > 0 ? getGradeColor(avgPct) : 'text-slate-500';
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-900/60";
+        tr.innerHTML = `
+          <td class="py-2.5 font-bold text-white">Class-${cls}</td>
+          <td class="py-2.5 text-center text-slate-400">${enrolledInClass}</td>
+          <td class="py-2.5 text-center text-slate-300 font-bold">${evalCount}</td>
+          <td class="py-2.5 text-right font-bold text-slate-200">${evalCount > 0 ? avgPct.toFixed(1) + '%' : '-'}</td>
+          <td class="py-2.5 text-right font-black ${gradeColor}">${grade}</td>
         `;
+        summaryBody.appendChild(tr);
       });
-    }
 
-    function deleteStudent(uid) {
-      students = students.filter(s => s.unique_id !== uid);
-      localStorage.setItem('dhk_students', JSON.stringify(students));
-      renderClassTabs();
-      renderStudents();
-    }
+      // Scholastic Average
+      const overallScholasticAvg = scholasticEvaluatedCount > 0 ? (scholasticSumPercentages / scholasticEvaluatedCount) : 0;
+      document.getElementById('scholasticAvg').innerText = `${overallScholasticAvg.toFixed(1)}%`;
 
-    function clearAllStudents() {
-      if (confirm("Are you sure you want to clear the entire roster?")) {
-        students = [];
-        localStorage.removeItem('dhk_students');
-        renderClassTabs();
-        renderStudents();
+      // Gunotsav Composite Grade (Scholastic + Institutional)
+      const schWeight = parseFloat(document.getElementById('scholasticWeight').value) || 90;
+      const indWeight = parseFloat(document.getElementById('indicatorWeight').value) || 10;
+
+      const indicatorPct = (indRaw / 24) * 100;
+      const finalWeightedScore = ((overallScholasticAvg * schWeight) / 100) + ((indicatorPct * indWeight) / 100);
+
+      const compGradeElem = document.getElementById('compositeGrade');
+      const compScoreElem = document.getElementById('compositeScore');
+
+      if (totalEvaluated > 0 || indRaw > 0) {
+        compGradeElem.innerText = getGrade(finalWeightedScore);
+        compGradeElem.className = `text-base font-black font-mono ${getGradeColor(finalWeightedScore)}`;
+        compScoreElem.innerText = `${finalWeightedScore.toFixed(1)} / 100`;
+      } else {
+        compGradeElem.innerText = "Pending";
+        compGradeElem.className = "text-base font-black text-amber-400 font-mono";
+        compScoreElem.innerText = "-- / 100";
       }
     }
 
-    renderClassTabs();
-    renderStudents();
-  </script>
+    function hasEvaluationsInClass(cls) {
+      if (cls === 'I' || cls === 'II') {
+        return primaryScores.some(s => s.class === cls);
+      }
+      return mcqScores.some(s => s.class === cls);
+    }
 
-  <!-- Offline Service Worker Activation -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    function getGrade(pct) {
+      if (pct >= 85) return 'A+';
+      if (pct >= 70) return 'A';
+      if (pct >= 55) return 'B';
+      if (pct >= 40) return 'C';
+      return 'D';
+    }
+
+    function getGradeColor(pct) {
+      if (pct >= 85) return 'text-emerald-400';
+      if (pct >= 70) return 'text-indigo-400';
+      if (pct >= 55) return 'text-amber-400';
+      if (pct >= 40) return 'text-orange-400';
+      return 'text-rose-400';
+    }
+
+    function updateWeights() {
+      computeDashboardMetrics();
+    }
+
+    // Modal & Cleanup
+    function openResetModal() {
+      document.getElementById('resetModal').classList.remove('hidden');
+    }
+
+    function closeResetModal() {
+      document.getElementById('resetModal').classList.add('hidden');
+    }
+
+    function resetDataset(type) {
+      if (type === 'mcq' && confirm("Clear all Class III-X MCQ scores?")) {
+        localStorage.removeItem('dhk_scores_mcq');
+      } else if (type === 'primary' && confirm("Clear all Class I-II Primary scores?")) {
+        localStorage.removeItem('dhk_scores_primary');
+      } else if (type === 'indicators' && confirm("Reset 24 School Indicators?")) {
+        localStorage.removeItem('dhk_school_indicators');
+      } else if (type === 'all' && confirm("Are you sure you want to reset ALL Gunotsav scores across the entire school?")) {
+        localStorage.removeItem('dhk_scores_mcq');
+        localStorage.removeItem('dhk_scores_primary');
+        localStorage.removeItem('dhk_school_indicators');
+      }
+      closeResetModal();
+      loadAllDatasets();
+    }
+
+    // Export Utilities
+    function exportCSV() {
+      let csv = "Student Name,Class,Roll,Type,Score,Max Score,Percentage\n";
+
+      // 1. Primary
+      primaryScores.forEach(s => {
+        const pct = ((s.totalScore / s.maxScore) * 100).toFixed(1);
+        csv += `"${s.name}","${s.class}","${s.roll || ''}","Primary FLN",${s.totalScore},${s.maxScore},${pct}%\n`;
+      });
+
+      // 2. MCQ
+      mcqScores.forEach(s => {
+        const pct = ((s.score / s.total) * 100).toFixed(1);
+        csv += `"${s.name}","${s.class}","${s.roll || ''}","MCQ",${s.score},${s.total},${pct}%\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gunotsav_school_evaluation_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    function printSummary() {
+      window.print();
     }
   </script>
 </body>
