@@ -205,7 +205,7 @@
       const note = document.getElementById('scannerConfigNote');
 
       classSelect.innerHTML = '';
-      const enrolled = [...new Set(students.map(s => s.class_level))].filter(Boolean);
+      const enrolled = [...new Set(students.map(s => s.class_level || s.class))].filter(Boolean);
       let list = enrolled.length > 0 ? enrolled : CLASSES;
 
       list.forEach(c => {
@@ -320,27 +320,30 @@
       return null;
     }
 
-    // --- 3-COLUMN GUNOTSAV GEOMETRY EVALUATION ---
+    // --- EXACT GUNOTSAV 3-COLUMN MCQ GEOMETRY ---
     function evaluateBubbles(ctx, w, h) {
       const responses = {};
 
-      const gridLeft = w * 0.08;
-      const gridRight = w * 0.72; // Bounds the 3 columns, ignores skill section
+      // Bounded exactly to Q1 left edge and ends before the vertical SKILL separator line
+      const gridLeft = w * 0.075;
+      const gridRight = w * 0.720;
       const gridWidth = gridRight - gridLeft;
       const colWidth = gridWidth / 3;
 
-      const gridTop = h * 0.42;
-      const gridBottom = h * 0.94;
-      const rowHeight = (gridBottom - gridTop) / 35;
+      // Starts below "MCQ (To be filled up by student)" and ends at Row 20
+      const gridTop = h * 0.495;
+      const gridBottom = h * 0.905;
+      const totalRows = 20;
+      const rowHeight = (gridBottom - gridTop) / totalRows;
 
       function getCoords(q) {
         let col = 0, row = 0;
         if (q <= 20) {
           col = 0; row = q - 1;
         } else if (q <= 40) {
-          col = 1; row = (q - 21);
+          col = 1; row = q - 21;
         } else if (q <= 60) {
-          col = 2; row = (q - 41);
+          col = 2; row = q - 41;
         } else if (q <= 75) {
           col = 0; row = 20 + (q - 61);
         } else if (q <= 90) {
@@ -353,7 +356,7 @@
 
       const options = ['A', 'B', 'C', 'D'];
 
-      for (let q = 1; q <= totalQuestions; q++) {
+      for (let q = 1; q <= Math.min(totalQuestions, 58); q++) {
         const { col, row } = getCoords(q);
         const colStartX = gridLeft + (col * colWidth);
         const yCenter = gridTop + (row * rowHeight) + (rowHeight * 0.5);
@@ -363,7 +366,7 @@
         let readings = [];
 
         options.forEach((opt, idx) => {
-          const xCenter = colStartX + (colWidth * 0.28) + (idx * (colWidth * 0.18));
+          const xCenter = colStartX + (colWidth * 0.28) + (idx * (colWidth * 0.175));
           const p = ctx.getImageData(Math.round(xCenter - 2), Math.round(yCenter - 2), 5, 5).data;
           let sum = 0;
           for (let i = 0; i < p.length; i += 4) {
@@ -379,7 +382,7 @@
         });
 
         readings.sort((a, b) => a.avg - b.avg);
-        if (readings[1].avg - readings[0].avg > 30) {
+        if (readings[1].avg - readings[0].avg > 25) {
           responses[q] = darkestOpt;
         } else {
           responses[q] = null;
@@ -413,17 +416,20 @@
       const crop = document.getElementById('cropCanvas');
       const cropCtx = crop.getContext('2d');
 
-      // 2. Crop Class Box (Top-right)
-      const classCropW = Math.round(w * 0.28);
-      const classCropH = Math.round(h * 0.08);
+      // 2. Exact Crop: CLASS Box (Top-right corner matching "Class-III")
+      const classCropX = Math.round(w * 0.74);
+      const classCropY = Math.round(h * 0.028);
+      const classCropW = Math.round(w * 0.18);
+      const classCropH = Math.round(h * 0.045);
+      
       crop.width = classCropW;
       crop.height = classCropH;
-      cropCtx.drawImage(canvas, Math.round(w * 0.65), Math.round(h * 0.04), classCropW, classCropH, 0, 0, classCropW, classCropH);
+      cropCtx.drawImage(canvas, classCropX, classCropY, classCropW, classCropH, 0, 0, classCropW, classCropH);
 
       let rawClassText = "";
       try {
         const resClass = await Tesseract.recognize(crop, 'eng', {
-          tessedit_char_whitelist: 'CLASS-IVX0123456789KaShreni '
+          tessedit_char_whitelist: 'CLASS-IVX0123456789 '
         });
         rawClassText = (resClass.data.text || '').trim();
       } catch (err) {
@@ -432,12 +438,15 @@
 
       const detectedClass = parseDetectedClass(rawClassText) || document.getElementById('scanClassSelect').value;
 
-      // 3. Crop Student Name Box
+      // 3. Exact Crop: STUDENT NAME Box (Row 7: starts after label, stops before barcode)
+      const nameCropX = Math.round(w * 0.23);
+      const nameCropY = Math.round(h * 0.305);
       const nameCropW = Math.round(w * 0.52);
-      const nameCropH = Math.round(h * 0.06);
+      const nameCropH = Math.round(h * 0.038);
+
       crop.width = nameCropW;
       crop.height = nameCropH;
-      cropCtx.drawImage(canvas, Math.round(w * 0.22), Math.round(h * 0.22), nameCropW, nameCropH, 0, 0, nameCropW, nameCropH);
+      cropCtx.drawImage(canvas, nameCropX, nameCropY, nameCropW, nameCropH, 0, 0, nameCropW, nameCropH);
 
       let detectedName = "";
       try {
@@ -450,7 +459,7 @@
       }
 
       // 4. Match student within detected class
-      const classStudents = students.filter(s => s.class_level === detectedClass);
+      const classStudents = students.filter(s => (s.class_level || s.class) === detectedClass);
       let bestMatch = null;
       let highestSim = -1;
       classStudents.forEach(s => {
@@ -500,7 +509,7 @@
     function populateModalStudents(targetClass, selectedStudentName) {
       const sel = document.getElementById('studentConfirmSelect');
       sel.innerHTML = '';
-      const filtered = students.filter(s => s.class_level === targetClass);
+      const filtered = students.filter(s => (s.class_level || s.class) === targetClass);
 
       if (filtered.length === 0) {
         const opt = document.createElement('option');
@@ -531,18 +540,24 @@
       const finalScore = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
       
       let records = [];
-      try { records = JSON.parse(localStorage.getItem('dhk_evaluations') || '[]'); } catch(e) { records = []; }
+      try { 
+        records = JSON.parse(localStorage.getItem('dhk_evaluations') || localStorage.getItem('dhk_eval_records') || '[]'); 
+      } catch(e) { records = []; }
       
       records.push({
         student_id: studentId,
+        studentId: studentId,
         score: finalScore,
         max_score: totalQuestions * marksPerQ,
+        totalMarks: totalQuestions * marksPerQ,
+        skillMarks: 0,
         correct: activeEvaluation.correct,
         incorrect: activeEvaluation.incorrect,
         timestamp: new Date().toISOString()
       });
 
       localStorage.setItem('dhk_evaluations', JSON.stringify(records));
+      localStorage.setItem('dhk_eval_records', JSON.stringify(records));
       alert("Result confirmed & saved successfully!");
       closeModal();
     }
