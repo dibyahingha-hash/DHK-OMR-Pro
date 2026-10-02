@@ -4,59 +4,60 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>DHK OMR Pro - Precision Scanner</title>
-  <!-- Tailwind CSS & Lucide Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Tesseract.js for OCR -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; }
     .scan-guide {
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
     }
   </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none overflow-hidden">
 
-  <!-- TOP HEADER / CONTROL BAR -->
-  <header class="bg-slate-800 border-b border-slate-700 p-3 shadow-md z-20">
-    <div class="flex items-center justify-between gap-2 max-w-xl mx-auto">
+  <!-- TOP HEADER / CONTROL STRIP -->
+  <header class="bg-slate-900 border-b border-slate-800 p-2.5 z-20 shadow-lg">
+    <div class="flex items-center justify-between gap-2 max-w-lg mx-auto">
       <div class="flex items-center gap-2">
-        <a href="index.html" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition">
-          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        <a href="index.html" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
         </a>
         <div>
-          <h1 class="text-sm font-bold text-white tracking-wide">DHK OMR Scanner</h1>
-          <div id="statsBadge" class="text-xs text-amber-400 font-medium">Class: Not Locked</div>
+          <h1 class="text-xs font-bold text-white tracking-wider uppercase">DHK OMR Precision</h1>
+          <div id="sessionStatus" class="text-[11px] text-amber-400 font-medium flex items-center gap-1">
+            <i data-lucide="unlock" class="w-3 h-3"></i> <span>Class Not Locked</span>
+          </div>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <!-- Torch Toggle Button -->
-        <button id="torchBtn" onclick="toggleTorch()" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition">
-          <i data-lucide="zap-off" id="torchIcon" class="w-5 h-5"></i>
+      <div class="flex items-center gap-1.5">
+        <button id="lockToggleBtn" onclick="toggleLock()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1 border border-slate-700">
+          <i data-lucide="lock" class="w-3.5 h-3.5" id="lockIcon"></i>
+          <span id="lockBtnText">Lock</span>
         </button>
-        <!-- Gallery File Upload Fallback -->
-        <label class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition cursor-pointer">
-          <i data-lucide="image" class="w-5 h-5"></i>
+        <button id="torchBtn" onclick="toggleTorch()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
+          <i data-lucide="zap-off" id="torchIcon" class="w-4 h-4"></i>
+        </button>
+        <label class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer">
+          <i data-lucide="image" class="w-4 h-4"></i>
           <input type="file" id="fileUpload" accept="image/*" class="hidden" onchange="handleFileUpload(event)" />
         </label>
       </div>
     </div>
 
-    <!-- CONFIGURATION & CLASS LOCK STRIP -->
-    <div class="grid grid-cols-2 gap-2 mt-2 max-w-xl mx-auto pt-2 border-t border-slate-700/60 text-xs">
+    <!-- DUAL CONTROLS STRIP (PHYSICALLY DISABLED WHEN LOCKED) -->
+    <div class="grid grid-cols-2 gap-2 mt-2 max-w-lg mx-auto pt-2 border-t border-slate-800 text-xs">
       <div>
-        <label class="block text-slate-400 font-semibold mb-1">Sheet Format</label>
-        <select id="sheetFormat" class="w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-white focus:outline-none focus:border-indigo-500 font-medium">
+        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Format</label>
+        <select id="sheetFormat" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-white focus:outline-none disabled:opacity-50 disabled:bg-slate-900">
           <option value="gunotsav">Gunotsav (43 Dashes)</option>
           <option value="universal">Universal DHK (34 Dashes)</option>
         </select>
       </div>
-
       <div>
-        <label class="block text-slate-400 font-semibold mb-1">Target Class</label>
-        <select id="lockedClass" onchange="lockClass(this.value)" class="w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-white focus:outline-none focus:border-indigo-500 font-medium">
+        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Target Class</label>
+        <select id="lockedClass" onchange="onClassSelected(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-white focus:outline-none disabled:opacity-50 disabled:bg-slate-900 font-bold">
           <option value="">-- Choose Class --</option>
           <option value="I">Class I</option>
           <option value="II">Class II</option>
@@ -70,95 +71,110 @@
     </div>
   </header>
 
-  <!-- 90% SCAN PROGRESS ALERT BAR -->
-  <div id="attendanceAlert" class="hidden bg-emerald-600/90 text-white text-xs px-4 py-1.5 flex items-center justify-between transition-all">
-    <div class="flex items-center gap-2">
+  <!-- 90% ATTENDANCE COMPLETION ALERT -->
+  <div id="attendanceAlert" class="hidden bg-emerald-600 text-white text-xs px-3 py-1.5 flex items-center justify-between z-20">
+    <div class="flex items-center gap-1.5 font-medium">
       <i data-lucide="check-circle" class="w-4 h-4"></i>
-      <span id="attendanceMsg">90% Scanned! 2 students left.</span>
+      <span id="attendanceMsg">90% Done! 1 student left.</span>
     </div>
-    <button onclick="toggleUnscannedList()" class="underline font-bold text-emerald-100">Review</button>
+    <button onclick="toggleUnscannedList()" class="underline font-bold text-emerald-100 text-[11px]">View Missing</button>
   </div>
 
-  <!-- VIEWFINDER & SCAN STAGE -->
+  <!-- VIEWFINDER CANVAS & CAMERA -->
   <main class="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
-    <!-- Real-time Video Stream -->
     <video id="videoFeed" playsinline autoplay muted class="absolute inset-0 w-full h-full object-cover"></video>
-
-    <!-- Offscreen Processing Canvas -->
     <canvas id="procCanvas" class="hidden"></canvas>
 
-    <!-- Viewfinder Alignment Overlay -->
-    <div class="relative z-10 w-[88%] h-[82%] border-2 border-indigo-400/80 rounded-lg scan-guide pointer-events-none flex flex-col justify-between p-2">
-      <div class="flex justify-between items-start">
-        <div class="bg-black/60 px-2 py-0.5 rounded text-[10px] text-indigo-300 font-mono">LEFT RAIL ──►</div>
-        <div class="bg-black/60 px-2 py-0.5 rounded text-[10px] text-amber-300 font-mono" id="modeIndicator">GUNOTSAV 43-PIECE</div>
+    <!-- Clean, Non-Intrusive Viewfinder Guide -->
+    <div class="relative z-10 w-[86%] h-[82%] border-2 border-indigo-500/70 rounded-xl scan-guide pointer-events-none flex flex-col justify-between p-3">
+      <div class="flex justify-between items-center text-[10px] font-mono text-indigo-300 bg-slate-950/70 px-2 py-1 rounded">
+        <span>LEFT TIMING RAIL ──►</span>
+        <span id="activeModeLabel" class="text-amber-300 font-bold">GUNOTSAV 43-DASH</span>
       </div>
-      <div class="border-b border-dashed border-red-500/60 w-full text-right pr-1">
-        <span class="text-[9px] text-red-400 bg-black/60 px-1 rounded">STUDENT NAME ZONE (PIECE #17)</span>
+      <div class="w-full border-b border-dashed border-red-500/70 text-right pr-1">
+        <span class="text-[9px] text-red-300 bg-slate-950/70 px-1.5 py-0.5 rounded">PIECE #17: NAME ROW</span>
       </div>
-      <div class="text-[10px] text-center text-slate-300 bg-black/60 py-1 rounded">
-        Align Left Timing Dashes Inside the Guide Box
+      <div class="text-[10px] text-center text-slate-300 bg-slate-950/70 py-1 rounded">
+        Align Left Timing Dashes to the Red Marker Line
       </div>
     </div>
   </main>
 
-  <!-- CAPTURE ACTION STRIP -->
-  <footer class="bg-slate-800 border-t border-slate-700 p-4 z-20">
-    <div class="max-w-xl mx-auto flex items-center justify-around">
-      <button onclick="triggerScan()" id="scanActionBtn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold px-8 py-3 rounded-full shadow-lg transition">
+  <!-- CAPTURE ACTION -->
+  <footer class="bg-slate-900 border-t border-slate-800 p-3.5 z-20">
+    <div class="max-w-lg mx-auto flex justify-center">
+      <button onclick="triggerScan()" id="scanActionBtn" class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-bold py-3 rounded-xl shadow-lg transition">
         <i data-lucide="scan-line" class="w-5 h-5"></i>
         <span>Scan Sheet</span>
       </button>
     </div>
   </footer>
 
-  <!-- VERIFICATION MODAL POPUP -->
-  <div id="evalModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-    <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-xl p-5 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-2">
-        <h3 class="font-bold text-white text-base">Evaluation Result</h3>
-        <span id="scoreBadge" class="bg-indigo-600 text-white font-mono px-3 py-1 rounded text-sm font-bold">Score: --/--</span>
-      </div>
-
-      <div class="space-y-2 text-sm">
+  <!-- CLEAN VERIFICATION MODAL -->
+  <div id="evalModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-4 shadow-2xl space-y-3.5">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2.5">
         <div>
-          <span class="text-slate-400 text-xs block mb-1">Identified Student:</span>
-          <select id="resStudentSelect" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white font-semibold text-sm focus:outline-none focus:border-indigo-500">
-            <!-- Dynamically populated -->
-          </select>
+          <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Evaluation Result</span>
+          <div id="modalClassBadge" class="text-xs font-bold text-indigo-400">Class III</div>
         </div>
-        <div class="grid grid-cols-3 gap-2 bg-slate-900 p-2 rounded text-center text-xs font-mono">
-          <div><span class="text-slate-500 block">Attempted</span><span id="resAttempted" class="text-emerald-400 font-bold">0</span></div>
-          <div><span class="text-slate-500 block">Blank</span><span id="resBlank" class="text-amber-400 font-bold">0</span></div>
-          <div><span class="text-slate-500 block">Multi</span><span id="resMulti" class="text-rose-400 font-bold">0</span></div>
+        <div id="scoreBadge" class="bg-emerald-600 text-white font-mono px-3 py-1 rounded-lg text-sm font-black">
+          Score: --/--
         </div>
       </div>
 
-      <div class="flex gap-2 pt-2">
-        <button onclick="saveAndNext()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold py-2.5 rounded-lg transition">Save Result</button>
-        <button onclick="closeModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 active:scale-95 text-slate-300 font-bold py-2.5 rounded-lg transition">Rescan</button>
+      <!-- Student Picker -->
+      <div>
+        <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Identified Student</label>
+        <select id="resStudentSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold text-sm focus:outline-none focus:border-indigo-500">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+
+      <!-- Metric Badges -->
+      <div class="grid grid-cols-3 gap-2 bg-slate-950 p-2.5 rounded-xl text-center text-xs font-mono border border-slate-800/80">
+        <div>
+          <span class="text-slate-500 text-[10px] uppercase block">Attempted</span>
+          <span id="resAttempted" class="text-emerald-400 font-bold text-sm">0</span>
+        </div>
+        <div>
+          <span class="text-slate-500 text-[10px] uppercase block">Blank</span>
+          <span id="resBlank" class="text-amber-400 font-bold text-sm">0</span>
+        </div>
+        <div>
+          <span class="text-slate-500 text-[10px] uppercase block">Multi</span>
+          <span id="resMulti" class="text-rose-400 font-bold text-sm">0</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-2 pt-1">
+        <button onclick="saveAndNext()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold py-2.5 rounded-xl transition text-sm">
+          Save Result
+        </button>
+        <button onclick="closeModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold py-2.5 rounded-xl transition text-sm">
+          Retake
+        </button>
       </div>
     </div>
   </div>
 
   <!-- UNSCANNED STUDENTS DRAWER -->
   <div id="unscannedDrawer" class="hidden fixed inset-0 z-50 bg-black/80 flex items-end justify-center">
-    <div class="bg-slate-800 border-t border-slate-700 w-full max-w-lg rounded-t-2xl p-5 space-y-4 max-h-[75vh] flex flex-col">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-2">
-        <h3 class="font-bold text-white text-sm">Unscanned Students</h3>
-        <button onclick="toggleUnscannedList()" class="p-1 text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+    <div class="bg-slate-900 border-t border-slate-800 w-full max-w-lg rounded-t-2xl p-4 space-y-3 max-h-[75vh] flex flex-col">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-white text-xs uppercase tracking-wider">Missing Students in Class</h3>
+        <button onclick="toggleUnscannedList()" class="p-1 text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
-      <div id="unscannedContainer" class="flex-1 overflow-y-auto space-y-2 text-xs">
-        <!-- Rendered dynamically -->
-      </div>
+      <div id="unscannedContainer" class="flex-1 overflow-y-auto space-y-1.5 text-xs"></div>
     </div>
   </div>
 
   <script>
-    // System State
     let videoStream = null;
     let videoTrack = null;
     let torchActive = false;
+    let isUiLocked = false;
     let masterKey = {};
     let classRoster = [];
     let scannedRecords = [];
@@ -167,10 +183,10 @@
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       initCamera();
-      loadSystemData();
+      loadStoredData();
     });
 
-    // 1. Hardware Video & Persistent Torch Engine
+    // 1. Camera & Persistent Flashlight
     async function initCamera() {
       try {
         videoStream = await navigator.mediaDevices.getUserMedia({
@@ -180,7 +196,7 @@
         video.srcObject = videoStream;
         videoTrack = videoStream.getVideoTracks()[0];
       } catch (err) {
-        alert("Camera access denied or unavailable: " + err.message);
+        alert("Camera initialization failed: " + err.message);
       }
     }
 
@@ -188,19 +204,20 @@
       if (!videoTrack) return;
       const caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
       if (!caps.torch) {
-        alert("Flashlight/Torch hardware not supported on this device/browser.");
+        alert("Torch is not supported on this device/camera.");
         return;
       }
       try {
         torchActive = !torchActive;
         await videoTrack.applyConstraints({ advanced: [{ torch: torchActive }] });
         const icon = document.getElementById('torchIcon');
+        const btn = document.getElementById('torchBtn');
         if (torchActive) {
           icon.setAttribute('data-lucide', 'zap');
-          document.getElementById('torchBtn').classList.add('bg-amber-500', 'text-slate-900');
+          btn.classList.add('bg-amber-500', 'text-slate-950', 'border-amber-400');
         } else {
           icon.setAttribute('data-lucide', 'zap-off');
-          document.getElementById('torchBtn').classList.remove('bg-amber-500', 'text-slate-900');
+          btn.classList.remove('bg-amber-500', 'text-slate-950', 'border-amber-400');
         }
         lucide.createIcons();
       } catch (e) {
@@ -208,73 +225,105 @@
       }
     }
 
-    // 2. Data Initialization & Class Lock
-    function loadSystemData() {
-      const storedRoster = localStorage.getItem('dhk_roster');
-      if (storedRoster) classRoster = JSON.parse(storedRoster);
+    // 2. Storage & Strict UI Locking
+    function loadStoredData() {
+      const roster = localStorage.getItem('dhk_roster');
+      if (roster) classRoster = JSON.parse(roster);
 
-      const storedKey = localStorage.getItem('dhk_master_key');
-      if (storedKey) masterKey = JSON.parse(storedKey);
+      const key = localStorage.getItem('dhk_master_key');
+      if (key) masterKey = JSON.parse(key);
 
-      const storedScores = localStorage.getItem('dhk_scanned_scores');
-      if (storedScores) scannedRecords = JSON.parse(storedScores);
+      const scores = localStorage.getItem('dhk_scanned_scores');
+      if (scores) scannedRecords = JSON.parse(scores);
 
-      const locked = localStorage.getItem('dhk_locked_class');
-      if (locked) {
-        document.getElementById('lockedClass').value = locked;
-        lockClass(locked);
+      const lockedClass = localStorage.getItem('dhk_locked_class');
+      if (lockedClass) {
+        document.getElementById('lockedClass').value = lockedClass;
+        setLockState(true);
       }
     }
 
-    function lockClass(val) {
+    function onClassSelected(val) {
       if (!val) return;
       localStorage.setItem('dhk_locked_class', val);
-      document.getElementById('statsBadge').innerText = `Class ${val} [Locked]`;
+      setLockState(true);
+    }
+
+    function toggleLock() {
+      const curClass = document.getElementById('lockedClass').value;
+      if (!curClass && !isUiLocked) {
+        alert("Please pick a Class to lock first.");
+        return;
+      }
+      setLockState(!isUiLocked);
+    }
+
+    function setLockState(locked) {
+      isUiLocked = locked;
+      const selClass = document.getElementById('lockedClass');
+      const selFormat = document.getElementById('sheetFormat');
+      const lockBtnText = document.getElementById('lockBtnText');
+      const lockIcon = document.getElementById('lockIcon');
+      const statusBadge = document.getElementById('sessionStatus');
+
+      selClass.disabled = locked;
+      selFormat.disabled = locked;
+
+      if (locked) {
+        lockBtnText.innerText = "Unlock";
+        lockIcon.setAttribute('data-lucide', 'unlock');
+        statusBadge.innerHTML = `<i data-lucide="lock" class="w-3 h-3 text-emerald-400"></i> <span class="text-emerald-400">Class ${selClass.value} [Locked]</span>`;
+      } else {
+        lockBtnText.innerText = "Lock";
+        lockIcon.setAttribute('data-lucide', 'lock');
+        statusBadge.innerHTML = `<i data-lucide="unlock" class="w-3 h-3 text-amber-400"></i> <span class="text-amber-400">Class Not Locked</span>`;
+      }
+      lucide.createIcons();
       updateAttendanceAlert();
     }
 
     function updateAttendanceAlert() {
-      const locked = document.getElementById('lockedClass').value;
-      if (!locked) return;
+      const targetClass = document.getElementById('lockedClass').value;
+      if (!targetClass) return;
 
-      const targetStudents = classRoster.filter(s => s.class === locked);
+      const targetStudents = classRoster.filter(s => s.class === targetClass);
       if (targetStudents.length === 0) return;
 
-      const scannedInClass = scannedRecords.filter(r => r.class === locked);
+      const scannedInClass = scannedRecords.filter(r => r.class === targetClass);
       const ratio = scannedInClass.length / targetStudents.length;
 
       const alertBar = document.getElementById('attendanceAlert');
       if (ratio >= 0.90 && scannedInClass.length < targetStudents.length) {
         const remaining = targetStudents.length - scannedInClass.length;
-        document.getElementById('attendanceMsg').innerText = `${Math.round(ratio * 100)}% Complete! Only ${remaining} student(s) left.`;
+        document.getElementById('attendanceMsg').innerText = `${Math.round(ratio * 100)}% Complete! ${remaining} student(s) left.`;
         alertBar.classList.remove('hidden');
       } else {
         alertBar.classList.add('hidden');
       }
     }
 
-    // 3. Timing-Dash Extraction Engine
+    // 3. Robust Left-Margin Dash Sweep
     function locateTimingDashes(ctx, width, height) {
-      const startX = Math.floor(width * 0.01);
+      const startX = Math.floor(width * 0.015);
       const endX = Math.floor(width * 0.08);
       const imgData = ctx.getImageData(startX, 0, endX - startX, height);
-      const data = imgData.data;
+      const d = imgData.data;
       const rowDarkness = new Array(height).fill(0);
 
       for (let y = 0; y < height; y++) {
-        let count = 0;
+        let darkCount = 0;
         for (let x = 0; x < (endX - startX); x++) {
           const idx = (y * (endX - startX) + x) * 4;
-          const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-          if (gray < 85) count++;
+          const gray = 0.299 * d[idx] + 0.587 * d[idx + 1] + 0.114 * d[idx + 2];
+          if (gray < 90) darkCount++;
         }
-        rowDarkness[y] = count;
+        rowDarkness[y] = darkCount;
       }
 
       const dashes = [];
       let inDash = false;
       let startY = 0;
-      const minThreshold = (endX - startX) * 0.30;
+      const minThreshold = (endX - startX) * 0.35;
 
       for (let y = 0; y < height; y++) {
         if (rowDarkness[y] > minThreshold && !inDash) {
@@ -282,20 +331,20 @@
           startY = y;
         } else if (rowDarkness[y] <= minThreshold && inDash) {
           inDash = false;
-          const dashHeight = y - startY;
-          if (dashHeight > 3 && dashHeight < (height * 0.04)) {
-            dashes.push({ center: Math.floor((startY + y) / 2), height: dashHeight });
+          const dashH = y - startY;
+          if (dashH > 3 && dashH < (height * 0.04)) {
+            dashes.push({ center: Math.floor((startY + y) / 2), height: dashH });
           }
         }
       }
       return dashes;
     }
 
-    // 4. Trigger & Upload Handling
+    // 4. Scanning & File Upload Pipeline
     async function triggerScan() {
       const locked = document.getElementById('lockedClass').value;
       if (!locked) {
-        alert("Please select and lock the Class first.");
+        alert("Please select and lock the target Class first.");
         return;
       }
 
@@ -333,7 +382,6 @@
       const w = canvas.width;
       const h = canvas.height;
       const dashes = locateTimingDashes(ctx, w, h);
-
       const mode = document.getElementById('sheetFormat').value;
 
       try {
@@ -342,31 +390,31 @@
         } else {
           await evaluateUniversal(ctx, w, h, dashes);
         }
-      } catch (err) {
-        console.error("Evaluation failure:", err);
-        alert("Evaluation error. Please retake the photo.");
+      } catch (e) {
+        console.error("Evaluation failure:", e);
+        alert("Scan read failed. Please adjust alignment and retake.");
       } finally {
         btn.disabled = false;
         btn.classList.remove('opacity-50');
       }
     }
 
-    // 5. Gunotsav Precision Engine (Locked to Piece #17)
+    // 5. Gunotsav Engine: Piece #17 & Pieces #24-43
     async function evaluateGunotsav(ctx, w, h, dashes) {
       let nameBoxY, nameBoxH;
 
-      // Lock to Piece #17
+      // Lock vertically strictly to Piece #17
       if (dashes && dashes.length >= 17) {
-        nameBoxY = dashes[16].center - Math.floor(dashes[16].height * 1.2);
-        nameBoxH = Math.floor(dashes[16].height * 2.4);
+        nameBoxY = dashes[16].center - Math.floor(dashes[16].height * 1.1);
+        nameBoxH = Math.floor(dashes[16].height * 2.2);
       } else {
-        nameBoxY = Math.floor(h * 0.345);
+        nameBoxY = Math.floor(h * 0.33);
         nameBoxH = Math.floor(h * 0.035);
       }
 
-      // Crop strictly the value box (skips printed "STUDENT NAME :-" text)
+      // Crop exclusively the name value box (X = 35% to 78%) - avoids "STUDENT NAME :-" text
       const nameBoxX = Math.floor(w * 0.35);
-      const nameBoxW = Math.floor(w * 0.42);
+      const nameBoxW = Math.floor(w * 0.43);
 
       const nameCanvas = document.createElement('canvas');
       nameCanvas.width = nameBoxW;
@@ -374,7 +422,7 @@
       const nCtx = nameCanvas.getContext('2d');
       nCtx.drawImage(ctx.canvas, nameBoxX, nameBoxY, nameBoxW, nameBoxH, 0, 0, nameBoxW, nameBoxH);
 
-      // Contrast binarization for clean OCR
+      // Contrast Binarization
       const nData = nCtx.getImageData(0, 0, nameBoxW, nameBoxH);
       const d = nData.data;
       for (let i = 0; i < d.length; i += 4) {
@@ -383,7 +431,6 @@
       }
       nCtx.putImageData(nData, 0, 0);
 
-      // Targeted OCR strictly for uppercase alphabets
       let recognizedName = "";
       try {
         const ocrRes = await Tesseract.recognize(nameCanvas, 'eng', {
@@ -391,10 +438,10 @@
         });
         recognizedName = ocrRes.data.text.trim().replace(/[^A-Z\s]/g, "");
       } catch (e) {
-        console.warn("OCR Error:", e);
+        console.warn("Name OCR error:", e);
       }
 
-      // MCQ Evaluation: Dashes #24 to #43 (20 rows)
+      // MCQ Evaluation: Dashes #24 to #43
       const answers = {};
       const colStarts = [0.09, 0.32, 0.54, 0.76];
       const bubbleSpacing = 0.035;
@@ -413,24 +460,27 @@
       for (let c = 0; c < 4 && qIndex <= maxQ; c++) {
         for (let r = 0; r < rowYList.length && qIndex <= maxQ; r++) {
           const cy = rowYList[r];
-          let bestOption = null;
-          let bestDensity = 0;
-          let marksCount = 0;
+          const densities = [];
 
+          // Measure all 4 options
           ['A', 'B', 'C', 'D'].forEach((opt, idx) => {
             const cx = (w * colStarts[c]) + (idx * w * bubbleSpacing);
-            const density = sampleBubbleDensity(ctx, cx, cy, 6);
-            if (density > 0.45) marksCount++;
-            if (density > bestDensity) {
-              bestDensity = density;
-              bestOption = opt;
-            }
+            densities.push({ opt, density: sampleBubbleDensity(ctx, cx, cy, 6) });
           });
 
-          if (marksCount > 1) {
-            answers[qIndex] = 'MULTI';
-          } else if (bestDensity > 0.45) {
-            answers[qIndex] = bestOption;
+          // Sort by darkness
+          densities.sort((a, b) => b.density - a.density);
+          const darkest = densities[0];
+          const runnerUp = densities[1];
+          const baseline = (densities[1].density + densities[2].density + densities[3].density) / 3;
+
+          // Relative Dynamic Contrast Scoring
+          if (darkest.density > 0.35 && (darkest.density - baseline) > 0.20) {
+            if (runnerUp.density > 0.35 && (darkest.density - runnerUp.density) < 0.12) {
+              answers[qIndex] = 'MULTI';
+            } else {
+              answers[qIndex] = darkest.opt;
+            }
           } else {
             answers[qIndex] = 'BLANK';
           }
@@ -441,7 +491,7 @@
       compileResults(recognizedName, answers, maxQ);
     }
 
-    // 6. Universal Engine (Locked to Piece #1 Header)
+    // 6. Universal Engine: Header Box & Pieces #1-34
     async function evaluateUniversal(ctx, w, h, dashes) {
       const nameCropY = Math.floor(h * 0.165);
       const nameCropH = Math.floor(h * 0.035);
@@ -467,7 +517,7 @@
         });
         recognizedName = ocrRes.data.text.trim().replace(/[^A-Z\s]/g, "");
       } catch (e) {
-        console.warn("OCR Error:", e);
+        console.warn("OCR error:", e);
       }
 
       const answers = {};
@@ -488,24 +538,24 @@
       for (let c = 0; c < 3 && qIndex <= maxQ; c++) {
         for (let r = 0; r < rowYList.length && qIndex <= maxQ; r++) {
           const cy = rowYList[r];
-          let bestOption = null;
-          let bestDensity = 0;
-          let marksCount = 0;
+          const densities = [];
 
           ['A', 'B', 'C', 'D'].forEach((opt, idx) => {
             const cx = (w * colStarts[c]) + (idx * w * bubbleSpacing);
-            const density = sampleBubbleDensity(ctx, cx, cy, 6);
-            if (density > 0.45) marksCount++;
-            if (density > bestDensity) {
-              bestDensity = density;
-              bestOption = opt;
-            }
+            densities.push({ opt, density: sampleBubbleDensity(ctx, cx, cy, 6) });
           });
 
-          if (marksCount > 1) {
-            answers[qIndex] = 'MULTI';
-          } else if (bestDensity > 0.45) {
-            answers[qIndex] = bestOption;
+          densities.sort((a, b) => b.density - a.density);
+          const darkest = densities[0];
+          const runnerUp = densities[1];
+          const baseline = (densities[1].density + densities[2].density + densities[3].density) / 3;
+
+          if (darkest.density > 0.35 && (darkest.density - baseline) > 0.20) {
+            if (runnerUp.density > 0.35 && (darkest.density - runnerUp.density) < 0.12) {
+              answers[qIndex] = 'MULTI';
+            } else {
+              answers[qIndex] = darkest.opt;
+            }
           } else {
             answers[qIndex] = 'BLANK';
           }
@@ -516,50 +566,45 @@
       compileResults(recognizedName, answers, maxQ);
     }
 
-    // 7. Bubble Density Measurement Helper (Complete & Untruncated)
+    // 7. Safe Density Sampler
     function sampleBubbleDensity(ctx, cx, cy, radius) {
       try {
         const imgData = ctx.getImageData(Math.floor(cx - radius), Math.floor(cy - radius), radius * 2, radius * 2);
         const data = imgData.data;
         let darkPixels = 0;
-        let totalPixels = 0;
+        let total = 0;
 
         for (let i = 0; i < data.length; i += 4) {
           const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
           if (gray < 110) darkPixels++;
-          totalPixels++;
+          total++;
         }
-        return totalPixels > 0 ? (darkPixels / totalPixels) : 0;
+        return total > 0 ? (darkPixels / total) : 0;
       } catch (e) {
         return 0;
       }
     }
 
-    // 8. Result Compilation & Fuzzy Student Matcher
+    // 8. Result Compilation & Clean UI Drawer
     function compileResults(rawName, answers, totalQuestions) {
       const locked = document.getElementById('lockedClass').value;
       const targetStudents = classRoster.filter(s => s.class === locked);
 
-      // Levenshtein Fuzzy Matcher
       let matchedStudent = null;
-      let highestSimilarity = 0;
+      let highestSim = 0;
 
       if (rawName && rawName.length > 2) {
         targetStudents.forEach(s => {
           const sim = stringSimilarity(rawName.toUpperCase(), s.name.toUpperCase());
-          if (sim > highestSimilarity) {
-            highestSimilarity = sim;
+          if (sim > highestSim) {
+            highestSim = sim;
             matchedStudent = s;
           }
         });
       }
 
-      // If similarity is below 40%, do not blindly assign
-      if (highestSimilarity < 0.40) {
-        matchedStudent = null;
-      }
+      if (highestSim < 0.40) matchedStudent = null;
 
-      // Calculate Scores
       let score = 0;
       let attempted = 0;
       let blank = 0;
@@ -576,24 +621,27 @@
         }
       }
 
-      // Render Dropdown of Class Roster
+      // Populate Clean Dropdown with Sorted Roster
       const selectBox = document.getElementById('resStudentSelect');
       selectBox.innerHTML = '';
 
       if (!matchedStudent) {
         const defOpt = document.createElement('option');
         defOpt.value = "";
-        defOpt.innerText = `⚠️ OCR: "${rawName || 'No Name'}" - Tap to Pick Student`;
+        defOpt.innerText = `⚠️ OCR: "${rawName || 'Unclear'}" - Tap to Pick`;
         selectBox.appendChild(defOpt);
       }
 
-      targetStudents.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.name;
-        opt.innerText = `${s.name} (Roll: ${s.roll})`;
-        if (matchedStudent && matchedStudent.name === s.name) opt.selected = true;
-        selectBox.appendChild(opt);
-      });
+      targetStudents
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.name;
+          opt.innerText = `${s.name} ${s.roll ? '(Roll: ' + s.roll + ')' : ''}`;
+          if (matchedStudent && matchedStudent.name === s.name) opt.selected = true;
+          selectBox.appendChild(opt);
+        });
 
       currentEvaluation = {
         class: locked,
@@ -602,6 +650,7 @@
         answers: answers
       };
 
+      document.getElementById('modalClassBadge').innerText = `Class ${locked}`;
       document.getElementById('scoreBadge').innerText = `Score: ${score}/${totalQuestions}`;
       document.getElementById('resAttempted').innerText = attempted;
       document.getElementById('resBlank').innerText = blank;
@@ -611,7 +660,6 @@
       if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
     }
 
-    // Levenshtein Similarity (0.0 to 1.0)
     function stringSimilarity(s1, s2) {
       let longer = s1;
       let shorter = s2;
@@ -626,20 +674,20 @@
       s2 = s2.toLowerCase();
       const costs = [];
       for (let i = 0; i <= s1.length; i++) {
-        let lastValue = i;
+        let lastVal = i;
         for (let j = 0; j <= s2.length; j++) {
           if (i === 0) costs[j] = j;
           else {
             if (j > 0) {
-              let newValue = costs[j - 1];
+              let newVal = costs[j - 1];
               if (s1.charAt(i - 1) !== s2.charAt(j - 1))
-                newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-              costs[j - 1] = lastValue;
-              lastValue = newValue;
+                newVal = Math.min(Math.min(newVal, lastVal), costs[j]) + 1;
+              costs[j - 1] = lastVal;
+              lastVal = newVal;
             }
           }
         }
-        if (i > 0) costs[s2.length] = lastValue;
+        if (i > 0) costs[s2.length] = lastVal;
       }
       return costs[s2.length];
     }
@@ -649,7 +697,7 @@
       const selectedName = selectBox.value;
 
       if (!selectedName) {
-        alert("Please select the student name before saving.");
+        alert("Please select the student name from the list.");
         return;
       }
 
@@ -657,12 +705,11 @@
       const targetStudent = classRoster.find(s => s.class === locked && s.name === selectedName);
 
       currentEvaluation.name = selectedName;
-      currentEvaluation.roll = targetStudent ? targetStudent.roll : "N/A";
+      currentEvaluation.roll = targetStudent && targetStudent.roll ? targetStudent.roll : "";
 
-      // Duplicate Check
       const existingIdx = scannedRecords.findIndex(r => r.class === locked && r.name === selectedName);
       if (existingIdx !== -1) {
-        if (!confirm(`Notice: "${selectedName}" has already been scanned. Overwrite existing score?`)) {
+        if (!confirm(`"${selectedName}" has already been scanned. Overwrite existing score?`)) {
           return;
         }
         scannedRecords[existingIdx] = currentEvaluation;
@@ -691,9 +738,9 @@
         const unscanned = targetStudents.filter(s => !scannedNames.has(s.name));
 
         container.innerHTML = unscanned.map(s => `
-          <div class="flex justify-between items-center p-2 rounded bg-slate-700/50 border border-slate-600">
+          <div class="flex justify-between items-center p-2 rounded-lg bg-slate-950 border border-slate-800">
             <span class="font-bold text-white">${s.name}</span>
-            <span class="text-slate-400">Roll: ${s.roll}</span>
+            <span class="text-slate-400">${s.roll ? 'Roll: ' + s.roll : ''}</span>
           </div>
         `).join('');
 
