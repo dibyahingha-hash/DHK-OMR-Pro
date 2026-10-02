@@ -43,11 +43,12 @@
         </a>
         <div>
           <h1 class="text-xs font-black uppercase tracking-wider text-white">Answer Key & Sheets</h1>
-          <div id="keyStatusBadge" class="text-[11px] font-medium text-amber-400">Class III (0 Keys Set)</div>
+          <div id="keyStatusBadge" class="text-[11px] font-medium text-amber-400">Universal Mode (0 Keys Set)</div>
         </div>
       </div>
 
-      <button onclick="printCalibratedSheet()" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 shadow">
+      <!-- PRINT UNIVERSAL SHEET (NO CLASS HARDCODED) -->
+      <button onclick="printCalibratedSheet()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow">
         <i data-lucide="printer" class="w-3.5 h-3.5"></i>
         <span>Print Sheet</span>
       </button>
@@ -56,8 +57,12 @@
     <!-- CONTROLS STRIP -->
     <div class="grid grid-cols-2 gap-2 mt-2 max-w-lg mx-auto text-xs">
       <div>
-        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Active Class</label>
+        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Target Class</label>
         <select id="selectedClass" onchange="onClassChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold">
+          <option value="UNIVERSAL" selected>Universal (No Class)</option>
+          <option value="Ka-Shreni">Class Ka</option>
+          <option value="I">Class I</option>
+          <option value="II">Class II</option>
           <option value="III">Class III</option>
           <option value="IV">Class IV</option>
           <option value="V">Class V</option>
@@ -72,13 +77,21 @@
       </div>
 
       <div>
-        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Total Questions Needed</label>
-        <input type="number" id="customQCount" min="1" max="100" value="58" onchange="onCustomCountChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-400 font-bold font-mono focus:outline-none focus:border-cyan-400" />
+        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Questions Needed</label>
+        <input type="number" id="customQCount" min="1" max="100" value="100" onchange="onCustomCountChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-400 font-bold font-mono focus:outline-none focus:border-cyan-400" />
       </div>
+    </div>
+
+    <!-- SCAN KEY DIRECTLY VIA CAMERA OR TAP -->
+    <div class="mt-2.5 max-w-lg mx-auto">
+      <button onclick="scanKeyWithCamera()" class="w-full py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow transition">
+        <i data-lucide="camera" class="w-4 h-4"></i>
+        <span>Scan Key With Camera (Optical Reader)</span>
+      </button>
     </div>
   </header>
 
-  <!-- KEY QUESTIONS LIST -->
+  <!-- KEY QUESTIONS LIST (FOR MANUAL TAP INPUT) -->
   <main class="flex-1 max-w-lg mx-auto w-full p-3.5 space-y-2 pb-24">
     <div id="questionsContainer" class="space-y-1.5"></div>
   </main>
@@ -87,88 +100,87 @@
   <footer class="bg-slate-900 border-t border-slate-800 p-3 sticky bottom-0 z-30 shadow-2xl">
     <div class="max-w-lg mx-auto flex items-center justify-between gap-2.5">
       <button onclick="resetCurrentKey()" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold border border-slate-700">
-        Reset Key
+        Reset
       </button>
       <button onclick="saveAndProceed()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
         <i data-lucide="scan-line" class="w-4 h-4"></i>
-        <span>Save & Go to Scanner</span>
+        <span>Save Key & Start Evaluating</span>
       </button>
     </div>
   </footer>
 
-  <!-- EXACT SCANNER-ALIGNED PRINT CONTAINER (1000 x 1414 Coordinate Space) -->
+  <!-- SCANNER-ALIGNED PRINT CONTAINER (100% UNIVERSAL: ZERO HARDCODED CLASS) -->
   <div id="printableArea" class="hidden text-black font-sans">
     <svg id="omrSvg" viewBox="0 0 1000 1414" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="background:#fff;">
-      <!-- Outer Target Border -->
       <rect x="25" y="25" width="950" height="1364" fill="none" stroke="#000" stroke-width="3" />
 
-      <!-- 4 High-Precision Solid Black Fiducials -->
+      <!-- 4 Solid Black Fiducials -->
       <rect x="25" y="25" width="45" height="45" fill="#000" />
       <rect x="930" y="25" width="45" height="45" fill="#000" />
       <rect x="25" y="1344" width="45" height="45" fill="#000" />
       <rect x="930" y="1344" width="45" height="45" fill="#000" />
 
-      <!-- Sheet Header -->
-      <text x="500" y="100" text-anchor="middle" font-size="24" font-weight="900" font-family="Arial" letter-spacing="1">DHK PRECISION OMR ANSWER SHEET</text>
-      <text x="500" y="130" text-anchor="middle" font-size="13" font-weight="bold" font-family="Arial" fill="#444">Universal 34-Timing Rail Engine • Standard Vision Grid</text>
+      <!-- Universal Header -->
+      <text x="500" y="95" text-anchor="middle" font-size="24" font-weight="900" font-family="Arial" letter-spacing="1">DHK PRECISION OMR ANSWER SHEET</text>
+      <text x="500" y="125" text-anchor="middle" font-size="13" font-weight="bold" font-family="Arial" fill="#333">Standard Evaluation Grid • 34-Rail Calibration System</text>
 
-      <!-- Exact Name OCR Box (x=7% to 51%, y=16.5% to 20%) -->
-      <rect x="70" y="233" width="440" height="49" fill="none" stroke="#000" stroke-width="2" />
-      <text x="80" y="222" font-size="11" font-weight="bold" font-family="Arial">CANDIDATE NAME (IN CAPITAL LETTERS)</text>
+      <!-- Blank Student Info Strip (NO HARDCODED CLASS) -->
+      <rect x="70" y="225" width="450" height="52" fill="none" stroke="#000" stroke-width="2" />
+      <text x="80" y="215" font-size="11" font-weight="bold" font-family="Arial">CANDIDATE NAME</text>
 
-      <!-- Student Metadata Side-Boxes -->
-      <rect x="530" y="233" width="200" height="49" fill="none" stroke="#000" stroke-width="1.5" />
-      <text x="540" y="222" font-size="11" font-weight="bold" font-family="Arial">CLASS / SEC</text>
+      <rect x="540" y="225" width="190" height="52" fill="none" stroke="#000" stroke-width="1.5" />
+      <text x="550" y="215" font-size="11" font-weight="bold" font-family="Arial">CLASS / SEC</text>
 
-      <rect x="750" y="233" width="180" height="49" fill="none" stroke="#000" stroke-width="1.5" />
-      <text x="760" y="222" font-size="11" font-weight="bold" font-family="Arial">ROLL / ID NO</text>
+      <rect x="750" y="225" width="180" height="52" fill="none" stroke="#000" stroke-width="1.5" />
+      <text x="760" y="215" font-size="11" font-weight="bold" font-family="Arial">ROLL / ID NO</text>
 
-      <!-- Left 34 Timing Dashes (x=1.5% to 8% of width => x=30 to 70) -->
+      <!-- Left & Right 34-Rail Timing Dashes -->
       <g id="svgLeftRail"></g>
-
-      <!-- Right Timing Rail (Symmetry Anchor) -->
       <g id="svgRightRail"></g>
 
-      <!-- Exact 3-Column Bubble Matrix -->
+      <!-- Bubble Grid -->
       <g id="svgGrid"></g>
 
-      <!-- Footer Instructions -->
+      <!-- Footer Rules -->
       <line x1="70" y1="1310" x2="930" y2="1310" stroke="#000" stroke-width="1.5" />
       <text x="70" y="1335" font-size="12" font-weight="bold" font-family="Arial">• Use Blue or Black Ballpoint Pen only</text>
-      <text x="450" y="1335" font-size="12" font-weight="bold" font-family="Arial">• Darken bubbles completely: [ ● ]</text>
+      <text x="450" y="1335" font-size="12" font-weight="bold" font-family="Arial">• Fill circles completely: [ ● ]</text>
       <text x="930" y="1335" text-anchor="end" font-size="12" font-weight="bold" font-family="Arial">DHK 34-RAIL VISION SYSTEM</text>
     </svg>
   </div>
 
   <script>
-    let currentClass = 'III';
-    let questionCount = 58;
+    let currentTarget = 'UNIVERSAL';
+    let questionCount = 100;
     let answerKey = {};
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
-      loadKeyForClass(currentClass);
+      loadKey(currentTarget);
     });
 
-    function loadKeyForClass(cls) {
-      currentClass = cls;
-      const stored = localStorage.getItem(`dhk_key_${cls}`) || localStorage.getItem('dhk_master_key');
+    function loadKey(target) {
+      currentTarget = target;
+      const keyId = target === 'UNIVERSAL' ? 'dhk_master_key' : `dhk_key_${target}`;
+      const stored = localStorage.getItem(keyId);
       answerKey = {};
+
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          answerKey = parsed[cls] ? parsed[cls] : parsed;
+          answerKey = parsed[target] ? parsed[target] : parsed;
         } catch (e) {
           answerKey = {};
         }
       }
 
-      const storedQCount = localStorage.getItem(`dhk_qcount_${cls}`);
-      if (storedQCount) {
-        questionCount = parseInt(storedQCount);
+      const countId = target === 'UNIVERSAL' ? 'dhk_active_total_q' : `dhk_qcount_${target}`;
+      const storedCount = localStorage.getItem(countId);
+      if (storedCount) {
+        questionCount = parseInt(storedCount);
       } else {
         const keysArr = Object.keys(answerKey).map(Number);
-        questionCount = keysArr.length > 0 ? Math.max(...keysArr) : (cls === 'III' ? 58 : 50);
+        questionCount = keysArr.length > 0 ? Math.max(...keysArr) : 100;
       }
 
       document.getElementById('customQCount').value = questionCount;
@@ -177,8 +189,7 @@
     }
 
     function onClassChange(val) {
-      currentClass = val;
-      loadKeyForClass(val);
+      loadKey(val);
     }
 
     function onCustomCountChange(val) {
@@ -187,7 +198,10 @@
       if (num > 100) num = 100;
       questionCount = num;
       document.getElementById('customQCount').value = num;
-      localStorage.setItem(`dhk_qcount_${currentClass}`, num);
+
+      const countId = currentTarget === 'UNIVERSAL' ? 'dhk_active_total_q' : `dhk_qcount_${currentTarget}`;
+      localStorage.setItem(countId, num);
+
       renderQuestions();
       updateStatusBadge();
     }
@@ -197,7 +211,7 @@
       container.innerHTML = '';
 
       for (let i = 1; i <= questionCount; i++) {
-        const qNum = String(i).padStart(questionCount > 99 ? 3 : 2, '0');
+        const qNum = String(i).padStart(3, '0');
         const selected = answerKey[i] || null;
 
         const row = document.createElement('div');
@@ -224,41 +238,47 @@
 
     function updateStatusBadge() {
       const count = Object.keys(answerKey).length;
-      document.getElementById('keyStatusBadge').innerText = `Class ${currentClass} (${count}/${questionCount} Keys Set)`;
+      const label = currentTarget === 'UNIVERSAL' ? 'Universal Key' : `Class ${currentTarget}`;
+      document.getElementById('keyStatusBadge').innerText = `${label} (${count}/${questionCount} Keys Set)`;
     }
 
     function saveState() {
-      localStorage.setItem(`dhk_key_${currentClass}`, JSON.stringify(answerKey));
-      localStorage.setItem(`dhk_qcount_${currentClass}`, questionCount);
+      const keyId = currentTarget === 'UNIVERSAL' ? 'dhk_master_key' : `dhk_key_${currentTarget}`;
+      localStorage.setItem(keyId, JSON.stringify(answerKey));
       localStorage.setItem('dhk_master_key', JSON.stringify(answerKey));
+      localStorage.setItem('dhk_active_total_q', questionCount);
     }
 
     function resetCurrentKey() {
-      if (confirm(`Reset answer key for Class ${currentClass}?`)) {
+      if (confirm(`Reset answer key?`)) {
         answerKey = {};
-        localStorage.removeItem(`dhk_key_${currentClass}`);
+        const keyId = currentTarget === 'UNIVERSAL' ? 'dhk_master_key' : `dhk_key_${currentTarget}`;
+        localStorage.removeItem(keyId);
         renderQuestions();
         updateStatusBadge();
       }
     }
 
+    // Direct Camera Scan Trigger for Key
+    function scanKeyWithCamera() {
+      saveState();
+      window.location.href = `scan.html?mode=master_key`;
+    }
+
     function saveAndProceed() {
       saveState();
-      localStorage.setItem('dhk_locked_class', currentClass);
-      localStorage.setItem('dhk_active_total_q', questionCount);
+      if (currentTarget !== 'UNIVERSAL') {
+        localStorage.setItem('dhk_locked_class', currentTarget);
+      }
       window.location.href = `scan.html`;
     }
 
-    // DRAW EXACT SCANNER-ALIGNED SHEET
+    // PRINT UNIVERSAL SHEET (ZERO HARDCODED CLASS)
     function printCalibratedSheet() {
       const H = 1414;
-      const W = 1000;
-
-      // 1. EXACT Y-COORDINATES MATCHING scan.html FALLBACK & TIMING RAIL:
-      // In scan.html: step = (h * 0.69) / 34, start = h * 0.21
-      const startY = H * 0.21;          // 296.94px
-      const totalGridHeight = H * 0.69;  // 975.66px
-      const stepY = totalGridHeight / 34; // 28.69px per question row
+      const startY = H * 0.21;
+      const totalGridHeight = H * 0.69;
+      const stepY = totalGridHeight / 34;
 
       const leftRailSvg = document.getElementById('svgLeftRail');
       const rightRailSvg = document.getElementById('svgRightRail');
@@ -267,13 +287,11 @@
       rightRailSvg.innerHTML = '';
       gridSvg.innerHTML = '';
 
-      // Draw the 34 solid black timing dashes along both margins
       for (let r = 0; r < 34; r++) {
         const cy = startY + (r * stepY);
         const dashH = 10;
         const dashW = 35;
 
-        // Left rail (inside x=30 to x=65, precisely inside scanner's 0.015-0.08 window)
         const dLeft = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         dLeft.setAttribute("x", "30");
         dLeft.setAttribute("y", cy - (dashH / 2));
@@ -282,7 +300,6 @@
         dLeft.setAttribute("fill", "#000");
         leftRailSvg.appendChild(dLeft);
 
-        // Right rail
         const dRight = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         dRight.setAttribute("x", "935");
         dRight.setAttribute("y", cy - (dashH / 2));
@@ -292,9 +309,6 @@
         rightRailSvg.appendChild(dRight);
       }
 
-      // 2. EXACT COLUMN & OPTION BUBBLES MATCHING scan.html:
-      // colBaseX = [0.12, 0.41, 0.70] => W * 0.12 = 120, W * 0.41 = 410, W * 0.70 = 700
-      // optionGap = 0.045 => W * 0.045 = 45px between A, B, C, D
       const colBaseX = [120, 410, 700];
       const gapX = 45;
       const opts = ['A', 'B', 'C', 'D'];
@@ -307,7 +321,6 @@
           const cy = startY + (r * stepY);
           const baseX = colBaseX[c];
 
-          // Question Number
           const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
           txt.setAttribute("x", baseX - 12);
           txt.setAttribute("y", cy + 4);
@@ -318,7 +331,6 @@
           txt.textContent = String(qNum).padStart(2, '0');
           gridSvg.appendChild(txt);
 
-          // 4 Bubbles (A, B, C, D)
           opts.forEach((opt, idx) => {
             const bx = baseX + (idx * gapX);
 
