@@ -34,8 +34,6 @@
     }
     .btn-green { background: var(--green); }
     .btn-blue { background: var(--blue); }
-    .btn-orange { background: var(--orange); }
-    .btn-red { background: var(--red); }
     .btn-gray { background: #4a5568; }
 
     .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -44,7 +42,6 @@
       width: 220px; padding: 8px 10px; background: #1a2230;
       border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
     }
-    .form-group select option { background: #1a2230; color: #fff; }
 
     .viewfinder-wrapper {
       position: relative; width: 100%; height: 380px; border-radius: 8px; overflow: hidden;
@@ -53,42 +50,22 @@
     #cameraStream { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     .target-overlay {
-      position: absolute; top: 5%; left: 6%; width: 88%; height: 90%;
-      border: 3px dashed var(--red); border-radius: 6px; pointer-events: none;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
-      transition: border-color 0.3s ease;
+      position: absolute; top: 4%; left: 5%; width: 90%; height: 92%;
+      border: 2px dashed rgba(255, 255, 255, 0.4); border-radius: 6px; pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
     }
-    .target-overlay.holding { border-color: var(--gold); }
-    .target-overlay.locked {
-      border: 3px solid #48bb78 !important;
-      box-shadow: 0 0 20px rgba(72, 187, 120, 0.7), 0 0 0 9999px rgba(0, 0, 0, 0.45);
-    }
-
-    .corner-bracket { position: absolute; width: 26px; height: 26px; border: 4px solid var(--gold); }
+    .corner-bracket { position: absolute; width: 22px; height: 22px; border: 3px solid var(--gold); }
     .cb-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
     .cb-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
     .cb-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
     .cb-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
 
-    .stability-bar-container {
-      position: absolute; bottom: 35px; left: 15%; width: 70%; height: 10px;
-      background: rgba(0,0,0,0.7); border-radius: 5px; overflow: hidden; border: 1px solid var(--border);
-    }
-    .stability-fill { height: 100%; width: 0%; background: #48bb78; transition: width 0.15s ease-out; }
-
     .status-badge {
-      position: absolute; bottom: 8px; left: 0; right: 0; text-align: center;
+      position: absolute; bottom: 10px; left: 0; right: 0; text-align: center;
       color: #fff; font-size: 12px; font-weight: bold; text-shadow: 0 1px 4px #000;
     }
 
-    .torch-floating-btn {
-      position: absolute; top: 12px; right: 12px; z-index: 10;
-      background: rgba(26, 34, 48, 0.85); border: 1px solid var(--border); border-radius: 20px;
-      color: #fff; padding: 6px 12px; font-size: 12px; font-weight: bold;
-      display: none; align-items: center; gap: 4px; cursor: pointer; backdrop-filter: blur(4px);
-    }
-    .torch-floating-btn.active { background: #ecc94b; color: #000; border-color: #d69e2e; }
-
+    /* Modal Overlay */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0, 0, 0, 0.88); z-index: 1000; padding: 14px;
@@ -99,18 +76,13 @@
       padding: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
     }
     .verify-box {
-      background: #16202e; border: 1px solid #ecc94b; border-radius: 6px;
+      background: #16202e; border: 1px solid var(--gold); border-radius: 6px;
       padding: 10px; margin-bottom: 12px;
     }
     .score-input {
-      width: 65px; padding: 4px 6px; background: var(--bg); border: 1px solid var(--border);
-      border-radius: 4px; color: #fff; font-weight: bold; text-align: center; font-size: 13px;
+      width: 70px; padding: 5px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 4px; color: #fff; font-weight: bold; text-align: center; font-size: 14px;
     }
-    .indicator-row {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 7px 8px; border-bottom: 1px solid var(--border); font-size: 12px;
-    }
-    .indicator-row:nth-child(even) { background: rgba(255,255,255,0.02); }
   </style>
 </head>
 <body>
@@ -133,230 +105,138 @@
       <h3>Assessment Evaluation Setup</h3>
       
       <div class="form-group">
-        <label>Form / Sheet Type:</label>
+        <label>Exam / Sheet Type:</label>
         <select id="examTrackSelect" onchange="syncClassDropdown()">
-          <option value="gunotsav_upper" selected>Gunotsav (Class 3 to 12 Individual Form)</option>
-          <option value="class_exam">Routine Class Exam (Universal: Ka–12)</option>
-          <option value="gunotsav_lower">Gunotsav (Class 1 & 2 Multi-Student: LO 1–30)</option>
-          <option value="school_eval">Gunotsav (School Evaluation Form: 24 Indicators A–E)</option>
-          <option value="master_key_scan">Setup: Scan Master Benchmark Key</option>
+          <option value="gunotsav_upper" selected>Gunotsav Sheet (58 Questions)</option>
+          <option value="universal_100">Universal Sheet (1 to 100 Questions)</option>
         </select>
       </div>
 
       <div class="form-group" id="classSelectRow">
-        <label>Target Class:</label>
-        <select id="scanClassSelect" onchange="resetScanState()"></select>
+        <label>Fallback / Default Class:</label>
+        <select id="scanClassSelect"></select>
       </div>
 
       <div style="font-size: 12px; color: var(--sub); margin-bottom: 10px;" id="scannerConfigNote">
         Active Key: <b>58 Questions</b> | Marks/Q: <b>1</b>
       </div>
 
-      <!-- Viewfinder Section -->
-      <div class="viewfinder-wrapper" id="viewfinderWrapper">
+      <div class="viewfinder-wrapper">
         <video id="cameraStream" playsinline autoplay muted></video>
-        
-        <button id="torchBtn" class="torch-floating-btn" type="button" onclick="toggleTorch()">
-          🔦 Flash
-        </button>
-
-        <div class="target-overlay" id="targetOverlay">
+        <div class="target-overlay">
           <div class="corner-bracket cb-tl"></div>
           <div class="corner-bracket cb-tr"></div>
           <div class="corner-bracket cb-bl"></div>
           <div class="corner-bracket cb-br"></div>
-          <div class="stability-bar-container">
-            <div class="stability-fill" id="stabilityFill"></div>
-          </div>
-          <div class="status-badge" id="statusBadge">Camera ready. Tap button below to snap.</div>
+          <div class="status-badge" id="statusBadge">Align sheet inside corners and snap</div>
         </div>
       </div>
 
-      <button class="btn btn-blue" onclick="triggerManualCapture()">📸 Scan Sheet Now (Manual Snap)</button>
+      <button class="btn btn-blue" onclick="triggerManualCapture()">📸 Snap & Evaluate Sheet</button>
       <button class="btn btn-green" id="btnToggleCam" onclick="toggleCameraStream()">Start / Restart Camera</button>
       <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select Photo from Gallery</button>
       <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processGalleryImage(event)">
     </div>
 
     <canvas id="procCanvas" style="display: none;"></canvas>
+    <canvas id="cropCanvas" style="display: none;"></canvas>
   </div>
 
-  <!-- MODAL 1: INDIVIDUAL STUDENT VERIFICATION -->
+  <!-- VERIFICATION MODAL -->
   <div class="modal-overlay" id="studentVerifyModal">
     <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 8px; color: #ecc94b;">Verify Student & Results</h3>
+      <h3 style="font-size: 15px; margin-bottom: 8px; color: var(--gold);">Verify Sheet Details & Score</h3>
 
       <div class="verify-box">
-        <p style="font-size: 11px; color: #a0aec0; margin-bottom: 2px;">Phase 1: Student Recognition Result:</p>
-        <b id="rawOcrText" style="color: #ecc94b; font-size: 13px;">Reading sheet...</b>
+        <p style="font-size: 11px; color: #a0aec0; margin-bottom: 2px;">Header Detection:</p>
+        <div id="rawOcrText" style="color: #ecc94b; font-size: 13px; line-height: 1.4;">Reading...</div>
       </div>
 
-      <p style="font-size: 12px; color: #a0aec0; margin-bottom: 4px;">Confirm Student in Roster:</p>
-      <select id="studentConfirmSelect" style="width: 100%; padding: 10px; background: var(--header); color: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-weight: bold;"></select>
+      <div style="margin-bottom: 10px;">
+        <label style="font-size: 12px; color: #a0aec0; display: block; margin-bottom: 3px;">Class (Editable):</label>
+        <select id="modalClassOverrideSelect" onchange="onModalClassChanged()" style="width: 100%; padding: 8px; background: var(--header); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-weight: bold;"></select>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label style="font-size: 12px; color: #a0aec0; display: block; margin-bottom: 3px;">Student Roster Match:</label>
+        <select id="studentConfirmSelect" style="width: 100%; padding: 10px; background: var(--header); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-weight: bold;"></select>
+      </div>
 
       <div style="background: var(--header); padding: 12px; border-radius: 6px; margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px;">
-          <span>MCQ Score (Phase 2):</span>
+          <span>Detected MCQ Score:</span>
           <div>
-            <input type="number" id="modalMcqScoreInput" class="score-input" onchange="recalculateStudentTotals()">
+            <input type="number" id="modalMcqScoreInput" class="score-input">
             <span id="modalMaxMcqText">/ 58</span>
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px;">
-          <span>Skill / Subjective Marks:</span>
-          <div>
-            <input type="number" id="modalSkillScoreInput" class="score-input" onchange="recalculateStudentTotals()">
-            <span>/ 18</span>
-          </div>
-        </div>
-
-        <div style="font-size: 11px; color: #a0aec0; margin-bottom: 6px;" id="modalBreakdownNote">
-          Correct: 0 | Incorrect: 0 | Penalty: 0
-        </div>
-
-        <hr style="border: 0; border-top: 1px solid var(--border); margin: 6px 0;">
-        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: #68d391;">
-          <span>Composite Total:</span>
-          <span id="modalCompositeScore">0 Marks (0%)</span>
+        <div style="font-size: 11px; color: #a0aec0;" id="modalBreakdownNote">
+          Correct: 0 | Incorrect: 0
         </div>
       </div>
 
-      <button class="btn btn-green" onclick="confirmAndSaveStudentRecord()">Confirm & Save Result</button>
-      <button class="btn btn-gray" onclick="closeAllModals()">Retake Scan</button>
-    </div>
-  </div>
-
-  <!-- MODAL 2: MASTER KEY VERIFICATION -->
-  <div class="modal-overlay" id="masterKeyModal">
-    <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 6px; color: #ecc94b;">Verify Scanned Master Key</h3>
-      <p style="font-size: 12px; color: #a0aec0; margin-bottom: 10px;">Confirm detected answers:</p>
-      <div id="masterKeyDetectedList" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; max-height: 280px; overflow-y: auto; background: var(--header); padding: 8px; border-radius: 6px; margin-bottom: 12px;"></div>
-      <button class="btn btn-green" onclick="confirmAndSaveScannedKey()">Save Key & Go to Exam Page</button>
-      <button class="btn btn-gray" onclick="closeAllModals()">Retake Scan</button>
+      <button class="btn btn-green" onclick="confirmAndSaveRecord()">Confirm & Save Result</button>
+      <button class="btn btn-gray" onclick="closeModal()">Retake Scan</button>
     </div>
   </div>
 
   <script>
     let students = [];
+    try { students = JSON.parse(localStorage.getItem('dhk_students') || '[]'); } catch(e) { students = []; }
+    let masterKey = {};
     try {
-      students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
-    } catch(e) {
-      students = [];
-    }
+      const savedMaster = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
+      masterKey = savedMaster.keys || savedMaster;
+    } catch(e) { masterKey = {}; }
 
-    let masterKey = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
     let totalQuestions = parseInt(localStorage.getItem('dhk_total_questions') || '58');
     let marksPerQ = parseFloat(localStorage.getItem('dhk_marks_per_q') || '1');
-    let negEnabled = localStorage.getItem('dhk_neg_enabled') === 'true';
-    let negMark = parseFloat(localStorage.getItem('dhk_neg_mark') || '0.25');
 
     let videoStream = null;
-    let videoTrack = null;
-    let cameraLoop = null;
     let isProcessing = false;
-    let torchActive = false;
-    let currentStudentEval = null;
-    let scannedMasterKeyMap = {};
+    let activeEvaluation = null;
 
-    const MASTER_ORDER = [
-      'Ka-Shreni', 'Class-I', 'Class-II', 'Class-III', 'Class-IV', 'Class-V',
-      'Class-VI', 'Class-VII', 'Class-VIII', 'Class-IX', 'Class-X', 'Class-XI', 'Class-XII'
-    ];
+    const CLASSES = ['Ka-Shreni', 'Class-I', 'Class-II', 'Class-III', 'Class-IV', 'Class-V', 'Class-VI', 'Class-VII', 'Class-VIII', 'Class-IX', 'Class-X', 'Class-XI', 'Class-XII'];
 
     function syncClassDropdown() {
       const mode = document.getElementById('examTrackSelect').value;
-      const classRow = document.getElementById('classSelectRow');
       const classSelect = document.getElementById('scanClassSelect');
       const note = document.getElementById('scannerConfigNote');
 
-      try {
-        students = JSON.parse(localStorage.getItem('dhk_students') || '[]');
-      } catch(e) {
-        students = [];
-      }
-
-      const enrolledClasses = [...new Set(students.map(s => s.class_level))].filter(Boolean);
       classSelect.innerHTML = '';
+      const enrolled = [...new Set(students.map(s => s.class_level))].filter(Boolean);
+      let list = enrolled.length > 0 ? enrolled : CLASSES;
 
-      if (mode === 'master_key_scan') {
-        classRow.style.display = 'none';
-        note.innerHTML = `Mode: <b>Scan Master Benchmark Key (${totalQuestions} Qs)</b>`;
-        return;
-      }
-
-      classRow.style.display = 'flex';
-      let available = enrolledClasses.length > 0 ? enrolledClasses : MASTER_ORDER;
-
-      available.sort((a, b) => {
-        let ia = MASTER_ORDER.indexOf(a);
-        let ib = MASTER_ORDER.indexOf(b);
-        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-      });
-
-      available.forEach(c => {
+      list.forEach(c => {
         const opt = document.createElement('option');
-        opt.value = c;
-        opt.textContent = c;
+        opt.value = c; opt.textContent = c;
         classSelect.appendChild(opt);
       });
 
-      const negText = negEnabled ? ` (Neg: -${negMark})` : '';
-      note.innerHTML = `Active Key: <b>${totalQuestions} Questions</b> | Marks/Q: <b>${marksPerQ}</b>${negText}`;
-    }
-
-    function resetScanState() {
-      const badge = document.getElementById('statusBadge');
-      if (badge) badge.innerText = "Position sheet flat inside corner brackets";
+      if (mode === 'gunotsav_upper') {
+        totalQuestions = 58;
+      } else {
+        totalQuestions = parseInt(localStorage.getItem('dhk_total_questions') || '100');
+      }
+      note.innerHTML = `Active Questions: <b>${totalQuestions}</b> | Marks/Q: <b>${marksPerQ}</b>`;
     }
 
     async function startCamera() {
       const video = document.getElementById('cameraStream');
       const btn = document.getElementById('btnToggleCam');
-      const torchBtn = document.getElementById('torchBtn');
-
-      if (videoStream) {
-        videoStream.getTracks().forEach(t => t.stop());
-      }
-
-      const constraints = {
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-      };
+      if (videoStream) videoStream.getTracks().forEach(t => t.stop());
 
       try {
-        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+        });
         video.srcObject = videoStream;
         await video.play();
-
-        videoTrack = videoStream.getVideoTracks()[0];
-        const cap = videoTrack?.getCapabilities?.() || {};
-        torchBtn.style.display = cap.torch ? 'inline-flex' : 'none';
-
         btn.innerText = "Stop Camera";
         btn.className = "btn btn-red";
-      } catch (err) {
-        console.warn("Camera start fallback", err);
-        try {
-          videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-          video.srcObject = videoStream;
-          await video.play();
-          btn.innerText = "Stop Camera";
-          btn.className = "btn btn-red";
-        } catch (e) {
-          alert("Camera access denied or unavailable.");
-        }
-      }
-    }
-
-    async function toggleTorch() {
-      if (!videoTrack) return;
-      try {
-        torchActive = !torchActive;
-        await videoTrack.applyConstraints({ advanced: [{ torch: torchActive }] });
-        document.getElementById('torchBtn').classList.toggle('active', torchActive);
-      } catch (err) {
-        console.warn("Torch failed", err);
+      } catch (e) {
+        alert("Camera access denied or unavailable.");
       }
     }
 
@@ -364,8 +244,6 @@
       if (videoStream) {
         videoStream.getTracks().forEach(t => t.stop());
         videoStream = null;
-        videoTrack = null;
-        document.getElementById('torchBtn').style.display = 'none';
         document.getElementById('btnToggleCam').innerText = "Start Camera";
         document.getElementById('btnToggleCam').className = "btn btn-green";
       } else {
@@ -377,374 +255,305 @@
       if (isProcessing) return;
       const video = document.getElementById('cameraStream');
       const canvas = document.getElementById('procCanvas');
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-      if (video && video.videoWidth) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
-        processSnapshot(canvas);
-      } else {
-        alert("Camera stream is not active. Please start camera or upload from gallery.");
+      if (!video || !video.videoWidth) {
+        alert("Please start the camera or select a photo from gallery.");
+        return;
       }
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(video, 0, 0);
+      processImage(canvas);
     }
 
-    function processGalleryImage(event) {
-      const file = event.target.files[0];
+    function processGalleryImage(e) {
+      const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = function(evt) {
         const img = new Image();
         img.onload = function() {
           const canvas = document.getElementById('procCanvas');
-          const maxDim = 1600;
-          let w = img.width, h = img.height;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
-            else { w = Math.round((w * maxDim) / h); h = maxDim; }
-          }
-          canvas.width = w;
-          canvas.height = h;
+          canvas.width = img.width;
+          canvas.height = img.height;
           const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          ctx.drawImage(img, 0, 0, w, h);
-          processSnapshot(canvas);
+          ctx.drawImage(img, 0, 0);
+          processImage(canvas);
         };
-        img.src = e.target.result;
+        img.src = evt.target.result;
       };
       reader.readAsDataURL(file);
-      event.target.value = '';
+      e.target.value = '';
     }
 
-    // --- LEVENSHTEIN DISTANCE FOR FUZZY NAME RECOGNITION ---
     function getSimilarity(s1, s2) {
-      s1 = (s1 || '').toLowerCase().trim();
-      s2 = (s2 || '').toLowerCase().trim();
+      s1 = (s1 || '').toUpperCase().trim();
+      s2 = (s2 || '').toUpperCase().trim();
       if (s1 === s2) return 1.0;
       if (!s1 || !s2) return 0.0;
-
       const track = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
       for (let i = 0; i <= s1.length; i++) track[0][i] = i;
       for (let j = 0; j <= s2.length; j++) track[j][0] = j;
-
       for (let j = 1; j <= s2.length; j++) {
         for (let i = 1; i <= s1.length; i++) {
-          const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
-          track[j][i] = Math.min(
-            track[j][i - 1] + 1,
-            track[j - 1][i] + 1,
-            track[j - 1][i - 1] + indicator
-          );
+          const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+          track[j][i] = Math.min(track[j][i - 1] + 1, track[j - 1][i] + 1, track[j - 1][i - 1] + cost);
         }
       }
       return (Math.max(s1.length, s2.length) - track[s2.length][s1.length]) / Math.max(s1.length, s2.length);
     }
 
-    function findNearestStudent(ocrText, classStudents) {
-      if (!classStudents || classStudents.length === 0) return null;
-      let best = null;
-      let maxScore = -1;
-
-      classStudents.forEach(s => {
-        const score = getSimilarity(ocrText, s.name);
-        if (score > maxScore) {
-          maxScore = score;
-          best = { student: s, score: Math.round(score * 100) };
-        }
-      });
-      return best;
+    function parseDetectedClass(rawText) {
+      const t = (rawText || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (t.includes('XII') || t.includes('12')) return 'Class-XII';
+      if (t.includes('XI') || t.includes('11'))  return 'Class-XI';
+      if (t.includes('VIII') || t.includes('8')) return 'Class-VIII';
+      if (t.includes('VII') || t.includes('7'))  return 'Class-VII';
+      if (t.includes('VI') || t.includes('6'))   return 'Class-VI';
+      if (t.includes('IV') || t.includes('4'))   return 'Class-IV';
+      if (t.includes('IX') || t.includes('9'))   return 'Class-IX';
+      if (t.includes('X') || t.includes('10'))   return 'Class-X';
+      if (t.includes('III') || t.includes('3'))  return 'Class-III';
+      if (t.includes('II') || t.includes('2'))   return 'Class-II';
+      if (t.includes('I') || t.includes('1'))    return 'Class-I';
+      if (t.includes('KA'))                      return 'Ka-Shreni';
+      return null;
     }
 
-    // --- BUBBLE EVALUATION ENGINE (BOTTOM GRID) ---
+    // --- 3-COLUMN GUNOTSAV GEOMETRY EVALUATION ---
     function evaluateBubbles(ctx, w, h) {
       const responses = {};
-      const totalQ = totalQuestions || 58;
 
-      const gridStartX = w * 0.11;
-      const gridStartY = h * 0.52;
-      const gridTotalW = w * 0.62;
-      const gridTotalH = h * 0.36;
+      const gridLeft = w * 0.08;
+      const gridRight = w * 0.72; // Bounds the 3 columns, ignores skill section
+      const gridWidth = gridRight - gridLeft;
+      const colWidth = gridWidth / 3;
 
-      const blockW = gridTotalW / 2;
-      const blockH = gridTotalH / 2;
+      const gridTop = h * 0.42;
+      const gridBottom = h * 0.94;
+      const rowHeight = (gridBottom - gridTop) / 35;
 
-      for (let q = 1; q <= totalQ; q++) {
-        const blockCol = q > 30 ? 1 : 0;
-        const blockRow = ((q - 1) % 30) >= 15 ? 1 : 0;
-        const indexInBlock = (q - 1) % 15;
+      function getCoords(q) {
+        let col = 0, row = 0;
+        if (q <= 20) {
+          col = 0; row = q - 1;
+        } else if (q <= 40) {
+          col = 1; row = (q - 21);
+        } else if (q <= 60) {
+          col = 2; row = (q - 41);
+        } else if (q <= 75) {
+          col = 0; row = 20 + (q - 61);
+        } else if (q <= 90) {
+          col = 1; row = 20 + (q - 76);
+        } else if (q <= 100) {
+          col = 2; row = 20 + (q - 91);
+        }
+        return { col, row };
+      }
 
-        const rowY = gridStartY + (blockRow * blockH) + (indexInBlock * (blockH / 15)) + 8;
-        const startX = gridStartX + (blockCol * blockW) + (blockW * 0.32);
-        const bubbleSpacing = (blockW * 0.60) / 4;
-        const radius = 6;
+      const options = ['A', 'B', 'C', 'D'];
 
-        let detectedOpt = null;
-        let maxFill = 0;
-        let fills = [];
+      for (let q = 1; q <= totalQuestions; q++) {
+        const { col, row } = getCoords(q);
+        const colStartX = gridLeft + (col * colWidth);
+        const yCenter = gridTop + (row * rowHeight) + (rowHeight * 0.5);
 
-        ['A', 'B', 'C', 'D'].forEach((opt, idx) => {
-          const bx = startX + (idx * bubbleSpacing);
-          const imgData = ctx.getImageData(bx - radius, rowY - radius, radius * 2, radius * 2);
-          const pixels = imgData.data;
-          let darkCount = 0;
+        let darkestOpt = null;
+        let minBrightness = 255;
+        let readings = [];
 
-          for (let p = 0; p < pixels.length; p += 4) {
-            const luma = 0.299 * pixels[p] + 0.587 * pixels[p + 1] + 0.114 * pixels[p + 2];
-            if (luma < 105) darkCount++;
+        options.forEach((opt, idx) => {
+          const xCenter = colStartX + (colWidth * 0.28) + (idx * (colWidth * 0.18));
+          const p = ctx.getImageData(Math.round(xCenter - 2), Math.round(yCenter - 2), 5, 5).data;
+          let sum = 0;
+          for (let i = 0; i < p.length; i += 4) {
+            sum += (p[i] * 0.299 + p[i+1] * 0.587 + p[i+2] * 0.114);
           }
+          const avg = sum / (p.length / 4);
+          readings.push({ opt, avg });
 
-          const fill = darkCount / ((radius * 2) * (radius * 2));
-          fills.push(fill);
-          if (fill > maxFill) {
-            maxFill = fill;
-            detectedOpt = opt;
+          if (avg < minBrightness) {
+            minBrightness = avg;
+            darkestOpt = opt;
           }
         });
 
-        const avgFill = fills.reduce((a, b) => a + b, 0) / 4;
-        if (maxFill > 0.22 && maxFill > (avgFill * 1.4)) {
-          responses[q] = detectedOpt;
+        readings.sort((a, b) => a.avg - b.avg);
+        if (readings[1].avg - readings[0].avg > 30) {
+          responses[q] = darkestOpt;
         } else {
           responses[q] = null;
         }
       }
+
       return responses;
     }
 
-    // --- TWO-PHASE RECOGNITION AND GRADING ---
-    async function processSnapshot(canvas) {
+    async function processImage(canvas) {
       isProcessing = true;
-      playBeep();
+      document.getElementById('statusBadge').innerText = "Reading Class, Name & Bubbles...";
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const w = canvas.width;
+      const h = canvas.height;
 
-      const statusBadge = document.getElementById('statusBadge');
-      const mode = document.getElementById('examTrackSelect').value;
+      // 1. Evaluate MCQ bubbles
+      const responses = evaluateBubbles(ctx, w, h);
 
-      if (mode === 'master_key_scan') {
-        processMasterKeyScan(canvas);
-        isProcessing = false;
+      let correct = 0, incorrect = 0;
+      for (let q = 1; q <= totalQuestions; q++) {
+        const studentAns = responses[q];
+        const correctAns = masterKey[q];
+        if (studentAns && correctAns) {
+          if (studentAns === correctAns) correct++;
+          else incorrect++;
+        }
+      }
+      const score = correct * marksPerQ;
+
+      const crop = document.getElementById('cropCanvas');
+      const cropCtx = crop.getContext('2d');
+
+      // 2. Crop Class Box (Top-right)
+      const classCropW = Math.round(w * 0.28);
+      const classCropH = Math.round(h * 0.08);
+      crop.width = classCropW;
+      crop.height = classCropH;
+      cropCtx.drawImage(canvas, Math.round(w * 0.65), Math.round(h * 0.04), classCropW, classCropH, 0, 0, classCropW, classCropH);
+
+      let rawClassText = "";
+      try {
+        const resClass = await Tesseract.recognize(crop, 'eng', {
+          tessedit_char_whitelist: 'CLASS-IVX0123456789KaShreni '
+        });
+        rawClassText = (resClass.data.text || '').trim();
+      } catch (err) {
+        console.warn("Class OCR failed", err);
+      }
+
+      const detectedClass = parseDetectedClass(rawClassText) || document.getElementById('scanClassSelect').value;
+
+      // 3. Crop Student Name Box
+      const nameCropW = Math.round(w * 0.52);
+      const nameCropH = Math.round(h * 0.06);
+      crop.width = nameCropW;
+      crop.height = nameCropH;
+      cropCtx.drawImage(canvas, Math.round(w * 0.22), Math.round(h * 0.22), nameCropW, nameCropH, 0, 0, nameCropW, nameCropH);
+
+      let detectedName = "";
+      try {
+        const resName = await Tesseract.recognize(crop, 'eng', {
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
+        });
+        detectedName = (resName.data.text || '').trim();
+      } catch (err) {
+        console.warn("Name OCR failed", err);
+      }
+
+      // 4. Match student within detected class
+      const classStudents = students.filter(s => s.class_level === detectedClass);
+      let bestMatch = null;
+      let highestSim = -1;
+      classStudents.forEach(s => {
+        const sim = getSimilarity(detectedName, s.name);
+        if (sim > highestSim) {
+          highestSim = sim;
+          bestMatch = s;
+        }
+      });
+
+      // 5. Open Verification Modal
+      activeEvaluation = { score, correct, incorrect, responses, detectedClass, detectedName, totalQuestions };
+      openConfirmModal(detectedClass, rawClassText, detectedName, bestMatch, score, correct, incorrect);
+
+      isProcessing = false;
+      document.getElementById('statusBadge').innerText = "Align sheet inside corners and snap";
+    }
+
+    function openConfirmModal(detectedClass, rawClassText, ocrName, bestStudent, score, correct, incorrect) {
+      document.getElementById('rawOcrText').innerHTML = `
+        Class Read: <b>"${rawClassText || 'N/A'}"</b> &rarr; Matched: <span style="color:#68d391">${detectedClass}</span><br>
+        Name Read: <b>"${ocrName || 'Could not read clearly'}"</b>
+      `;
+
+      const classSel = document.getElementById('modalClassOverrideSelect');
+      classSel.innerHTML = '';
+      CLASSES.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        if (c === detectedClass) opt.selected = true;
+        classSel.appendChild(opt);
+      });
+
+      populateModalStudents(detectedClass, bestStudent ? bestStudent.name : null);
+
+      document.getElementById('modalMcqScoreInput').value = score;
+      document.getElementById('modalMaxMcqText').innerText = `/ ${totalQuestions * marksPerQ}`;
+      document.getElementById('modalBreakdownNote').innerText = `Correct: ${correct} | Incorrect: ${incorrect}`;
+      document.getElementById('studentVerifyModal').style.display = 'flex';
+    }
+
+    function onModalClassChanged() {
+      const newClass = document.getElementById('modalClassOverrideSelect').value;
+      populateModalStudents(newClass, null);
+    }
+
+    function populateModalStudents(targetClass, selectedStudentName) {
+      const sel = document.getElementById('studentConfirmSelect');
+      sel.innerHTML = '';
+      const filtered = students.filter(s => s.class_level === targetClass);
+
+      if (filtered.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = ""; opt.textContent = `No students enrolled in ${targetClass}`;
+        sel.appendChild(opt);
         return;
       }
 
-      const targetClass = document.getElementById('scanClassSelect').value;
-      const classStudents = students.filter(s => s.class_level === targetClass);
-
-      try {
-        // PHASE 1: RECOGNIZE STUDENT
-        if (statusBadge) statusBadge.innerText = "Phase 1: Recognizing student...";
-        let identifiedStudent = null;
-        let identificationSource = "";
-
-        // 1A. Hardware Barcode
-        if ('BarcodeDetector' in window) {
-          try {
-            const detector = new BarcodeDetector({ formats: ['code_128', 'code_39', 'ean_13', 'upc_a', 'qr_code'] });
-            const barcodes = await detector.detect(canvas);
-            if (barcodes.length > 0) {
-              const rawCode = barcodes[0].rawValue.trim();
-              const match = classStudents.find(s => String(s.unique_id).trim() === rawCode) ||
-                            students.find(s => String(s.unique_id).trim() === rawCode);
-              if (match) {
-                identifiedStudent = match;
-                identificationSource = `Barcode Verified: ${match.name} (${match.unique_id})`;
-              }
-            }
-          } catch(e) {
-            console.warn("Barcode read bypassed", e);
-          }
+      filtered.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id || s.student_id || s.name;
+        opt.textContent = `${s.name} (ID: ${s.student_id || 'N/A'})`;
+        if (selectedStudentName && s.name.toUpperCase() === selectedStudentName.toUpperCase()) {
+          opt.selected = true;
         }
+        sel.appendChild(opt);
+      });
+    }
 
-        // 1B. Fallback OCR Crop
-        if (!identifiedStudent && classStudents.length > 0) {
-          const nameCrop = document.createElement('canvas');
-          const nCtx = nameCrop.getContext('2d');
-          const cx = canvas.width * 0.22;
-          const cy = canvas.height * 0.24;
-          const cw = canvas.width * 0.53;
-          const ch = canvas.height * 0.09;
-
-          nameCrop.width = cw;
-          nameCrop.height = ch;
-          nCtx.drawImage(canvas, cx, cy, cw, ch, 0, 0, cw, ch);
-
-          const imgData = nCtx.getImageData(0, 0, cw, ch);
-          const d = imgData.data;
-          for (let i = 0; i < d.length; i += 4) {
-            const luma = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-            const val = luma < 120 ? 0 : 255;
-            d[i] = d[i+1] = d[i+2] = val;
-          }
-          nCtx.putImageData(imgData, 0, 0);
-
-          try {
-            const res = await Tesseract.recognize(nameCrop, 'eng');
-            const rawText = (res.data.text || '').toUpperCase().replace(/[^A-Z ]/g, '').trim();
-            if (rawText.length >= 3) {
-              const match = findNearestStudent(rawText, classStudents);
-              if (match && match.score >= 40) {
-                identifiedStudent = match.student;
-                identificationSource = `Name Matched: "${rawText}" (${match.score}% confidence)`;
-              }
-            }
-          } catch(ocrErr) {
-            console.warn("OCR skipped", ocrErr);
-          }
-        }
-
-        // PHASE 2: SCAN BUBBLE RESULTS
-        if (statusBadge) statusBadge.innerText = "Phase 2: Scanning bubbles...";
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        const responses = evaluateBubbles(ctx, canvas.width, canvas.height);
-
-        let correct = 0;
-        let incorrect = 0;
-
-        for (let q = 1; q <= totalQuestions; q++) {
-          const sAns = responses[q];
-          const kAns = masterKey[q];
-          if (sAns && kAns) {
-            if (sAns === kAns) correct++;
-            else incorrect++;
-          }
-        }
-
-        const penalty = negEnabled ? (incorrect * negMark) : 0;
-        const mcqScore = Math.max(0, Math.round(((correct * marksPerQ) - penalty) * 10) / 10);
-        const skillScore = 12;
-
-        currentStudentEval = {
-          class_level: targetClass,
-          mcqScore: mcqScore,
-          maxMcq: totalQuestions * marksPerQ,
-          skillScore: skillScore,
-          maxSkill: 18,
-          correct: correct,
-          incorrect: incorrect,
-          penalty: penalty
-        };
-
-        // POPULATE VERIFICATION DIALOG
-        const studentSelect = document.getElementById('studentConfirmSelect');
-        studentSelect.innerHTML = '';
-
-        classStudents.forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s.unique_id;
-          opt.textContent = `${s.name} (${s.unique_id}) ${s.evaluated ? '[Evaluated]' : ''}`;
-          studentSelect.appendChild(opt);
-        });
-
-        if (identifiedStudent) {
-          studentSelect.value = identifiedStudent.unique_id;
-          document.getElementById('rawOcrText').innerText = identificationSource;
-        } else {
-          document.getElementById('rawOcrText').innerText = "Student not identified automatically. Confirm from list below:";
-        }
-
-        document.getElementById('modalMcqScoreInput').value = mcqScore;
-        document.getElementById('modalMaxMcqText').innerText = `/ ${currentStudentEval.maxMcq}`;
-        document.getElementById('modalSkillScoreInput').value = skillScore;
-        document.getElementById('modalBreakdownNote').innerText = `Correct: ${correct} | Incorrect: ${incorrect} | Penalty: -${penalty}`;
-
-        recalculateStudentTotals();
-        document.getElementById('studentVerifyModal').style.display = 'flex';
-
-      } finally {
-        isProcessing = false;
-        if (statusBadge) statusBadge.innerText = "Scan complete. Tap button to scan next.";
+    function confirmAndSaveRecord() {
+      const sel = document.getElementById('studentConfirmSelect');
+      const studentId = sel.value;
+      if (!studentId) {
+        alert("Please select a student from the list.");
+        return;
       }
+
+      const finalScore = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
+      
+      let records = [];
+      try { records = JSON.parse(localStorage.getItem('dhk_evaluations') || '[]'); } catch(e) { records = []; }
+      
+      records.push({
+        student_id: studentId,
+        score: finalScore,
+        max_score: totalQuestions * marksPerQ,
+        correct: activeEvaluation.correct,
+        incorrect: activeEvaluation.incorrect,
+        timestamp: new Date().toISOString()
+      });
+
+      localStorage.setItem('dhk_evaluations', JSON.stringify(records));
+      alert("Result confirmed & saved successfully!");
+      closeModal();
     }
 
-    function recalculateStudentTotals() {
-      const mcq = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
-      const skill = parseFloat(document.getElementById('modalSkillScoreInput').value) || 0;
-      const totalEarned = mcq + skill;
-      const maxTotal = (currentStudentEval?.maxMcq || 58) + (currentStudentEval?.maxSkill || 18);
-      const pct = maxTotal > 0 ? Math.round((totalEarned / maxTotal) * 100) : 0;
-      document.getElementById('modalCompositeScore').innerText = `${totalEarned} Marks (${pct}%)`;
-    }
-
-    function confirmAndSaveStudentRecord() {
-      const studentSelect = document.getElementById('studentConfirmSelect');
-      const uid = studentSelect.value;
-      if (!uid) return alert("Please select a student from the roster.");
-
-      const target = students.find(s => String(s.unique_id).trim() === String(uid).trim());
-      if (!target) return alert("Student not found.");
-
-      const mcq = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
-      const skill = parseFloat(document.getElementById('modalSkillScoreInput').value) || 0;
-      const totalEarned = mcq + skill;
-      const maxTotal = (currentStudentEval?.maxMcq || 58) + (currentStudentEval?.maxSkill || 18);
-      const pct = maxTotal > 0 ? Math.round((totalEarned / maxTotal) * 100) : 0;
-
-      target.evaluated = true;
-      target.mcq_marks = mcq;
-      target.subj_marks = skill;
-      target.total_marks = totalEarned;
-      target.score = pct;
-
-      localStorage.setItem('dhk_students', JSON.stringify(students));
-      alert(`Saved evaluation for ${target.name}!`);
-      closeAllModals();
-    }
-
-    function processMasterKeyScan(canvas) {
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      const responses = evaluateBubbles(ctx, canvas.width, canvas.height);
-      scannedMasterKeyMap = {};
-      const container = document.getElementById('masterKeyDetectedList');
-      container.innerHTML = '';
-
-      for (let q = 1; q <= totalQuestions; q++) {
-        const detected = responses[q] || 'A';
-        scannedMasterKeyMap[q] = detected;
-        container.innerHTML += `
-          <div style="display:flex; justify-content:space-between; align-items:center; background:#121721; padding:4px 8px; border-radius:4px;">
-            <span><b>Q${q}:</b></span>
-            <select onchange="scannedMasterKeyMap[${q}]=this.value" style="background:#1a2230; color:#fff; border:1px solid #334155; padding:2px 6px;">
-              ${['A','B','C','D'].map(o => `<option value="${o}" ${o===detected?'selected':''}>${o}</option>`).join('')}
-            </select>
-          </div>
-        `;
-      }
-      document.getElementById('masterKeyModal').style.display = 'flex';
-    }
-
-    function confirmAndSaveScannedKey() {
-      localStorage.setItem('dhk_master_key', JSON.stringify(scannedMasterKeyMap));
-      localStorage.setItem('dhk_total_questions', String(totalQuestions));
-      alert(`Master Answer Key (${totalQuestions} Qs) saved! Redirecting to Exam page...`);
-      window.location.href = 'exam.html';
-    }
-
-    function closeAllModals() {
+    function closeModal() {
       document.getElementById('studentVerifyModal').style.display = 'none';
-      document.getElementById('masterKeyModal').style.display = 'none';
-      resetScanState();
+      activeEvaluation = null;
     }
 
-    function playBeep() {
-      try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-        osc.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.15);
-      } catch (e) {}
-    }
-
-    window.onload = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('mode') === 'master_key') {
-        document.getElementById('examTrackSelect').value = 'master_key_scan';
-        if (urlParams.get('totalQ')) {
-          totalQuestions = parseInt(urlParams.get('totalQ')) || totalQuestions;
-        }
-      }
+    window.onload = function() {
       syncClassDropdown();
-      startCamera();
     };
   </script>
 </body>
