@@ -1,365 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>DHK OMR Pro - Answer Keys & Generator</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DHK OMR Pro • Exam Sheet Generator</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     @media print {
-      body * { visibility: hidden !important; }
-      #printableArea, #printableArea * { visibility: visible !important; }
-      #printableArea {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        display: block !important;
-        background: #fff !important;
-      }
-      @page {
-        size: A4 portrait;
-        margin: 0;
-      }
-    }
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+      @page { size: A4 portrait; margin: 6mm; }
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
-
-  <!-- TOP HEADER -->
-  <header class="bg-slate-900 border-b border-slate-800 p-3 sticky top-0 z-30 shadow-lg">
-    <div class="flex items-center justify-between max-w-lg mx-auto">
-      <div class="flex items-center gap-2">
-        <a href="index.html" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
-          <i data-lucide="arrow-left" class="w-4 h-4"></i>
-        </a>
-        <div>
-          <h1 class="text-xs font-black uppercase tracking-wider text-white">Answer Key & Sheets</h1>
-          <div id="keyStatusBadge" class="text-[11px] font-medium text-amber-400">Universal Mode (0 Keys Set)</div>
-        </div>
-      </div>
-
-      <!-- PRINT UNIVERSAL SHEET (NO CLASS HARDCODED) -->
-      <button onclick="printCalibratedSheet()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow">
-        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
-        <span>Print Sheet</span>
-      </button>
-    </div>
-
-    <!-- CONTROLS STRIP -->
-    <div class="grid grid-cols-2 gap-2 mt-2 max-w-lg mx-auto text-xs">
+<body class="bg-gray-100 p-4">
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md mb-6 no-print">
+    <div class="flex items-center justify-between">
       <div>
-        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Target Class</label>
-        <select id="selectedClass" onchange="onClassChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold">
-          <option value="UNIVERSAL" selected>Universal (No Class)</option>
-          <option value="Ka-Shreni">Class Ka</option>
-          <option value="I">Class I</option>
-          <option value="II">Class II</option>
-          <option value="III">Class III</option>
-          <option value="IV">Class IV</option>
-          <option value="V">Class V</option>
-          <option value="VI">Class VI</option>
-          <option value="VII">Class VII</option>
-          <option value="VIII">Class VIII</option>
-          <option value="IX">Class IX</option>
-          <option value="X">Class X</option>
-          <option value="XI">Class XI</option>
-          <option value="XII">Class XII</option>
-        </select>
+        <h1 class="text-xl font-black text-gray-800">DHK OMR PRO • SHEET GENERATOR</h1>
+        <p class="text-xs text-gray-500">Universal 100-Question Standardized OMR Matrix</p>
       </div>
-
-      <div>
-        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Questions Needed</label>
-        <input type="number" id="customQCount" min="1" max="100" value="100" onchange="onCustomCountChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-400 font-bold font-mono focus:outline-none focus:border-cyan-400" />
-      </div>
-    </div>
-
-    <!-- SCAN KEY DIRECTLY VIA CAMERA OR TAP -->
-    <div class="mt-2.5 max-w-lg mx-auto">
-      <button onclick="scanKeyWithCamera()" class="w-full py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow transition">
-        <i data-lucide="camera" class="w-4 h-4"></i>
-        <span>Scan Key With Camera (Optical Reader)</span>
+      <button onclick="window.print()" class="px-5 py-2.5 bg-black text-white font-bold rounded-lg hover:bg-gray-800">
+        Print Sheet (A4)
       </button>
     </div>
-  </header>
+  </div>
 
-  <!-- KEY QUESTIONS LIST (FOR MANUAL TAP INPUT) -->
-  <main class="flex-1 max-w-lg mx-auto w-full p-3.5 space-y-2 pb-24">
-    <div id="questionsContainer" class="space-y-1.5"></div>
-  </main>
+  <!-- Master Printable Area -->
+  <div id="printArea" class="flex justify-center bg-white">
+    <svg id="omrSvg" viewBox="0 0 1000 1414" width="1000" height="1414" xmlns="http://www.w3.org/2000/svg" style="background:#fff;">
+      <!-- Corner Fiducials -->
+      <rect x="25" y="25" width="950" height="1364" fill="none" stroke="#000" stroke-width="2.5" />
+      <rect x="25" y="25" width="40" height="40" fill="#000" />
+      <rect x="935" y="25" width="40" height="40" fill="#000" />
+      <rect x="25" y="1349" width="40" height="40" fill="#000" />
+      <rect x="935" y="1349" width="40" height="40" fill="#000" />
 
-  <!-- FOOTER -->
-  <footer class="bg-slate-900 border-t border-slate-800 p-3 sticky bottom-0 z-30 shadow-2xl">
-    <div class="max-w-lg mx-auto flex items-center justify-between gap-2.5">
-      <button onclick="resetCurrentKey()" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold border border-slate-700">
-        Reset
-      </button>
-      <button onclick="saveAndProceed()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
-        <i data-lucide="scan-line" class="w-4 h-4"></i>
-        <span>Save Key & Start Evaluating</span>
-      </button>
-    </div>
-  </footer>
+      <!-- Top Header -->
+      <text x="70" y="70" font-size="20" font-weight="900" font-family="Arial, sans-serif">EVALUATION OMR</text>
+      <rect x="800" y="52" width="135" height="24" fill="none" stroke="#000" stroke-width="1.5" />
+      <text x="867" y="69" text-anchor="middle" font-size="11" font-weight="bold" font-family="Arial, sans-serif">100 QUESTIONS</text>
+      <line x1="70" y1="84" x2="935" y2="84" stroke="#000" stroke-width="1.5" />
+      <text x="502" y="97" text-anchor="middle" font-size="8.5" font-weight="bold" font-family="Arial, sans-serif">
+        DO NOT FOLD OR TEAR OMR SHEET • USE BLACK OR BLUE BALL POINT PEN ONLY • DARKEN BUBBLE COMPLETELY • DO NOT OVERWRITE
+      </text>
+      <line x1="70" y1="105" x2="935" y2="105" stroke="#000" stroke-width="1.5" />
 
-  <!-- SCANNER-ALIGNED PRINT CONTAINER (100% UNIVERSAL: ZERO HARDCODED CLASS) -->
-  <div id="printableArea" class="hidden text-black font-sans">
-    <svg id="omrSvg" viewBox="0 0 1000 1414" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="background:#fff;">
-      <rect x="25" y="25" width="950" height="1364" fill="none" stroke="#000" stroke-width="3" />
+      <!-- Student Metadata Section -->
+      <text x="70" y="121" font-size="9" font-weight="bold" font-family="Arial, sans-serif">STUDENT NAME (CAPITAL LETTERS ONLY):</text>
+      <!-- 18 Individual Name Write-in Character Boxes -->
+      <g id="nameBoxes"></g>
 
-      <!-- 4 Solid Black Fiducials -->
-      <rect x="25" y="25" width="45" height="45" fill="#000" />
-      <rect x="930" y="25" width="45" height="45" fill="#000" />
-      <rect x="25" y="1344" width="45" height="45" fill="#000" />
-      <rect x="930" y="1344" width="45" height="45" fill="#000" />
+      <text x="520" y="121" font-size="9" font-weight="bold" font-family="Arial, sans-serif">CLASS:</text>
+      <rect x="520" y="127" width="190" height="22" fill="none" stroke="#000" stroke-width="1.5" />
 
-      <!-- Universal Header -->
-      <text x="500" y="95" text-anchor="middle" font-size="24" font-weight="900" font-family="Arial" letter-spacing="1">DHK PRECISION OMR ANSWER SHEET</text>
-      <text x="500" y="125" text-anchor="middle" font-size="13" font-weight="bold" font-family="Arial" fill="#333">Standard Evaluation Grid • 34-Rail Calibration System</text>
+      <text x="730" y="121" font-size="9" font-weight="bold" font-family="Arial, sans-serif">ROLL NO:</text>
+      <rect x="730" y="127" width="205" height="22" fill="none" stroke="#000" stroke-width="1.5" />
 
-      <!-- Blank Student Info Strip (NO HARDCODED CLASS) -->
-      <rect x="70" y="225" width="450" height="52" fill="none" stroke="#000" stroke-width="2" />
-      <text x="80" y="215" font-size="11" font-weight="bold" font-family="Arial">CANDIDATE NAME</text>
+      <!-- Left Margin Timing Dashes (Grouped by Box) -->
+      <g id="timingDashes"></g>
 
-      <rect x="540" y="225" width="190" height="52" fill="none" stroke="#000" stroke-width="1.5" />
-      <text x="550" y="215" font-size="11" font-weight="bold" font-family="Arial">CLASS / SEC</text>
+      <!-- 20 Boxes of 5 Questions Each -->
+      <g id="questionBoxes"></g>
 
-      <rect x="750" y="225" width="180" height="52" fill="none" stroke="#000" stroke-width="1.5" />
-      <text x="760" y="215" font-size="11" font-weight="bold" font-family="Arial">ROLL / ID NO</text>
-
-      <!-- Left & Right 34-Rail Timing Dashes -->
-      <g id="svgLeftRail"></g>
-      <g id="svgRightRail"></g>
-
-      <!-- Bubble Grid -->
-      <g id="svgGrid"></g>
-
-      <!-- Footer Rules -->
-      <line x1="70" y1="1310" x2="930" y2="1310" stroke="#000" stroke-width="1.5" />
-      <text x="70" y="1335" font-size="12" font-weight="bold" font-family="Arial">• Use Blue or Black Ballpoint Pen only</text>
-      <text x="450" y="1335" font-size="12" font-weight="bold" font-family="Arial">• Fill circles completely: [ ● ]</text>
-      <text x="930" y="1335" text-anchor="end" font-size="12" font-weight="bold" font-family="Arial">DHK 34-RAIL VISION SYSTEM</text>
+      <!-- Footer Signatures & Identifier -->
+      <line x1="70" y1="1335" x2="935" y2="1335" stroke="#000" stroke-width="1.5" />
+      <text x="70" y="1352" font-size="9" font-weight="bold" font-family="Arial, sans-serif">DHK OMR PRO UNIVERSAL ENGINE</text>
+      <text x="502" y="1352" text-anchor="middle" font-size="9" font-weight="bold" font-family="Arial, sans-serif">Signature of Invigilator</text>
+      <text x="935" y="1352" text-anchor="end" font-size="9" font-weight="bold" font-family="Arial, sans-serif">Signature of Head Master / Evaluator</text>
     </svg>
   </div>
 
   <script>
-    let currentTarget = 'UNIVERSAL';
-    let questionCount = 100;
-    let answerKey = {};
+    function renderSheet() {
+      const nameBoxesG = document.getElementById('nameBoxes');
+      const timingG = document.getElementById('timingDashes');
+      const boxesG = document.getElementById('questionBoxes');
 
-    window.addEventListener('DOMContentLoaded', () => {
-      lucide.createIcons();
-      loadKey(currentTarget);
-    });
+      nameBoxesG.innerHTML = '';
+      timingG.innerHTML = '';
+      boxesG.innerHTML = '';
 
-    function loadKey(target) {
-      currentTarget = target;
-      const keyId = target === 'UNIVERSAL' ? 'dhk_master_key' : `dhk_key_${target}`;
-      const stored = localStorage.getItem(keyId);
-      answerKey = {};
+      // 1. Render 18 character cells for Student Name
+      for (let b = 0; b < 18; b++) {
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", 70 + (b * 24));
+        rect.setAttribute("y", "127");
+        rect.setAttribute("width", "24");
+        rect.setAttribute("height", "22");
+        rect.setAttribute("fill", "none");
+        rect.setAttribute("stroke", "#000");
+        rect.setAttribute("stroke-width", "1.5");
+        nameBoxesG.appendChild(rect);
+      }
 
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          answerKey = parsed[target] ? parsed[target] : parsed;
-        } catch (e) {
-          answerKey = {};
+      // Timing Dash #1: Anchors the Student Name horizontal scanline
+      const nameDash = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      nameDash.setAttribute("x", "48");
+      nameDash.setAttribute("y", "133");
+      nameDash.setAttribute("width", "22");
+      nameDash.setAttribute("height", "10");
+      nameDash.setAttribute("fill", "#000");
+      timingG.appendChild(nameDash);
+
+      // Geometry Constants
+      const colX = [70, 365, 660];
+      const colW = 275;
+      const startY = 165;
+      const blockH = 152;
+      const blockGapY = 14;
+      const rowH = 26;
+      const rowPadTop = 18;
+      const optGapX = 26;
+      const bubbleStartX = 155;
+
+      // 20 boxes arranged across 7 visual tiers:
+      const boxMap = [
+        [1, 5],   [21, 25], [41, 45],
+        [6, 10],  [26, 30], [46, 50],
+        [11, 15], [31, 35], [51, 55],
+        [16, 20], [36, 40], [56, 60], // Contains 59 & 60
+        [61, 65], [66, 70], [71, 75],
+        [76, 80], [81, 85], [86, 90],
+        [91, 95], [96, 100]
+      ];
+
+      // 2. Render the 7 horizontal block tiers
+      for (let r = 0; r < 7; r++) {
+        const by = startY + (r * (blockH + blockGapY));
+
+        // 5 timing dashes per block (Dashes #2 through #36)
+        for (let i = 0; i < 5; i++) {
+          const qRowY = by + rowPadTop + (i * rowH);
+          const dash = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          dash.setAttribute("x", "48");
+          dash.setAttribute("y", qRowY - 5);
+          dash.setAttribute("width", "22");
+          dash.setAttribute("height", "10");
+          dash.setAttribute("fill", "#000");
+          timingG.appendChild(dash);
+        }
+
+        // 3 Columns per row
+        for (let c = 0; c < 3; c++) {
+          const boxIdx = (r * 3) + c;
+          if (boxIdx >= boxMap.length) continue;
+
+          const bx = colX[c];
+          const [qStart, qEnd] = boxMap[boxIdx];
+
+          // Box Border
+          const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          rect.setAttribute("x", bx);
+          rect.setAttribute("y", by);
+          rect.setAttribute("width", colW);
+          rect.setAttribute("height", blockH);
+          rect.setAttribute("fill", "none");
+          rect.setAttribute("stroke", "#000");
+          rect.setAttribute("stroke-width", "1.5");
+          rect.setAttribute("rx", "3");
+          boxesG.appendChild(rect);
+
+          // 5 Question Rows
+          for (let q = qStart; q <= qEnd; q++) {
+            const offset = q - qStart;
+            const qRowY = by + rowPadTop + (offset * rowH);
+
+            // Question Number Label
+            const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            txt.setAttribute("x", bx + 16);
+            txt.setAttribute("y", qRowY + 4);
+            txt.setAttribute("font-size", "11");
+            txt.setAttribute("font-family", "Arial, sans-serif");
+            txt.setAttribute("font-weight", "bold");
+            txt.textContent = q;
+            boxesG.appendChild(txt);
+
+            // A, B, C, D Bubbles
+            ['A', 'B', 'C', 'D'].forEach((opt, oIdx) => {
+              const cx = bx + bubbleStartX + (oIdx * optGapX);
+
+              const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+              circle.setAttribute("cx", cx);
+              circle.setAttribute("cy", qRowY);
+              circle.setAttribute("r", "8.5");
+              circle.setAttribute("fill", "#fff");
+              circle.setAttribute("stroke", "#000");
+              circle.setAttribute("stroke-width", "1.3");
+              boxesG.appendChild(circle);
+
+              const optLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+              optLabel.setAttribute("x", cx);
+              optLabel.setAttribute("y", qRowY + 3.2);
+              optLabel.setAttribute("text-anchor", "middle");
+              optLabel.setAttribute("font-size", "8");
+              optLabel.setAttribute("font-family", "Arial, sans-serif");
+              optLabel.setAttribute("font-weight", "bold");
+              optLabel.textContent = opt;
+              boxesG.appendChild(optLabel);
+            });
+          }
         }
       }
-
-      const countId = target === 'UNIVERSAL' ? 'dhk_active_total_q' : `dhk_qcount_${target}`;
-      const storedCount = localStorage.getItem(countId);
-      if (storedCount) {
-        questionCount = parseInt(storedCount);
-      } else {
-        const keysArr = Object.keys(answerKey).map(Number);
-        questionCount = keysArr.length > 0 ? Math.max(...keysArr) : 100;
-      }
-
-      document.getElementById('customQCount').value = questionCount;
-      renderQuestions();
-      updateStatusBadge();
     }
 
-    function onClassChange(val) {
-      loadKey(val);
-    }
-
-    function onCustomCountChange(val) {
-      let num = parseInt(val) || 1;
-      if (num < 1) num = 1;
-      if (num > 100) num = 100;
-      questionCount = num;
-      document.getElementById('customQCount').value = num;
-
-      const countId = currentTarget === 'UNIVERSAL' ? 'dhk_active_total_q' : `dhk_qcount_${currentTarget}`;
-      localStorage.setItem(countId, num);
-
-      renderQuestions();
-      updateStatusBadge();
-    }
-
-    function renderQuestions() {
-      const container = document.getElementById('questionsContainer');
-      container.innerHTML = '';
-
-      for (let i = 1; i <= questionCount; i++) {
-        const qNum = String(i).padStart(3, '0');
-        const selected = answerKey[i] || null;
-
-        const row = document.createElement('div');
-        row.className = "flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800";
-        row.innerHTML = `
-          <span class="text-xs font-mono font-bold text-slate-300">Q${qNum}</span>
-          <div class="flex gap-2">
-            ${['A', 'B', 'C', 'D'].map(opt => `
-              <button onclick="setOption(${i}, '${opt}')" class="w-8 h-8 rounded-full font-bold text-xs transition ${                 selected === opt ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-400' : 'bg-slate-950 text-slate-400 border border-slate-800 hover:border-slate-700'               }">${opt}</button>
-            `).join('')}
-          </div>
-        `;
-        container.appendChild(row);
-      }
-    }
-
-    function setOption(q, opt) {
-      answerKey[q] = (answerKey[q] === opt) ? null : opt;
-      if (!answerKey[q]) delete answerKey[q];
-      renderQuestions();
-      updateStatusBadge();
-      saveState();
-    }
-
-    function updateStatusBadge() {
-      const count = Object.keys(answerKey).length;
-      const label = currentTarget === 'UNIVERSAL' ? 'Universal Key' : `Class ${currentTarget}`;
-      document.getElementById('keyStatusBadge').innerText = `${label} (${count}/${questionCount} Keys Set)`;
-    }
-
-    function saveState() {
-      const keyId = currentTarget === 'UNIVERSAL' ? 'dhk_master_key' : `dhk_key_${currentTarget}`;
-      localStorage.setItem(keyId, JSON.stringify(answerKey));
-      localStorage.setItem('dhk_master_key', JSON.stringify(answerKey));
-      localStorage.setItem('dhk_active_total_q', questionCount);
-    }
-
-    function resetCurrentKey() {
-      if (confirm(`Reset answer key?`)) {
-        answerKey = {};
-        const keyId = currentTarget === 'UNIVERSAL' ? 'dhk_master_key' : `dhk_key_${currentTarget}`;
-        localStorage.removeItem(keyId);
-        renderQuestions();
-        updateStatusBadge();
-      }
-    }
-
-    // Direct Camera Scan Trigger for Key
-    function scanKeyWithCamera() {
-      saveState();
-      window.location.href = `scan.html?mode=master_key`;
-    }
-
-    function saveAndProceed() {
-      saveState();
-      if (currentTarget !== 'UNIVERSAL') {
-        localStorage.setItem('dhk_locked_class', currentTarget);
-      }
-      window.location.href = `scan.html`;
-    }
-
-    // PRINT UNIVERSAL SHEET (ZERO HARDCODED CLASS)
-    function printCalibratedSheet() {
-      const H = 1414;
-      const startY = H * 0.21;
-      const totalGridHeight = H * 0.69;
-      const stepY = totalGridHeight / 34;
-
-      const leftRailSvg = document.getElementById('svgLeftRail');
-      const rightRailSvg = document.getElementById('svgRightRail');
-      const gridSvg = document.getElementById('svgGrid');
-      leftRailSvg.innerHTML = '';
-      rightRailSvg.innerHTML = '';
-      gridSvg.innerHTML = '';
-
-      for (let r = 0; r < 34; r++) {
-        const cy = startY + (r * stepY);
-        const dashH = 10;
-        const dashW = 35;
-
-        const dLeft = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        dLeft.setAttribute("x", "30");
-        dLeft.setAttribute("y", cy - (dashH / 2));
-        dLeft.setAttribute("width", dashW);
-        dLeft.setAttribute("height", dashH);
-        dLeft.setAttribute("fill", "#000");
-        leftRailSvg.appendChild(dLeft);
-
-        const dRight = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        dRight.setAttribute("x", "935");
-        dRight.setAttribute("y", cy - (dashH / 2));
-        dRight.setAttribute("width", dashW);
-        dRight.setAttribute("height", dashH);
-        dRight.setAttribute("fill", "#000");
-        rightRailSvg.appendChild(dRight);
-      }
-
-      const colBaseX = [120, 410, 700];
-      const gapX = 45;
-      const opts = ['A', 'B', 'C', 'D'];
-      let qNum = 1;
-
-      for (let c = 0; c < 3; c++) {
-        for (let r = 0; r < 34; r++) {
-          if (qNum > questionCount) break;
-
-          const cy = startY + (r * stepY);
-          const baseX = colBaseX[c];
-
-          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          txt.setAttribute("x", baseX - 12);
-          txt.setAttribute("y", cy + 4);
-          txt.setAttribute("text-anchor", "end");
-          txt.setAttribute("font-size", "11");
-          txt.setAttribute("font-family", "monospace");
-          txt.setAttribute("font-weight", "bold");
-          txt.textContent = String(qNum).padStart(2, '0');
-          gridSvg.appendChild(txt);
-
-          opts.forEach((opt, idx) => {
-            const bx = baseX + (idx * gapX);
-
-            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-            circle.setAttribute("cx", bx);
-            circle.setAttribute("cy", cy);
-            circle.setAttribute("r", "10");
-            circle.setAttribute("fill", "#fff");
-            circle.setAttribute("stroke", "#000");
-            circle.setAttribute("stroke-width", "1.8");
-            gridSvg.appendChild(circle);
-
-            const optTxt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            optTxt.setAttribute("x", bx);
-            optTxt.setAttribute("y", cy + 3.5);
-            optTxt.setAttribute("text-anchor", "middle");
-            optTxt.setAttribute("font-size", "9");
-            optTxt.setAttribute("font-family", "Arial");
-            optTxt.setAttribute("font-weight", "bold");
-            optTxt.textContent = opt;
-            gridSvg.appendChild(optTxt);
-          });
-
-          qNum++;
-        }
-      }
-
-      window.print();
-    }
+    window.onload = renderSheet;
   </script>
 </body>
 </html>
