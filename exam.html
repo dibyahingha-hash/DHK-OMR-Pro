@@ -4,75 +4,20 @@
   <meta charset="UTF-8">
   <title>DHK OMR PRO • Universal 100 Sheet</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      background: #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px;
-      font-family: Arial, sans-serif;
-    }
-    .toolbar {
-      width: 100%;
-      max-width: 210mm;
-      background: #fff;
-      padding: 10px 16px;
-      margin-bottom: 10px;
-      border-radius: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .sheet-page {
-      width: 210mm;
-      height: 290mm;
-      max-height: 290mm;
-      background: #fff;
-      overflow: hidden;
-      page-break-after: avoid !important;
-      page-break-inside: avoid !important;
-    }
-    svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #333; display: flex; flex-direction: column; align-items: center; padding: 10px; font-family: Arial, sans-serif; }
+    .toolbar { width: 100%; max-width: 210mm; background: #fff; padding: 10px 16px; margin-bottom: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .sheet-page { width: 210mm; height: 290mm; max-height: 290mm; background: #fff; overflow: hidden; page-break-after: avoid !important; page-break-inside: avoid !important; }
+    svg { width: 100%; height: 100%; display: block; }
     @media print {
-      html, body {
-        width: 210mm;
-        height: 297mm;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: none !important;
-        overflow: hidden !important;
-      }
-      .toolbar {
-        display: none !important;
-      }
-      .sheet-page {
-        width: 210mm !important;
-        height: 290mm !important;
-        max-height: 290mm !important;
-        margin: 0 auto !important;
-        box-shadow: none !important;
-        overflow: hidden !important;
-        page-break-after: avoid !important;
-        page-break-inside: avoid !important;
-      }
-      @page {
-        size: A4 portrait;
-        margin: 3mm 0 0 0;
-      }
+      html, body { width: 210mm; height: 297mm; margin: 0 !important; padding: 0 !important; background: none !important; overflow: hidden !important; }
+      .toolbar { display: none !important; }
+      .sheet-page { width: 210mm !important; height: 290mm !important; max-height: 290mm !important; margin: 0 auto !important; box-shadow: none !important; overflow: hidden !important; page-break-after: avoid !important; page-break-inside: avoid !important; }
+      @page { size: A4 portrait; margin: 3mm 0 0 0; }
     }
   </style>
 </head>
 <body>
-
   <div class="toolbar">
     <div>
       <strong style="font-size: 14px;">DHK OMR PRO</strong>
@@ -85,14 +30,12 @@
 
   <div class="sheet-page">
     <svg viewBox="0 0 1000 1350" xmlns="http://www.w3.org/2000/svg">
-      <!-- Outer Border & Fiducial Markers -->
       <rect x="25" y="20" width="950" height="1310" fill="none" stroke="#000" stroke-width="2" />
       <rect x="25" y="20" width="36" height="36" fill="#000" />
       <rect x="939" y="20" width="36" height="36" fill="#000" />
       <rect x="25" y="1294" width="36" height="36" fill="#000" />
       <rect x="939" y="1294" width="36" height="36" fill="#000" />
 
-      <!-- Header & Warning -->
       <text x="70" y="52" font-size="18" font-weight="900">EVALUATION OMR</text>
       <rect x="805" y="36" width="132" height="20" fill="none" stroke="#000" stroke-width="1.3" />
       <text x="871" y="50" text-anchor="middle" font-size="10" font-weight="bold">100 QUESTIONS</text>
@@ -103,10 +46,7 @@
       </text>
       <line x1="70" y1="80" x2="937" y2="80" stroke="#000" stroke-width="1.2" />
 
-      <!-- Dash #1: Horizontal Name Anchor -->
       <rect x="40" y="96" width="22" height="8" fill="#000" />
-
-      <!-- Student Info Strip -->
       <text x="70" y="93" font-size="8" font-weight="bold">STUDENT NAME (CAPITAL LETTERS):</text>
       <g id="nameCells"></g>
 
@@ -116,13 +56,9 @@
       <text x="720" y="93" font-size="8" font-weight="bold">ROLL NO:</text>
       <rect x="720" y="97" width="217" height="19" fill="none" stroke="#000" stroke-width="1.2" />
 
-      <!-- Timing Rail Dashes (#2 to #36) -->
       <g id="timingRail"></g>
-
-      <!-- 20 Question Boxes (3 Columns, 7 Tiers) -->
       <g id="questionGrid"></g>
 
-      <!-- Footer & Signatures -->
       <line x1="70" y1="1285" x2="937" y2="1285" stroke="#000" stroke-width="1.2" />
       <text x="70" y="1302" font-size="8" font-weight="bold">DHK OMR PRO ENGINE</text>
       <text x="503" y="1302" text-anchor="middle" font-size="8" font-weight="bold">Signature of Invigilator</text>
@@ -136,7 +72,6 @@
       const railGroup = document.getElementById('timingRail');
       const gridGroup = document.getElementById('questionGrid');
 
-      // 18 Name write-in boxes
       for (let b = 0; b < 18; b++) {
         const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         r.setAttribute("x", 70 + (b * 23.5));
@@ -149,7 +84,6 @@
         nameGroup.appendChild(r);
       }
 
-      // Compact Layout Coordinates
       const colX = [70, 365, 660];
       const colW = 277;
       const startY = 126;
@@ -173,7 +107,6 @@
       for (let t = 0; t < 7; t++) {
         const blockY = startY + (t * (blockH + blockGap));
 
-        // 5 Dashes per Tier
         for (let d = 0; d < 5; d++) {
           const dashY = blockY + rowPad + (d * rowPitch);
           const dash = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -185,7 +118,6 @@
           railGroup.appendChild(dash);
         }
 
-        // 3 Columns
         for (let c = 0; c < 3; c++) {
           const idx = (t * 3) + c;
           if (idx >= boxMap.length) continue;
@@ -218,7 +150,6 @@
 
             ['A', 'B', 'C', 'D'].forEach((opt, oIdx) => {
               const cx = bx + bubbleStartX + (oIdx * optGapX);
-
               const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
               circle.setAttribute("cx", cx);
               circle.setAttribute("cy", qY);
