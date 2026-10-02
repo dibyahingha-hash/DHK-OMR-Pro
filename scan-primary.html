@@ -1,1 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DHK OMR - Class I & II Evaluation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    body { -webkit-tap-highlight-color: transparent; }
+    .scan-guide {
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none overflow-x-hidden">
 
+  <!-- TOP HEADER -->
+  <header class="bg-slate-900 border-b border-slate-800 p-2.5 z-30 sticky top-0 shadow-lg">
+    <div class="flex items-center justify-between gap-2 max-w-lg mx-auto">
+      <div class="flex items-center gap-2">
+        <a href="index.html" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        </a>
+        <div>
+          <h1 class="text-xs font-black text-white tracking-wider uppercase">Class I & II Primary Card</h1>
+          <div id="sessionStatus" class="text-[11px] font-medium flex items-center gap-1 text-emerald-400">
+            <i data-lucide="book-open" class="w-3 h-3"></i> <span>Foundational Learning</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button id="torchBtn" onclick="toggleTorch()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
+          <i data-lucide="zap-off" id="torchIcon" class="w-4 h-4"></i>
+        </button>
+        <label class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer">
+          <i data-lucide="image" class="w-4 h-4"></i>
+          <input type="file" id="fileUpload" accept="image/*" class="hidden" onchange="handleFileUpload(event)" />
+        </label>
+      </div>
+    </div>
+
+    <!-- TARGET CLASS SELECTION -->
+    <div class="grid grid-cols-2 gap-2 mt-2 max-w-lg mx-auto text-xs">
+      <div>
+        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Evaluation Target</label>
+        <div class="bg-slate-950 border border-slate-800 rounded-lg p-1.5 text-indigo-300 font-bold">
+          Oral & Skill Card
+        </div>
+      </div>
+      <div>
+        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Target Class</label>
+        <select id="lockedClass" onchange="onClassChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-white focus:outline-none font-bold">
+          <option value="I">Class I</option>
+          <option value="II" selected>Class II</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- ATTENDANCE ALERT -->
+  <div id="attendanceAlert" class="hidden bg-emerald-600 text-white text-xs px-3 py-1.5 flex items-center justify-between z-20">
+    <div class="flex items-center gap-1.5 font-medium">
+      <i data-lucide="check-circle" class="w-4 h-4"></i>
+      <span id="attendanceMsg">Evaluation Progress</span>
+    </div>
+    <button onclick="toggleUnscannedList()" class="underline font-bold text-emerald-100 text-[11px]">View Remaining</button>
+  </div>
+
+  <!-- VIEWFINDER: Explicit container height to prevent collapsing on mobile -->
+  <main class="relative w-full h-[58vh] bg-black flex items-center justify-center overflow-hidden">
+    <video id="videoFeed" playsinline autoplay muted class="absolute inset-0 w-full h-full object-cover"></video>
+    <canvas id="procCanvas" class="hidden"></canvas>
+
+    <!-- Visual Target Framing -->
+    <div class="relative z-10 w-[88%] h-[88%] border-2 border-emerald-400/90 rounded-2xl scan-guide pointer-events-none flex flex-col justify-between p-2.5">
+      <div class="flex justify-between items-center text-[10px] font-mono text-emerald-200 bg-slate-950/80 px-2 py-1 rounded">
+        <span>PRIMARY CARD ──►</span>
+        <span class="text-amber-300 font-bold uppercase">NAME & SKILL GRID</span>
+      </div>
+
+      <div class="w-full border-b-2 border-dashed border-emerald-400/80 text-right pr-1">
+        <span class="text-[9px] font-bold text-emerald-300 bg-slate-950/80 px-1.5 py-0.5 rounded">STUDENT HEADER</span>
+      </div>
+
+      <div class="text-[10px] font-medium text-center text-slate-200 bg-slate-950/80 py-1 rounded">
+        Align card inside green borders to capture name and mark levels
+      </div>
+    </div>
+  </main>
+
+  <!-- ACTION BAR -->
+  <footer class="bg-slate-900 border-t border-slate-800 p-3 z-30 sticky bottom-0 shadow-2xl">
+    <div class="max-w-lg mx-auto flex items-center justify-between gap-2.5">
+      <button onclick="openManualEntryModal()" class="px-3.5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition">
+        Manual Entry
+      </button>
+      <button onclick="triggerPrimaryScan()" id="scanActionBtn" class="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg transition text-sm">
+        <i data-lucide="scan-line" class="w-5 h-5"></i>
+        <span>Scan Primary Card</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- RECORD CARD VERIFICATION MODAL -->
+  <div id="evalModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-4 shadow-2xl space-y-3">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <div>
+          <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Class I & II Evaluation</span>
+          <div id="modalClassBadge" class="text-xs font-bold text-emerald-400">Class II</div>
+        </div>
+        <div id="totalScoreBadge" class="bg-emerald-600 text-white font-mono px-2.5 py-1 rounded-lg text-xs font-black">
+          Total: -- / 30
+        </div>
+      </div>
+
+      <!-- Student Picker -->
+      <div>
+        <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Student Match</label>
+        <select id="resStudentSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold text-sm focus:outline-none focus:border-emerald-500">
+        </select>
+      </div>
+
+      <!-- 3 Foundational Competencies -->
+      <div class="space-y-2 text-xs">
+        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 flex items-center justify-between">
+          <span class="font-bold text-slate-300">1. Reading (FLN)</span>
+          <div class="flex gap-1" id="readingRadios">
+            <button type="button" onclick="setSkill('read', 1)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">1</button>
+            <button type="button" onclick="setSkill('read', 2)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">2</button>
+            <button type="button" onclick="setSkill('read', 3)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">3</button>
+            <button type="button" onclick="setSkill('read', 4)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">4</button>
+            <button type="button" onclick="setSkill('read', 5)" class="w-7 h-7 rounded border border-emerald-500 bg-emerald-600 text-white text-[11px] font-bold">5</button>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 flex items-center justify-between">
+          <span class="font-bold text-slate-300">2. Writing (FLN)</span>
+          <div class="flex gap-1" id="writingRadios">
+            <button type="button" onclick="setSkill('write', 1)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">1</button>
+            <button type="button" onclick="setSkill('write', 2)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">2</button>
+            <button type="button" onclick="setSkill('write', 3)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">3</button>
+            <button type="button" onclick="setSkill('write', 4)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">4</button>
+            <button type="button" onclick="setSkill('write', 5)" class="w-7 h-7 rounded border border-emerald-500 bg-emerald-600 text-white text-[11px] font-bold">5</button>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 flex items-center justify-between">
+          <span class="font-bold text-slate-300">3. Numeracy (Math)</span>
+          <div class="flex gap-1" id="numeracyRadios">
+            <button type="button" onclick="setSkill('math', 1)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">1</button>
+            <button type="button" onclick="setSkill('math', 2)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">2</button>
+            <button type="button" onclick="setSkill('math', 3)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">3</button>
+            <button type="button" onclick="setSkill('math', 4)" class="w-7 h-7 rounded border border-slate-700 bg-slate-900 text-[11px] font-bold">4</button>
+            <button type="button" onclick="setSkill('math', 5)" class="w-7 h-7 rounded border border-emerald-500 bg-emerald-600 text-white text-[11px] font-bold">5</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="savePrimaryResult()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold py-2.5 rounded-xl transition text-sm">
+          Save Record
+        </button>
+        <button onclick="closeModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-bold py-2.5 rounded-xl transition text-sm">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REMAINING STUDENTS DRAWER -->
+  <div id="unscannedDrawer" class="hidden fixed inset-0 z-50 bg-black/80 flex items-end justify-center">
+    <div class="bg-slate-900 border-t border-slate-800 w-full max-w-lg rounded-t-2xl p-4 space-y-3 max-h-[75vh] flex flex-col">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-white text-xs uppercase tracking-wider">Unassessed Students</h3>
+        <button onclick="toggleUnscannedList()" class="p-1 text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div id="unscannedContainer" class="flex-1 overflow-y-auto space-y-1.5 text-xs"></div>
+    </div>
+  </div>
+
+  <script>
+    let videoStream = null;
+    let videoTrack = null;
+    let torchActive = false;
+    let classRoster = [];
+    let primaryScores = [];
+    let currentSkills = { read: 5, write: 5, math: 5 };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initCamera();
+      loadData();
+    });
+
+    async function initCamera() {
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+        });
+        document.getElementById('videoFeed').srcObject = videoStream;
+        videoTrack = videoStream.getVideoTracks()[0];
+      } catch (err) {
+        alert("Camera error: " + err.message);
+      }
+    }
+
+    async function toggleTorch() {
+      if (!videoTrack) return;
+      const caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+      if (!caps.torch) {
+        alert("Torch unsupported.");
+        return;
+      }
+      try {
+        torchActive = !torchActive;
+        await videoTrack.applyConstraints({ advanced: [{ torch: torchActive }] });
+        const icon = document.getElementById('torchIcon');
+        const btn = document.getElementById('torchBtn');
+        if (torchActive) {
+          icon.setAttribute('data-lucide', 'zap');
+          btn.classList.add('bg-amber-500', 'text-slate-950', 'border-amber-400');
+        } else {
+          icon.setAttribute('data-lucide', 'zap-off');
+          btn.classList.remove('bg-amber-500', 'text-slate-950', 'border-amber-400');
+        }
+        lucide.createIcons();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function loadData() {
+      const r = localStorage.getItem('dhk_roster');
+      if (r) classRoster = JSON.parse(r);
+
+      const s = localStorage.getItem('dhk_scores_primary');
+      if (s) primaryScores = JSON.parse(s);
+
+      updateAttendance();
+    }
+
+    function onClassChange(val) {
+      updateAttendance();
+    }
+
+    function updateAttendance() {
+      const targetClass = document.getElementById('lockedClass').value;
+      const students = classRoster.filter(s => s.class === targetClass);
+      if (students.length === 0) return;
+
+      const scored = primaryScores.filter(s => s.class === targetClass);
+      const ratio = scored.length / students.length;
+      const bar = document.getElementById('attendanceAlert');
+
+      if (scored.length > 0 && scored.length < students.length) {
+        document.getElementById('attendanceMsg').innerText = `${scored.length}/${students.length} Evaluated (${Math.round(ratio * 100)}%)`;
+        bar.classList.remove('hidden');
+      } else {
+        bar.classList.add('hidden');
+      }
+    }
+
+    function setSkill(type, score) {
+      currentSkills[type] = score;
+      renderSkillButtons(type, score);
+      updateTotalDisplay();
+    }
+
+    function renderSkillButtons(type, score) {
+      const containerId = type === 'read' ? 'readingRadios' : (type === 'write' ? 'writingRadios' : 'numeracyRadios');
+      const container = document.getElementById(containerId);
+      container.querySelectorAll('button').forEach((b, idx) => {
+        const val = idx + 1;
+        if (val === score) {
+          b.className = "w-7 h-7 rounded border border-emerald-500 bg-emerald-600 text-white text-[11px] font-bold";
+        } else {
+          b.className = "w-7 h-7 rounded border border-slate-700 bg-slate-900 text-slate-300 text-[11px] font-bold";
+        }
+      });
+    }
+
+    function updateTotalDisplay() {
+      const total = (currentSkills.read + currentSkills.write + currentSkills.math) * 2; // scaled to 30 max
+      document.getElementById('totalScoreBadge').innerText = `Total: ${total} / 30`;
+    }
+
+    async function triggerPrimaryScan() {
+      const video = document.getElementById('videoFeed');
+      const canvas = document.getElementById('procCanvas');
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      await processPrimaryCard(canvas);
+    }
+
+    async function handleFileUpload(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.getElementById('procCanvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        await processPrimaryCard(canvas);
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    async function processPrimaryCard(canvas) {
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Crop name area from header
+      const nameCropY = Math.floor(h * 0.15);
+      const nameCropH = Math.floor(h * 0.05);
+      const nameCanvas = document.createElement('canvas');
+      nameCanvas.width = Math.floor(w * 0.6);
+      nameCanvas.height = nameCropH;
+      const nCtx = nameCanvas.getContext('2d');
+      nCtx.drawImage(ctx.canvas, Math.floor(w * 0.2), nameCropY, nameCanvas.width, nameCropH, 0, 0, nameCanvas.width, nameCropH);
+
+      let rawName = "";
+      try {
+        const res = await Tesseract.recognize(nameCanvas, 'eng', { tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ ' });
+        rawName = res.data.text.trim().replace(/[^A-Z\s]/g, "");
+      } catch (e) {
+        console.warn("OCR err:", e);
+      }
+
+      openEvaluationModal(rawName);
+    }
+
+    function openManualEntryModal() {
+      openEvaluationModal("");
+    }
+
+    function openEvaluationModal(rawName) {
+      const targetClass = document.getElementById('lockedClass').value;
+      const targetStudents = classRoster.filter(s => s.class === targetClass);
+
+      let matched = null;
+      let maxSim = 0;
+
+      if (rawName && rawName.length > 2) {
+        targetStudents.forEach(s => {
+          const sim = stringSimilarity(rawName.toUpperCase(), s.name.toUpperCase());
+          if (sim > maxSim) {
+            maxSim = sim;
+            matched = s;
+          }
+        });
+      }
+      if (maxSim < 0.40) matched = null;
+
+      const sel = document.getElementById('resStudentSelect');
+      sel.innerHTML = "";
+
+      if (!matched) {
+        const def = document.createElement('option');
+        def.value = "";
+        def.innerText = `⚠️ OCR: "${rawName || 'Select Student'}" - Tap to Pick`;
+        sel.appendChild(def);
+      }
+
+      targetStudents.sort((a,b) => a.name.localeCompare(b.name)).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.name;
+        opt.innerText = `${s.name} ${s.roll ? '(Roll: ' + s.roll + ')' : ''}`;
+        if (matched && matched.name === s.name) opt.selected = true;
+        sel.appendChild(opt);
+      });
+
+      // Default skills
+      setSkill('read', 5);
+      setSkill('write', 5);
+      setSkill('math', 5);
+
+      document.getElementById('modalClassBadge').innerText = `Class ${targetClass}`;
+      document.getElementById('evalModal').classList.remove('hidden');
+    }
+
+    function savePrimaryResult() {
+      const selName = document.getElementById('resStudentSelect').value;
+      if (!selName) {
+        alert("Select student name.");
+        return;
+      }
+
+      const targetClass = document.getElementById('lockedClass').value;
+      const student = classRoster.find(s => s.class === targetClass && s.name === selName);
+      const totalMarks = (currentSkills.read + currentSkills.write + currentSkills.math) * 2;
+
+      const record = {
+        name: selName,
+        class: targetClass,
+        roll: student && student.roll ? student.roll : "",
+        skills: { ...currentSkills },
+        totalScore: totalMarks,
+        maxScore: 30
+      };
+
+      const existingIdx = primaryScores.findIndex(s => s.class === targetClass && s.name === selName);
+      if (existingIdx !== -1) {
+        if (!confirm(`Overwrite marks for "${selName}"?`)) return;
+        primaryScores[existingIdx] = record;
+      } else {
+        primaryScores.push(record);
+      }
+
+      localStorage.setItem('dhk_scores_primary', JSON.stringify(primaryScores));
+      closeModal();
+      updateAttendance();
+    }
+
+    function closeModal() {
+      document.getElementById('evalModal').classList.add('hidden');
+    }
+
+    function stringSimilarity(s1, s2) {
+      let longer = s1, shorter = s2;
+      if (s1.length < s2.length) { longer = s2; shorter = s1; }
+      if (longer.length === 0) return 1.0;
+      return (longer.length - editDist(longer, shorter)) / parseFloat(longer.length);
+    }
+
+    function editDist(s1, s2) {
+      s1 = s1.toLowerCase(); s2 = s2.toLowerCase();
+      const costs = [];
+      for (let i = 0; i <= s1.length; i++) {
+        let lastVal = i;
+        for (let j = 0; j <= s2.length; j++) {
+          if (i === 
