@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>DHK OMR Pro - Roster Manager</title>
+  <title>DHK OMR Pro - Student Roster</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -11,13 +11,13 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
   <!-- HEADER -->
-  <header class="bg-slate-900 border-b border-slate-800 p-3 sticky top-0 z-30">
+  <header class="bg-slate-900 border-b border-slate-800 p-3 sticky top-0 z-30 shadow-lg">
     <div class="flex items-center justify-between max-w-lg mx-auto">
       <div class="flex items-center gap-2">
         <a href="index.html" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
           <i data-lucide="arrow-left" class="w-4 h-4"></i>
         </a>
-        <h1 class="text-xs font-black uppercase tracking-wider text-white">Student Roster Manager</h1>
+        <h1 class="text-xs font-black uppercase tracking-wider text-white">Student Roster (Ka to XII)</h1>
       </div>
       <div class="text-[11px] font-mono text-emerald-400 font-bold" id="enrolledCount">
         Total: 0 Students
@@ -26,7 +26,7 @@
   </header>
 
   <main class="flex-1 max-w-lg mx-auto w-full p-3.5 space-y-3 pb-16">
-    <!-- TOP ACTIONS -->
+    <!-- ACTION BUTTONS -->
     <div class="grid grid-cols-3 gap-2">
       <label class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-2.5 rounded-xl text-center text-xs flex flex-col items-center justify-center cursor-pointer shadow">
         <i data-lucide="upload" class="w-4 h-4 mb-0.5"></i>
@@ -45,22 +45,69 @@
       </button>
     </div>
 
-    <!-- CLASS FILTER TABS -->
+    <!-- CLASS FILTER TABS (Ka-Shreni to Class XII) -->
     <div class="flex gap-1.5 overflow-x-auto pb-1 text-xs font-bold scrollbar-none" id="classFilters">
-      <button onclick="filterClass('ALL')" class="filter-tab px-3 py-1.5 rounded-lg bg-indigo-600 text-white shrink-0">All Classes</button>
-      <button onclick="filterClass('Ka-Shreni')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Ka-Shreni</button>
-      <button onclick="filterClass('I')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Class-I</button>
-      <button onclick="filterClass('II')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Class-II</button>
-      <button onclick="filterClass('III')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Class-III</button>
-      <button onclick="filterClass('IV')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Class-IV</button>
-      <button onclick="filterClass('V')" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Class-V</button>
+      <button onclick="filterClass('ALL', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-indigo-600 text-white shrink-0">All</button>
+      <button onclick="filterClass('Ka-Shreni', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">Ka</button>
+      <button onclick="filterClass('I', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">I</button>
+      <button onclick="filterClass('II', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">II</button>
+      <button onclick="filterClass('III', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">III</button>
+      <button onclick="filterClass('IV', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">IV</button>
+      <button onclick="filterClass('V', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">V</button>
+      <button onclick="filterClass('VI', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">VI</button>
+      <button onclick="filterClass('VII', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">VII</button>
+      <button onclick="filterClass('VIII', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">VIII</button>
+      <button onclick="filterClass('IX', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">IX</button>
+      <button onclick="filterClass('X', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">X</button>
+      <button onclick="filterClass('XI', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">XI</button>
+      <button onclick="filterClass('XII', this)" class="filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0">XII</button>
     </div>
 
     <!-- STUDENT LIST -->
-    <div id="studentContainer" class="space-y-2">
-      <!-- Dynamically populated student cards -->
-    </div>
+    <div id="studentContainer" class="space-y-2"></div>
   </main>
+
+  <!-- ADD STUDENT MODAL -->
+  <div id="addModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-4 shadow-2xl space-y-3">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-white">Add Student</h3>
+      
+      <div>
+        <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Student Name</label>
+        <input type="text" id="newName" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white" placeholder="Full Name" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Class</label>
+          <select id="newClass" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white">
+            <option value="Ka-Shreni">Ka-Shreni</option>
+            <option value="I">Class I</option>
+            <option value="II">Class II</option>
+            <option value="III" selected>Class III</option>
+            <option value="IV">Class IV</option>
+            <option value="V">Class V</option>
+            <option value="VI">Class VI</option>
+            <option value="VII">Class VII</option>
+            <option value="VIII">Class VIII</option>
+            <option value="IX">Class IX</option>
+            <option value="X">Class X</option>
+            <option value="XI">Class XI</option>
+            <option value="XII">Class XII</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Roll / ID</label>
+          <input type="text" id="newRoll" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white" placeholder="Roll No" />
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeAddStudentModal()" class="flex-1 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">Cancel</button>
+        <button onclick="saveStudent()" class="flex-1 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Save Student</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     let roster = [];
@@ -85,7 +132,7 @@
       const filtered = currentFilter === 'ALL' ? roster : roster.filter(s => s.class === currentFilter);
 
       if (filtered.length === 0) {
-        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-500">No students found. Upload Shiksha Setu XLSX or add manually.</div>`;
+        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-500">No students in Class ${currentFilter}. Upload XLSX or tap "Add Student".</div>`;
         return;
       }
 
@@ -106,13 +153,55 @@
       lucide.createIcons();
     }
 
-    function filterClass(cls) {
+    function filterClass(cls, btn) {
       currentFilter = cls;
       document.querySelectorAll('.filter-tab').forEach(b => {
         b.className = "filter-tab px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 shrink-0";
       });
-      event.target.className = "filter-tab px-3 py-1.5 rounded-lg bg-indigo-600 text-white shrink-0";
+      if (btn) {
+        btn.className = "filter-tab px-3 py-1.5 rounded-lg bg-indigo-600 text-white shrink-0";
+      }
       renderStudents();
+    }
+
+    function openAddStudentModal() {
+      document.getElementById('addModal').classList.remove('hidden');
+    }
+
+    function closeAddStudentModal() {
+      document.getElementById('addModal').classList.add('hidden');
+    }
+
+    function saveStudent() {
+      const name = document.getElementById('newName').value.trim();
+      const cls = document.getElementById('newClass').value;
+      const roll = document.getElementById('newRoll').value.trim();
+
+      if (!name) {
+        alert("Please enter student name");
+        return;
+      }
+
+      roster.push({ name, class: cls, roll, sec: 'A' });
+      localStorage.setItem('dhk_roster', JSON.stringify(roster));
+      document.getElementById('newName').value = '';
+      document.getElementById('newRoll').value = '';
+      closeAddStudentModal();
+      renderStudents();
+    }
+
+    function deleteStudent(index) {
+      roster.splice(index, 1);
+      localStorage.setItem('dhk_roster', JSON.stringify(roster));
+      renderStudents();
+    }
+
+    function clearRoster() {
+      if (confirm("Clear all students from roster?")) {
+        roster = [];
+        localStorage.removeItem('dhk_roster');
+        renderStudents();
+      }
     }
 
     function handleExcelUpload(evt) {
@@ -139,20 +228,6 @@
         alert(`Successfully imported ${newStudents.length} students!`);
       };
       reader.readAsArrayBuffer(file);
-    }
-
-    function deleteStudent(index) {
-      roster.splice(index, 1);
-      localStorage.setItem('dhk_roster', JSON.stringify(roster));
-      renderStudents();
-    }
-
-    function clearRoster() {
-      if (confirm("Clear all students from roster?")) {
-        roster = [];
-        localStorage.removeItem('dhk_roster');
-        renderStudents();
-      }
     }
   </script>
 </body>
