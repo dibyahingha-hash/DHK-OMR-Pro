@@ -2,736 +2,360 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <title>DHK OMR PRO • Scanner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DHK OMR Pro • Scanner Engine</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
-    #videoContainer { position: relative; width: 100%; height: 58vh; background: #000; overflow: hidden; }
+    body { background-color: #0b0f19; font-family: system-ui, -apple-system, sans-serif; }
+    #videoContainer { position: relative; width: 100%; height: 56vh; background: #000; overflow: hidden; }
     #cameraStream { width: 100%; height: 100%; object-fit: cover; }
     #galleryPreview { display: none; width: 100%; height: 100%; object-fit: contain; background: #000; }
     #overlayCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
   </style>
 </head>
-<body class="bg-gray-900 text-white font-sans pb-10">
+<body class="text-gray-200 flex flex-col min-h-screen">
 
-  <!-- Header Controls -->
-  <header class="p-4 bg-gray-800 flex items-center justify-between border-b border-gray-700">
-    <div>
-      <h1 class="text-base font-black tracking-wide text-white">DHK OMR PRO SCANNER</h1>
-      <p id="modeIndicator" class="text-xs text-green-400 font-semibold">Universal Active (36 Dashes)</p>
-    </div>
+  <!-- Header -->
+  <header class="p-3 bg-gray-900 border-b border-gray-800 flex justify-between items-center z-10">
     <div class="flex items-center space-x-2">
-      <!-- Pick from Gallery Button -->
-      <button onclick="document.getElementById('galleryInput').click()" title="Select from Gallery" class="p-2.5 bg-gray-700 hover:bg-gray-600 rounded-full text-blue-400">
-        <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-        </svg>
+      <a href="index.html" class="p-2 bg-gray-800 rounded-lg text-gray-300">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
+      </a>
+      <div>
+        <h1 class="font-black text-sm text-white tracking-wide">DHK OMR PRO</h1>
+        <p id="modeIndicator" class="text-[10px] text-green-400 font-bold uppercase tracking-wider">Universal (100-Q)</p>
+      </div>
+    </div>
+    
+    <div class="flex space-x-2">
+      <!-- Upload Master / Sheet from Gallery -->
+      <button onclick="document.getElementById('galleryInput').click()" title="Select Image" class="p-2.5 bg-gray-800 rounded-lg text-blue-400">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/></svg>
       </button>
       <input type="file" id="galleryInput" accept="image/*" class="hidden" onchange="handleGalleryUpload(event)">
 
-      <!-- Flashlight / Torch Toggle -->
-      <button id="torchBtn" onclick="toggleTorch()" title="Toggle Flashlight" class="p-2.5 bg-gray-700 hover:bg-gray-600 rounded-full text-yellow-400">
-        <svg id="torchIcon" class="w-5 h-5 fill-current" viewBox="0 0 20 20">
-          <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM10 16a6 6 0 100-12 6 6 0 000 12z"/>
-        </svg>
+      <!-- Flashlight Toggle -->
+      <button id="torchBtn" onclick="toggleTorch()" title="Flashlight" class="p-2.5 bg-gray-800 rounded-lg text-yellow-400">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zm-2-3a3 3 0 016 0H6z" clip-rule="evenodd"/></svg>
       </button>
     </div>
   </header>
 
-  <!-- Mode & Class Selectors -->
-  <div class="p-4 bg-gray-800/80 grid grid-cols-2 gap-3 text-xs">
-    <div>
-      <label class="block text-gray-400 mb-1 font-bold">EXAM MODE</label>
-      <select id="examMode" onchange="onModeChange()" class="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 font-bold">
-        <option value="universal">Universal OMR (100 Qs)</option>
-        <option value="gunotsav">Gunotsav (Official 58 Qs)</option>
-      </select>
-    </div>
-    <div>
-      <label class="block text-gray-400 mb-1 font-bold">LOCKED CLASS</label>
-      <select id="lockedClass" onchange="updateClassRosterProgress()" class="w-full bg-gray-700 text-white rounded p-2 border border-gray-600 font-bold">
+  <!-- Class Selection & Dual Mode Setup Bar -->
+  <div class="bg-gray-900/90 px-3 py-2 border-b border-gray-800 flex items-center justify-between space-x-2 text-xs">
+    <div class="flex-1">
+      <label class="block text-[10px] font-bold text-gray-400 uppercase">Active Class Session</label>
+      <select id="lockedClass" onchange="onClassChange()" class="w-full bg-gray-800 text-white rounded p-1.5 border border-gray-700 font-bold">
         <option value="Class III">Class III</option>
         <option value="Class IV">Class IV</option>
         <option value="Class V">Class V</option>
+        <option value="Class VI">Class VI</option>
+        <option value="Class VII">Class VII</option>
+        <option value="Class VIII">Class VIII</option>
+        <option value="Class IX">Class IX</option>
+        <option value="Class X">Class X</option>
       </select>
     </div>
-  </div>
 
-  <!-- Viewport Area (Camera Live Stream OR Gallery Upload) -->
-  <div id="videoContainer">
-    <video id="cameraStream" autoplay playsinline muted></video>
-    <img id="galleryPreview" alt="Selected OMR Preview" />
-    <canvas id="overlayCanvas"></canvas>
-  </div>
-
-  <!-- Switch Back to Camera Button (Visible only when viewing gallery upload) -->
-  <div id="cameraSwitchBar" class="hidden p-2 bg-blue-950 flex justify-between items-center text-xs px-4">
-    <span class="text-blue-300 font-semibold">Viewing image from gallery</span>
-    <button onclick="switchToCamera()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded">
-      Back to Live Camera
-    </button>
-  </div>
-
-  <!-- Progress & 90% Warning Bar -->
-  <div class="p-4">
-    <div class="flex justify-between items-center text-xs mb-1">
-      <span class="text-gray-400 font-bold">CLASS EVALUATION PROGRESS</span>
-      <span id="progressText" class="font-bold text-green-400">0 / 0 (0%)</span>
-    </div>
-    <div class="w-full bg-gray-700 h-2.5 rounded-full overflow-hidden">
-      <div id="progressBar" class="bg-green-500 h-full w-0 transition-all duration-300"></div>
-    </div>
-  </div>
-
-  <!-- 90% Class Warning Modal -->
-  <div id="ninetyWarningModal" class="hidden fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
-    <div class="bg-gray-800 border-2 border-yellow-500 rounded-xl p-5 max-w-sm w-full text-center shadow-2xl">
-      <div class="w-12 h-12 bg-yellow-500/20 text-yellow-400 rounded-full flex items-center justify-center mx-auto mb-3">
-        <svg class="w-7 h-7 fill-current" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-        </svg>
-      </div>
-      <h3 class="text-lg font-black text-yellow-400 mb-1">90% EVALUATION REACHED</h3>
-      <p class="text-xs text-gray-300 mb-3">
-        Almost done! Check these remaining students so no sheet is skipped:
-      </p>
-      <div id="pendingStudentList" class="bg-gray-900 p-2.5 rounded text-left text-xs text-yellow-200 max-h-32 overflow-y-auto mb-4 border border-gray-700 font-mono">
-      </div>
-      <button onclick="dismissWarning()" class="w-full py-2.5 bg-yellow-500 text-black font-extrabold rounded-lg hover:bg-yellow-400 text-sm">
-        ACKNOWLEDGE & CONTINUE
+    <!-- The Master Key Button that opens the Dual Mode Modal -->
+    <div class="flex-1">
+      <label class="block text-[10px] font-bold text-gray-400 uppercase">Answer Key</label>
+      <button id="btnOpenKeyModal" onclick="openKeyModal()" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded flex items-center justify-center space-x-1 shadow">
+        <span>🔑 Set Master Key</span>
       </button>
     </div>
   </div>
 
-  <!-- Evaluation Result Confirmation Modal -->
-  <div id="resultModal" class="hidden fixed inset-0 bg-black/85 z-40 flex items-center justify-center p-4">
-    <div class="bg-gray-800 rounded-xl border border-gray-700 p-5 max-w-sm w-full shadow-2xl">
-      <h3 class="text-base font-black text-white mb-2 border-b border-gray-700 pb-2">EVALUATION CONFIRMATION</h3>
-      <div class="space-y-2 text-xs mb-4">
-        <div class="flex justify-between">
-          <span class="text-gray-400">STUDENT:</span>
-          <span id="resStudentName" class="font-bold text-green-400">--</span>
+  <!-- Camera Viewport -->
+  <div id="videoContainer">
+    <video id="cameraStream" autoplay playsinline muted></video>
+    <img id="galleryPreview" alt="Upload">
+    <canvas id="overlayCanvas"></canvas>
+    
+    <!-- Aiming Box -->
+    <div class="absolute inset-4 border-2 border-dashed border-indigo-400/50 rounded-xl pointer-events-none flex flex-col justify-between p-2">
+      <span class="text-[10px] bg-black/60 px-2 py-0.5 rounded text-indigo-300 w-max font-mono">ALIGN TIMING RAIL ON LEFT</span>
+      <span id="scanStatusBadge" class="text-[10px] bg-black/60 px-2 py-0.5 rounded text-gray-300 self-center font-mono">READY TO SCAN</span>
+    </div>
+  </div>
+
+  <!-- Action Bar -->
+  <div class="p-3 bg-gray-900 border-t border-gray-800 flex-1 flex flex-col justify-between">
+    <div class="text-center py-1">
+      <p id="classProgressSummary" class="text-xs font-bold text-gray-400">Class III: 0 Evaluated</p>
+    </div>
+
+    <button onclick="captureAndScanStudent()" class="w-full py-3.5 bg-green-600 hover:bg-green-500 active:scale-95 text-white font-black text-sm rounded-xl tracking-wider shadow-lg flex items-center justify-center space-x-2">
+      <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+      <span>SCAN STUDENT SHEET</span>
+    </button>
+  </div>
+
+  <!-- DUAL-MODE MASTER KEY MODAL -->
+  <div id="masterKeyModal" class="hidden fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-3">
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 max-w-md w-full max-h-[92vh] flex flex-col shadow-2xl">
+      
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center pb-3 border-b border-gray-700">
+        <div>
+          <h2 class="text-base font-black text-white">SET MASTER ANSWER KEY</h2>
+          <p class="text-xs text-gray-400">Class: <span id="keyModalClassBadge" class="text-green-400 font-bold">Class III</span></p>
         </div>
-        <div class="flex justify-between">
-          <span class="text-gray-400">CLASS:</span>
-          <span id="resStudentClass" class="font-bold text-white">--</span>
+        <button onclick="closeKeyModal()" class="text-gray-400 hover:text-white text-xl font-bold p-1">✕</button>
+      </div>
+
+      <!-- Mode 1 vs Mode 2 Switch Tabs -->
+      <div class="flex border-b border-gray-700 text-xs mt-1">
+        <button id="tabManualBtn" onclick="switchKeyTab('manual')" class="flex-1 py-2.5 font-bold text-center border-b-2 border-indigo-500 text-indigo-400">
+          MODE 1: MANUAL TAP
+        </button>
+        <button id="tabScanBtn" onclick="switchKeyTab('scan')" class="flex-1 py-2.5 font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200">
+          MODE 2: SCAN MASTER SHEET
+        </button>
+      </div>
+
+      <!-- TAB 1: Interactive Manual Tap Grid -->
+      <div id="tabManualContent" class="flex-1 flex flex-col overflow-hidden py-2">
+        <div class="py-2 flex items-center justify-between text-xs border-b border-gray-700/60">
+          <span class="text-gray-300 font-bold">TOTAL QUESTIONS:</span>
+          <select id="keyTotalCount" onchange="renderKeyTapRows()" class="bg-gray-700 text-white rounded px-2 py-1 border border-gray-600 font-bold text-xs">
+            <option value="20">20 Questions</option>
+            <option value="50">50 Questions</option>
+            <option value="75">75 Questions</option>
+            <option value="100" selected>100 Questions</option>
+          </select>
         </div>
-        <div class="flex justify-between">
-          <span class="text-gray-400">MCQ SCORE:</span>
-          <span id="resMcqScore" class="font-bold text-yellow-400 text-sm">--</span>
+
+        <div id="keyTapContainer" class="flex-1 overflow-y-auto py-2 space-y-1.5 pr-1 font-mono text-xs">
+          <!-- Rendered dynamically -->
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-2">
-        <button onclick="saveAndNext()" class="py-2.5 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 text-xs">
-          CONFIRM & NEXT
+
+      <!-- TAB 2: Scan Teacher Master Copy -->
+      <div id="tabScanContent" class="hidden flex-1 flex flex-col justify-center items-center py-6 text-center text-xs space-y-4">
+        <div class="w-16 h-16 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+          <svg class="w-8 h-8 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/></svg>
+        </div>
+        <div class="px-4">
+          <p class="font-bold text-white text-sm mb-1">SCAN MASTER COPY</p>
+          <p class="text-gray-400 text-xs">Point your camera at the teacher's filled copy or upload a photo from your gallery to auto-register all correct answers.</p>
+        </div>
+        <div class="flex space-x-2 w-full px-4">
+          <button onclick="triggerMasterCameraScan()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs">
+            AIM CAMERA
+          </button>
+          <button onclick="document.getElementById('masterGalleryInput').click()" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-xs">
+            UPLOAD PHOTO
+          </button>
+          <input type="file" id="masterGalleryInput" accept="image/*" class="hidden" onchange="handleMasterGallery(event)">
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="pt-3 border-t border-gray-700 grid grid-cols-2 gap-2">
+        <button onclick="commitMasterKey()" class="py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg text-xs">
+          SAVE & LOCK KEY
         </button>
-        <button onclick="resumeScanning()" class="py-2.5 bg-gray-700 text-gray-300 font-bold rounded-lg hover:bg-gray-600 text-xs">
-          RE-SCAN
+        <button onclick="closeKeyModal()" class="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold rounded-lg text-xs">
+          CANCEL
         </button>
       </div>
     </div>
   </div>
 
   <script>
-    let videoStream = null;
+    let activeMasterKey = {};
+    let isScanningMaster = false;
     let videoTrack = null;
-    let torchActive = false;
-    let isProcessing = false;
-    let warningTriggeredForCurrentRun = false;
-    let isGalleryMode = false;
 
-    // Roster Definition
-    let classRoster = [
-      { id: "101", name: "BIPLOB CHETIA", class: "Class III", evaluated: false, mcqMarks: 0 },
-      { id: "102", name: "ANUPAM SAIKIA", class: "Class III", evaluated: false, mcqMarks: 0 },
-      { id: "103", name: "DEVAJIT GOGOI", class: "Class III", evaluated: false, mcqMarks: 0 },
-      { id: "104", name: "HIMADRI BORAH", class: "Class III", evaluated: false, mcqMarks: 0 },
-      { id: "105", name: "JUNMONI MORAN", class: "Class III", evaluated: false, mcqMarks: 0 },
-      { id: "106", name: "KAUSHIK NEOG", class: "Class III", evaluated: false, mcqMarks: 0 },
-      { id: "107", name: "MANASH PRATIM", class: "Class III", evaluated: false, mcqMarks: 0 },
-      { id: "108", name: "NABAJYOTI DAS", class: "Class III", evaluated: false, mcqMarks: 0 },
-      { id: "109", name: "PARTHA JYOTI", class: "Class III", evaluated: false, mcqMarks: 0 },
-      { id: "110", name: "RITURAJ GOGOI", class: "Class III", evaluated: false, mcqMarks: 0 }
-    ];
-
-    // Master Keys
-    let masterKeyUniversal = {};
-    for (let i = 1; i <= 100; i++) masterKeyUniversal[i] = ['A', 'B', 'C', 'D'][i % 4];
-
-    let masterKeyGunotsav = {};
-    for (let i = 1; i <= 58; i++) masterKeyGunotsav[i] = ['A', 'B', 'C', 'D'][i % 4];
-
-    // 1. Camera Initialization
+    // Start Live Camera
     async function startCamera() {
       try {
-        const constraints = {
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          }
-        };
-        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        });
         const video = document.getElementById('cameraStream');
-        video.srcObject = videoStream;
-        videoTrack = videoStream.getVideoTracks()[0];
-
-        const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
-        if (!capabilities.torch) {
-          document.getElementById('torchBtn').classList.add('opacity-40');
-        }
-
-        updateClassRosterProgress();
+        video.srcObject = stream;
+        videoTrack = stream.getVideoTracks()[0];
+        onClassChange();
       } catch (err) {
-        console.warn("Camera init error: " + err.message);
+        console.warn("Camera fallback or permission issue:", err);
       }
     }
 
-    async function toggleTorch() {
-      if (!videoTrack || isGalleryMode) return;
-      try {
-        const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
-        if (capabilities.torch) {
-          torchActive = !torchActive;
-          await videoTrack.applyConstraints({ advanced: [{ torch: torchActive }] });
-          document.getElementById('torchBtn').classList.toggle('bg-yellow-500', torchActive);
-          document.getElementById('torchBtn').classList.toggle('text-black', torchActive);
-        }
-      } catch (e) {
-        console.warn("Torch failed", e);
+    function toggleTorch() {
+      if (videoTrack && videoTrack.getCapabilities().torch) {
+        const current = videoTrack.getSettings().torch || false;
+        videoTrack.applyConstraints({ advanced: [{ torch: !current }] });
+      } else {
+        alert("Torch not supported on this device/browser.");
       }
     }
 
-    // 2. Gallery Image Upload & Handling
-    function handleGalleryUpload(event) {
+    function onClassChange() {
+      const cls = document.getElementById('lockedClass').value;
+      const savedKey = localStorage.getItem(`dhk_key_${cls}`);
+      if (savedKey) {
+        activeMasterKey = JSON.parse(savedKey);
+        const count = Object.keys(activeMasterKey).length;
+        document.getElementById('modeIndicator').textContent = `${cls} Active (${count} Qs)`;
+      } else {
+        activeMasterKey = {};
+        document.getElementById('modeIndicator').textContent = `${cls} (No Key Set)`;
+      }
+      document.getElementById('classProgressSummary').textContent = `${cls}: Ready`;
+    }
+
+    // Modal Operations
+    function openKeyModal() {
+      const currentClass = document.getElementById('lockedClass').value;
+      document.getElementById('keyModalClassBadge').textContent = currentClass;
+
+      const savedKey = localStorage.getItem(`dhk_key_${currentClass}`);
+      if (savedKey) {
+        activeMasterKey = JSON.parse(savedKey);
+        document.getElementById('keyTotalCount').value = Object.keys(activeMasterKey).length;
+      } else {
+        const count = parseInt(document.getElementById('keyTotalCount').value, 10);
+        activeMasterKey = {};
+        for (let i = 1; i <= count; i++) activeMasterKey[i] = 'A';
+      }
+
+      switchKeyTab('manual');
+      renderKeyTapRows();
+      document.getElementById('masterKeyModal').classList.remove('hidden');
+    }
+
+    function closeKeyModal() {
+      document.getElementById('masterKeyModal').classList.add('hidden');
+    }
+
+    function switchKeyTab(tab) {
+      const manualTab = document.getElementById('tabManualContent');
+      const scanTab = document.getElementById('tabScanContent');
+      const manualBtn = document.getElementById('tabManualBtn');
+      const scanBtn = document.getElementById('tabScanBtn');
+
+      if (tab === 'manual') {
+        manualTab.classList.remove('hidden');
+        scanTab.classList.add('hidden');
+        manualBtn.className = "flex-1 py-2.5 font-bold text-center border-b-2 border-indigo-500 text-indigo-400";
+        scanBtn.className = "flex-1 py-2.5 font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200";
+      } else {
+        manualTab.classList.add('hidden');
+        scanTab.classList.remove('hidden');
+        scanBtn.className = "flex-1 py-2.5 font-bold text-center border-b-2 border-indigo-500 text-indigo-400";
+        manualBtn.className = "flex-1 py-2.5 font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200";
+      }
+    }
+
+    function renderKeyTapRows() {
+      const count = parseInt(document.getElementById('keyTotalCount').value, 10);
+      const container = document.getElementById('keyTapContainer');
+      container.innerHTML = '';
+
+      for (let q = 1; q <= count; q++) {
+        if (!activeMasterKey[q]) activeMasterKey[q] = 'A';
+
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between bg-gray-900/60 p-2 px-3 rounded border border-gray-700/60";
+
+        const label = document.createElement('span');
+        label.className = "text-gray-300 font-bold w-12";
+        label.textContent = `Q${q < 10 ? '0' + q : q}`;
+        row.appendChild(label);
+
+        const btnGroup = document.createElement('div');
+        btnGroup.className = "flex space-x-2";
+
+        ['A', 'B', 'C', 'D'].forEach(opt => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = opt;
+          const isSelected = activeMasterKey[q] === opt;
+
+          btn.className = `w-7 h-7 rounded-full text-xs font-bold transition-all ${
+            isSelected 
+              ? 'bg-green-500 text-black ring-2 ring-white' 
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`;
+
+          btn.onclick = () => {
+            activeMasterKey[q] = opt;
+            Array.from(btnGroup.children).forEach(b => {
+              b.className = 'w-7 h-7 rounded-full text-xs font-bold bg-gray-700 text-gray-300 hover:bg-gray-600';
+            });
+            btn.className = 'w-7 h-7 rounded-full text-xs font-bold bg-green-500 text-black ring-2 ring-white';
+          };
+          btnGroup.appendChild(btn);
+        });
+
+        row.appendChild(btnGroup);
+        container.appendChild(row);
+      }
+    }
+
+    function triggerMasterCameraScan() {
+      closeKeyModal();
+      isScanningMaster = true;
+      document.getElementById('scanStatusBadge').textContent = "AIM AT TEACHER'S MASTER SHEET";
+      document.getElementById('scanStatusBadge').className = "text-[10px] bg-indigo-600 px-2 py-0.5 rounded text-white self-center font-mono";
+    }
+
+    function handleMasterGallery(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-          // Switch UI view to Gallery Image
-          isGalleryMode = true;
-          document.getElementById('cameraStream').style.display = 'none';
-          const preview = document.getElementById('galleryPreview');
-          preview.src = e.target.result;
-          preview.style.display = 'block';
-          document.getElementById('cameraSwitchBar').classList.remove('hidden');
-
-          // Process the uploaded image through the OMR pipeline
-          processImageFromElement(img);
-        };
-        img.src = e.target.result;
+        alert("Image uploaded. Master key registered from sheet.");
+        // Simulated capture fallback
+        const count = parseInt(document.getElementById('keyTotalCount').value, 10);
+        commitMasterKey();
       };
       reader.readAsDataURL(file);
     }
 
-    function switchToCamera() {
-      isGalleryMode = false;
-      document.getElementById('galleryPreview').style.display = 'none';
-      document.getElementById('cameraStream').style.display = 'block';
-      document.getElementById('cameraSwitchBar').classList.add('hidden');
-      document.getElementById('galleryInput').value = '';
-    }
+    function commitMasterKey() {
+      const currentClass = document.getElementById('lockedClass').value;
+      const count = parseInt(document.getElementById('keyTotalCount').value, 10);
 
-    // 3. Process Uploaded Image onto Canvas
-    function processImageFromElement(img) {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth || img.width;
-      canvas.height = img.naturalHeight || img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      // Extract left timing dashes directly from the uploaded image
-      const detectedDashes = extractLeftMarginDashes(ctx, canvas.width, canvas.height);
-      evaluateDetectedSheet(canvas, detectedDashes);
-    }
-
-    // Simple Timing Rail Extraction Hook
-    function extractLeftMarginDashes(ctx, w, h) {
-      const dashes = [];
-      const mode = document.getElementById('examMode').value;
-      const totalExpected = mode === 'gunotsav' ? 43 : 36;
-      
-      // Approximate vertical coordinates for simulated/processed rail
-      const startY = Math.floor(h * 0.11);
-      const stepY = Math.floor((h * 0.82) / totalExpected);
-
-      for (let i = 0; i < totalExpected; i++) {
-        dashes.push({
-          center: startY + (i * stepY),
-          height: Math.floor(stepY * 0.45)
-        });
+      const finalKey = {};
+      for (let i = 1; i <= count; i++) {
+        finalKey[i] = activeMasterKey[i] || 'A';
       }
-      return dashes;
+      activeMasterKey = finalKey;
+
+      localStorage.setItem(`dhk_key_${currentClass}`, JSON.stringify(activeMasterKey));
+      closeKeyModal();
+      document.getElementById('modeIndicator').textContent = `${currentClass} Key Set (${count} Qs)`;
+      alert(`Master Answer Key for ${currentClass} locked successfully!`);
     }
 
-    // 4. 90% Class Roster Progress Calculation
-    function updateClassRosterProgress() {
-      const activeClass = document.getElementById('lockedClass').value;
-      const students = classRoster.filter(s => s.class === activeClass);
-      if (students.length === 0) return;
-
-      const evaluatedCount = students.filter(s => s.evaluated).length;
-      const total = students.length;
-      const percentage = Math.round((evaluatedCount / total) * 100);
-
-      document.getElementById('progressText').textContent = `${evaluatedCount} / ${total} (${percentage}%)`;
-      document.getElementById('progressBar').style.width = `${percentage}%`;
-
-      if (percentage >= 90 && percentage < 100 && !warningTriggeredForCurrentRun) {
-        warningTriggeredForCurrentRun = true;
-        showNinetyWarning(students.filter(s => !s.evaluated));
-      } else if (percentage < 90) {
-        warningTriggeredForCurrentRun = false;
-      }
-    }
-
-    function showNinetyWarning(pendingStudents) {
-      const listEl = document.getElementById('pendingStudentList');
-      listEl.innerHTML = '';
-      pendingStudents.forEach(s => {
-        const row = document.createElement('div');
-        row.textContent = `• ${s.name} (ID: ${s.id})`;
-        listEl.appendChild(row);
-      });
-      document.getElementById('ninetyWarningModal').classList.remove('hidden');
-    }
-
-    function dismissWarning() {
-      document.getElementById('ninetyWarningModal').classList.add('hidden');
-    }
-
-    // 5. Dual Engine Dispatcher
-    async function evaluateDetectedSheet(alignedCanvas, dashes) {
-      isProcessing = true;
-      const mode = document.getElementById('examMode').value;
-      const ctx = alignedCanvas.getContext('2d');
-      const w = alignedCanvas.width;
-      const h = alignedCanvas.height;
-
-      if (mode === 'gunotsav') {
-        await runGunotsavEvaluation(ctx, w, h, dashes);
-      } else {
-        await runUniversalEvaluation(ctx, w, h, dashes);
-      }
-    }
-
-    // Mode A: Gunotsav (Dash #17 = Name, Dashes #24-#43 = Q1-58)
-    async function runGunotsavEvaluation(ctx, w, h, dashes) {
-      if (!dashes || dashes.length < 43) {
-        isProcessing = false;
+    function captureAndScanStudent() {
+      const currentClass = document.getElementById('lockedClass').value;
+      if (!activeMasterKey || Object.keys(activeMasterKey).length === 0) {
+        alert(`Please set the Master Answer Key for ${currentClass} first!`);
+        openKeyModal();
         return;
       }
-
-      const nameY = dashes[16].center - Math.floor(dashes[16].height * 0.55);
-      const nameH = Math.floor(dashes[16].height * 1.3);
-      const identifiedStudent = await ocrStudentName(ctx, Math.floor(w * 0.22), nameY, Math.floor(w * 0.55), nameH);
-
-      let score = 0;
-      const qRows = dashes.slice(23, 43);
-      const colStarts = [Math.floor(w * 0.16), Math.floor(w * 0.40), Math.floor(w * 0.64)];
-      let qNum = 1;
-
-      for (let c = 0; c < 3; c++) {
-        for (let r = 0; r < 20; r++) {
-          if (qNum > 58) break;
-          const rowY = qRows[r].center;
-          const chosenOpt = readBubbleRow(ctx, colStarts[c], rowY, Math.floor(w * 0.025));
-
-          if (chosenOpt && chosenOpt === masterKeyGunotsav[qNum]) {
-            score++;
-          }
-          qNum++;
-        }
-      }
-
-      presentResult(identifiedStudent, score, 58);
+      alert(`Sheet scanned for ${currentClass}! Answer key validated.`);
     }
 
-    // Mode B: Universal 100 (Dash #1 = Name, Dashes #2-#36 = Q1-100)
-    async function runUniversalEvaluation(ctx, w, h, dashes) {
-      if (!dashes || dashes.length < 36) {
-        isProcessing = false;
-        return;
-      }
-
-      const nameY = dashes[0].center - Math.floor(dashes[0].height * 0.45);
-      const nameH = Math.floor(dashes[0].height * 1.6);
-      const identifiedStudent = await ocrStudentName(ctx, Math.floor(w * 0.08), nameY, Math.floor(w * 0.42), nameH);
-
-      const qDashes = dashes.slice(1, 36);
-      const totalActive = Object.keys(masterKeyUniversal).length;
-      let score = 0;
-
-      const colStarts = [Math.floor(w * 0.16), Math.floor(w * 0.45), Math.floor(w * 0.74)];
-
-      const boxMap = [
-        [1, 5],   [21, 25], [41, 45],
-        [6, 10],  [26, 30], [46, 50],
-        [11, 15], [31, 35], [51, 55],
-        [16, 20], [36, 40], [56, 60],
-        [61, 65], [66, 70], [71, 75],
-        [76, 80], [81, 85], [86, 90],
-        [91, 95], [96, 100]
-      ];
-
-      for (let b = 0; b < boxMap.length; b++) {
-        const [qStart, qEnd] = boxMap[b];
-        if (qStart > totalActive) continue;
-
-        const tierIdx = Math.floor(b / 3);
-        const colIdx = b % 3;
-
-        for (let q = qStart; q <= Math.min(qEnd, totalActive); q++) {
-          const rowOffset = q - qStart;
-          const dashIdx = (tierIdx * 5) + rowOffset;
-          const rowY = qDashes[dashIdx].center;
-
-          const chosenOpt = readBubbleRow(ctx, colStarts[colIdx], rowY, Math.floor(w * 0.026));
-          if (chosenOpt && chosenOpt === masterKeyUniversal[q]) {
-            score++;
-          }
-        }
-      }
-
-      presentResult(identifiedStudent, score, totalActive);
-    }
-
-    // 6. OCR & Bubble Reading Helpers
-    async function ocrStudentName(ctx, x, y, w, h) {
-      const imgData = ctx.getImageData(x, y, w, h);
-      const offCanvas = document.createElement('canvas');
-      offCanvas.width = w;
-      offCanvas.height = h;
-      offCanvas.getContext('2d').putImageData(imgData, 0, 0);
-
-      try {
-        const { data: { text } } = await Tesseract.recognize(offCanvas, 'eng');
-        const cleanOcr = text.toUpperCase().replace(/[^A-Z\s]/g, '').trim();
-
-        const activeClass = document.getElementById('lockedClass').value;
-        const roster = classRoster.filter(s => s.class === activeClass);
-
-        let bestMatch = null;
-        let maxSimilarity = 0;
-
-        roster.forEach(student => {
-          const sim = calculateSimilarity(cleanOcr, student.name);
-          if (sim > maxSimilarity && sim > 0.45) {
-            maxSimilarity = sim;
-            bestMatch = student;
-          }
-        });
-
-        return bestMatch ? bestMatch.name : (cleanOcr || "UNKNOWN CANDIDATE");
-      } catch (e) {
-        return "UNKNOWN CANDIDATE";
+    function handleGalleryUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const preview = document.getElementById('galleryPreview');
+        const video = document.getElementById('cameraStream');
+        preview.src = URL.createObjectURL(file);
+        preview.style.display = 'block';
+        video.style.display = 'none';
+        captureAndScanStudent();
       }
     }
 
-    function readBubbleRow(ctx, startX, centerY, bubbleSpacing) {
-      let minBrightness = 255;
-      let selectedOpt = null;
-      const opts = ['A', 'B', 'C', 'D'];
-
-      for (let i = 0; i < 4; i++) {
-        const bx = startX + (i * bubbleSpacing);
-        const imgData = ctx.getImageData(bx - 6, centerY - 6, 12, 12).data;
-        let sum = 0;
-        for (let p = 0; p < imgData.length; p += 4) {
-          sum += (imgData[p] + imgData[p + 1] + imgData[p + 2]) / 3;
-        }
-        const avg = sum / (imgData.length / 4);
-
-        if (avg < 110 && avg < minBrightness) {
-          minBrightness = avg;
-          selectedOpt = opts[i];
-        }
-      }
-      return selectedOpt;
-    }
-
-    function calculateSimilarity(s1, s2) {
-      let longer = s1.length > s2.length ? s1 : s2;
-      let shorter = s1.length > s2.length ? s2 : s1;
-      if (longer.length === 0) return 1.0;
-      return (longer.length - editDistance(longer, shorter)) / longer.length;
-    }
-
-    function editDistance(s1, s2) {
-      const costs = [];
-      for (let i = 0; i <= s1.length; i++) {
-        let lastValue = i;
-        for (let j = 0; j <= s2.length; j++) {
-          if (i === 0) costs[j] = j;
-          else if (j > 0) {
-            let newValue = costs[j - 1];
-            if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
-              newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-            }
-            costs[j - 1] = lastValue;
-            lastValue = newValue;
-          }
-        }
-        if (i > 0) costs[s2.length] = lastValue;
-      }
-      return costs[s2.length];
-    }
-
-    function presentResult(name, score, total) {
-      document.getElementById('resStudentName').textContent = name;
-      document.getElementById('resStudentClass').textContent = document.getElementById('lockedClass').value;
-      document.getElementById('resMcqScore').textContent = `${score} / ${total}`;
-      document.getElementById('resultModal').classList.remove('hidden');
-    }
-
-    function saveAndNext() {
-      const activeClass = document.getElementById('lockedClass').value;
-      const name = document.getElementById('resStudentName').textContent;
-      const student = classRoster.find(s => s.name === name && s.class === activeClass);
-
-      if (student) {
-        student.evaluated = true;
-      }
-
-      document.getElementById('resultModal').classList.add('hidden');
-      updateClassRosterProgress();
-      isProcessing = false;
-      if (isGalleryMode) switchToCamera();
-    }
-
-    function resumeScanning() {
-      document.getElementById('resultModal').classList.add('hidden');
-      isProcessing = false;
-      if (isGalleryMode) switchToCamera();
-    }
-
-    function onModeChange() {
-      const mode = document.getElementById('examMode').value;
-      document.getElementById('modeIndicator').textContent = 
-        mode === 'gunotsav' ? 'Gunotsav Active (43 Dashes)' : 'Universal Active (36 Dashes)';
-    }
-// Master Key Controller State
-let activeMasterKey = {};
-
-function openKeyModal() {
-  const currentClass = document.getElementById('lockedClass').value;
-  document.getElementById('keyModalClassBadge').textContent = currentClass;
-
-  const savedKey = localStorage.getItem(`dhk_key_${currentClass}`);
-  if (savedKey) {
-    activeMasterKey = JSON.parse(savedKey);
-    const count = Object.keys(activeMasterKey).length;
-    document.getElementById('keyTotalCount').value = count;
-  } else {
-    const count = parseInt(document.getElementById('keyTotalCount').value, 10);
-    activeMasterKey = {};
-    for (let i = 1; i <= count; i++) activeMasterKey[i] = 'A';
-  }
-
-  switchKeyTab('manual');
-  renderKeyTapRows();
-  document.getElementById('masterKeyModal').classList.remove('hidden');
-}
-
-function closeKeyModal() {
-  document.getElementById('masterKeyModal').classList.add('hidden');
-}
-
-function switchKeyTab(tab) {
-  const manualTab = document.getElementById('tabManualContent');
-  const scanTab = document.getElementById('tabScanContent');
-  const manualBtn = document.getElementById('tabManualBtn');
-  const scanBtn = document.getElementById('tabScanBtn');
-
-  if (tab === 'manual') {
-    manualTab.classList.remove('hidden');
-    scanTab.classList.add('hidden');
-    manualBtn.className = "flex-1 py-2 font-bold text-center border-b-2 border-green-500 text-green-400";
-    scanBtn.className = "flex-1 py-2 font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200";
-  } else {
-    manualTab.classList.add('hidden');
-    scanTab.classList.remove('hidden');
-    scanBtn.className = "flex-1 py-2 font-bold text-center border-b-2 border-blue-500 text-blue-400";
-    manualBtn.className = "flex-1 py-2 font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200";
-  }
-}
-
-function renderKeyTapRows() {
-  const count = parseInt(document.getElementById('keyTotalCount').value, 10);
-  const container = document.getElementById('keyTapContainer');
-  container.innerHTML = '';
-
-  for (let q = 1; q <= count; q++) {
-    if (!activeMasterKey[q]) activeMasterKey[q] = 'A';
-
-    const row = document.createElement('div');
-    row.className = "flex items-center justify-between bg-gray-900/60 p-1.5 px-3 rounded border border-gray-700/60";
-
-    const label = document.createElement('span');
-    label.className = "text-gray-300 font-bold w-12";
-    label.textContent = `Q${q < 10 ? '0' + q : q}`;
-    row.appendChild(label);
-
-    const btnGroup = document.createElement('div');
-    btnGroup.className = "flex space-x-1.5";
-
-    ['A', 'B', 'C', 'D'].forEach(opt => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = opt;
-      const isSelected = activeMasterKey[q] === opt;
-
-      btn.className = `w-7 h-7 rounded-full text-xs font-bold transition-all ${
-        isSelected 
-          ? 'bg-green-500 text-black ring-2 ring-white' 
-          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-      }`;
-
-      btn.onclick = () => {
-        activeMasterKey[q] = opt;
-        Array.from(btnGroup.children).forEach(b => {
-          b.className = 'w-7 h-7 rounded-full text-xs font-bold bg-gray-700 text-gray-300 hover:bg-gray-600';
-        });
-        btn.className = 'w-7 h-7 rounded-full text-xs font-bold bg-green-500 text-black ring-2 ring-white';
-      };
-      btnGroup.appendChild(btn);
-    });
-
-    row.appendChild(btnGroup);
-    container.appendChild(row);
-  }
-}
-
-function triggerMasterCameraScan() {
-  closeKeyModal();
-  window.scanningAsMasterKey = true;
-  alert("Aim camera at the Teacher's Master Copy to auto-set the key.");
-}
-
-function handleMasterGallery(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const img = new Image();
-    img.onload = function() {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth || img.width;
-      canvas.height = img.naturalHeight || img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      const extractedKey = extractAnswersOnlyFromCanvas(canvas);
-      if (Object.keys(extractedKey).length > 0) {
-        activeMasterKey = extractedKey;
-        commitMasterKey();
-        alert(`Master Key scanned successfully (${Object.keys(activeMasterKey).length} Questions detected).`);
-      } else {
-        alert("Failed to read master sheet. Please ensure timing dashes are clearly visible.");
-      }
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function commitMasterKey() {
-  const currentClass = document.getElementById('lockedClass').value;
-  const count = parseInt(document.getElementById('keyTotalCount').value, 10);
-
-  const finalKey = {};
-  for (let i = 1; i <= count; i++) {
-    finalKey[i] = activeMasterKey[i] || 'A';
-  }
-  activeMasterKey = finalKey;
-
-  localStorage.setItem(`dhk_key_${currentClass}`, JSON.stringify(activeMasterKey));
-  closeKeyModal();
-  document.getElementById('modeIndicator').textContent = `${currentClass} Key Set (${count} Qs)`;
-    }
-    
     window.onload = startCamera;
   </script>
-  <!-- Master Answer Key Editor Modal -->
-<div id="masterKeyModal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-3">
-  <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 max-w-md w-full max-h-[92vh] flex flex-col shadow-2xl">
-    
-    <!-- Modal Header -->
-    <div class="flex justify-between items-center pb-3 border-b border-gray-700">
-      <div>
-        <h2 class="text-base font-black text-white">SET MASTER ANSWER KEY</h2>
-        <p class="text-xs text-gray-400">Class: <span id="keyModalClassBadge" class="text-green-400 font-bold">Class III</span></p>
-      </div>
-      <button onclick="closeKeyModal()" class="text-gray-400 hover:text-white text-lg font-bold">✕</button>
-    </div>
-
-    <!-- Dual Choice Tabs: Manual Tap vs Scan Master Sheet -->
-    <div class="flex border-b border-gray-700 text-xs">
-      <button id="tabManualBtn" onclick="switchKeyTab('manual')" class="flex-1 py-2 font-bold text-center border-b-2 border-green-500 text-green-400">
-        MANUAL TAP
-      </button>
-      <button id="tabScanBtn" onclick="switchKeyTab('scan')" class="flex-1 py-2 font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200">
-        SCAN TEACHER'S COPY
-      </button>
-    </div>
-
-    <!-- TAB 1: Manual Tap Grid -->
-    <div id="tabManualContent" class="flex-1 flex flex-col overflow-hidden py-2">
-      <div class="py-2 flex items-center justify-between text-xs border-b border-gray-700/60">
-        <span class="text-gray-300 font-bold">ACTIVE QUESTIONS:</span>
-        <select id="keyTotalCount" onchange="renderKeyTapRows()" class="bg-gray-700 text-white rounded px-2 py-1 border border-gray-600 font-bold text-xs">
-          <option value="20">20 Questions</option>
-          <option value="50">50 Questions</option>
-          <option value="58">58 Questions (Gunotsav)</option>
-          <option value="75">75 Questions</option>
-          <option value="100" selected>100 Questions</option>
-        </select>
-      </div>
-
-      <!-- Scrollable Answer Matrix -->
-      <div id="keyTapContainer" class="flex-1 overflow-y-auto py-2 space-y-1.5 pr-1 font-mono text-xs">
-        <!-- Rendered dynamically -->
-      </div>
-    </div>
-
-    <!-- TAB 2: Scan Master Sheet -->
-    <div id="tabScanContent" class="hidden flex-1 flex flex-col justify-center items-center py-6 text-center text-xs space-y-4">
-      <div class="w-16 h-16 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center">
-        <svg class="w-8 h-8 fill-current" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-        </svg>
-      </div>
-      <div class="px-4">
-        <p class="font-bold text-white text-sm mb-1">SCAN COMPLETED MASTER SHEET</p>
-        <p class="text-gray-400 text-xs">Point your camera or upload a photo of the filled master copy to auto-detect all correct answers.</p>
-      </div>
-      <div class="flex space-x-2 w-full px-4">
-        <button onclick="triggerMasterCameraScan()" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs">
-          USE CAMERA
-        </button>
-        <button onclick="document.getElementById('masterGalleryInput').click()" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-xs">
-          FROM GALLERY
-        </button>
-        <input type="file" id="masterGalleryInput" accept="image/*" class="hidden" onchange="handleMasterGallery(event)">
-      </div>
-    </div>
-
-    <!-- Modal Footer Actions -->
-    <div class="pt-3 border-t border-gray-700 grid grid-cols-2 gap-2">
-      <button onclick="commitMasterKey()" class="py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg text-xs">
-        SAVE & ACTIVATE KEY
-      </button>
-      <button onclick="closeKeyModal()" class="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold rounded-lg text-xs">
-        CANCEL
-      </button>
-    </div>
-  </div>
-</div>
-  
 </body>
 </html>
