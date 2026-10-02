@@ -45,7 +45,7 @@
     .key-opt-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 0.7rem; font-weight: bold; cursor: pointer; margin-left: 2px; }
     .key-opt-btn.active { background: #2563eb; border-color: #60a5fa; color: #fff; }
 
-    /* --- PRINTED UNIVERSAL OMR SHEET (PHYSICAL TAMPER-PROOF DESIGN) --- */
+    /* --- PRINT STYLES --- */
     #printArea { display: none; }
 
     @media print {
@@ -55,16 +55,16 @@
 
       @page {
         size: A4 portrait;
-        margin: 8mm 6mm 6mm 6mm;
+        margin: 5mm 5mm 5mm 5mm;
       }
 
       .sheet-container {
         position: relative;
         width: 100%;
-        max-width: 195mm;
+        max-width: 200mm;
         margin: 0 auto;
         border: 2px solid #000;
-        padding: 5mm;
+        padding: 4mm 4mm;
         background: #fff;
         color: #000;
         box-sizing: border-box;
@@ -89,30 +89,43 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 2px solid #000;
-        padding-bottom: 3mm;
-        margin-bottom: 3mm;
-        margin-left: 6mm;
-        margin-right: 6mm;
+        margin-bottom: 1.5mm;
+        margin-left: 5mm;
+        margin-right: 5mm;
       }
-      .school-title { font-size: 13pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+      .school-title { font-size: 14pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
       .sheet-badge { font-size: 8.5pt; font-weight: bold; border: 1.5px solid #000; padding: 2px 6px; }
 
-      /* Restricted OCR Character Boxes for Header */
+      /* Warning Strip */
+      .warning-strip {
+        border-top: 1.5px solid #000;
+        border-bottom: 1.5px solid #000;
+        padding: 1.2mm 2mm;
+        font-size: 6.8pt;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+        text-align: center;
+        margin-bottom: 3mm;
+        margin-left: 5mm;
+        margin-right: 5mm;
+        background: #fff;
+      }
+
+      /* Character Boxes */
       .meta-grid {
         display: grid;
         grid-template-columns: 2.2fr 1fr 1fr;
         gap: 3mm;
-        margin-bottom: 4mm;
-        margin-left: 6mm;
-        margin-right: 6mm;
+        margin-bottom: 3.5mm;
+        margin-left: 5mm;
+        margin-right: 5mm;
       }
       .char-box-wrapper { display: flex; flex-direction: column; gap: 2px; }
       .char-box-label { font-size: 7.5pt; font-weight: 800; text-transform: uppercase; }
       .char-boxes { display: flex; border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; border-left: 1.5px solid #000; }
       .c-box {
         flex: 1;
-        height: 6mm;
+        height: 5.8mm;
         border-right: 1.5px solid #000;
         display: flex;
         align-items: center;
@@ -122,42 +135,55 @@
         background: #fff;
       }
 
-      /* Core MCQ & Timing Track Layout */
+      /* Core Layout */
       .omr-body {
         display: flex;
         position: relative;
         margin-left: 1mm;
       }
 
-      /* Left Margin Industrial Timing Track */
+      /* Timing Track Column */
       .timing-track {
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
         width: 4.5mm;
-        margin-right: 2.5mm;
-        padding-top: 5.5mm; /* Aligns precisely with Question Row 1 */
+        margin-right: 2mm;
+        padding-top: 4.5mm;
+      }
+      .timing-block-group {
+        border-top: 1.5px solid transparent;
+        margin-bottom: 2.5mm;
+        padding-top: 1mm;
       }
       .timing-dash {
         width: 4.5mm;
-        height: 2.5mm;
+        height: 2.6mm;
         background: #000 !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
-        margin-bottom: 1.8mm;
+        margin-bottom: 1.7mm;
       }
 
-      /* 3-Column OMR Grid */
+      /* Columns */
       .omr-columns {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        gap: 4mm;
+        gap: 3.5mm;
         flex: 1;
       }
 
       .omr-col {
-        border-left: 1.5px solid #000;
-        padding-left: 2mm;
+        display: flex;
+        flex-direction: column;
+        gap: 2.5mm;
+      }
+
+      /* 5-Question Enclosed Border Box */
+      .q-group-box {
+        border: 1.5px solid #000;
+        border-radius: 2px;
+        padding: 1.5mm 1.5mm;
+        background: #fff;
       }
 
       .q-row {
@@ -165,14 +191,18 @@
         align-items: center;
         justify-content: space-between;
         height: 4.3mm;
-        margin-bottom: 1.4mm;
+        margin-bottom: 1.2mm;
       }
+      .q-row:last-child {
+        margin-bottom: 0;
+      }
+
       .q-num {
         font-size: 8pt;
         font-weight: 800;
         width: 5.5mm;
         text-align: right;
-        margin-right: 1.5mm;
+        margin-right: 1mm;
       }
       .bubbles-group {
         display: flex;
@@ -181,7 +211,7 @@
       .bubble {
         width: 3.6mm;
         height: 3.6mm;
-        border: 1.2px solid #000;
+        border: 1.3px solid #000;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -190,22 +220,16 @@
         font-weight: 800;
       }
 
-      /* Distinct 5-Question Visual Breather Bar */
-      .q-block-divider {
-        height: 1.2mm;
-        background: transparent;
-      }
-
       /* Footer */
       .sheet-footer {
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
         border-top: 1.5px solid #000;
-        padding-top: 2.5mm;
-        margin-top: 3mm;
-        margin-left: 6mm;
-        margin-right: 6mm;
+        padding-top: 2mm;
+        margin-top: 2.5mm;
+        margin-left: 5mm;
+        margin-right: 5mm;
         font-size: 7.5pt;
         font-weight: bold;
       }
@@ -220,7 +244,6 @@
 </head>
 <body>
 
-  <!-- Top Nav -->
   <div class="nav-bar no-print">
     <div class="nav-title">DHK OMR Pro</div>
     <div class="nav-tabs">
@@ -234,10 +257,6 @@
   <div class="card no-print">
     <div class="card-title">1. Exam & Universal Sheet Setup</div>
     <div class="control-row">
-      <div class="control-group">
-        <label for="schoolNameInput">School / Institution Name:</label>
-        <input type="text" id="schoolNameInput" class="control-input" value="PRIMARY SCHOOL EVALUATION" style="width: 250px;">
-      </div>
       <div class="control-group">
         <label for="totalQuestionsSelect">Total Questions:</label>
         <select id="totalQuestionsSelect" class="control-input" onchange="onTotalQuestionsChanged()">
@@ -255,7 +274,6 @@
     <button class="btn btn-blue" onclick="prepareAndPrint()">🖨️ Print Tamper-Proof Universal OMR Sheet</button>
   </div>
 
-  <!-- Master Key Config -->
   <div class="card no-print">
     <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
       <span>2. Master Answer Key Configuration</span>
@@ -268,25 +286,26 @@
     <button class="btn btn-green" onclick="saveKeyMaster(true)">💾 Save Answer Key</button>
   </div>
 
-  <!-- --- PRINTABLE TAMPER-PROOF UNIVERSAL OMR CANVAS --- -->
+  <!-- --- PRINTABLE UNIVERSAL OMR SHEET --- -->
   <div id="printArea">
     <div class="sheet-container">
-      <!-- 4 Solid Black Registration Anchors (Auto-Deskew & Perspective Lock) -->
       <div class="reg-block reg-tl"></div>
       <div class="reg-block reg-tr"></div>
       <div class="reg-block reg-bl"></div>
       <div class="reg-block reg-br"></div>
 
-      <!-- Header -->
+      <!-- Clean Header -->
       <div class="sheet-header">
-        <div>
-          <div class="school-title" id="printSchoolTitle">PRIMARY SCHOOL EVALUATION</div>
-          <div style="font-size: 8pt; font-weight: 700; margin-top: 1mm;">UNIVERSAL OMR ASSESSMENT SHEET • USE BLACK/BLUE BALL POINT PEN</div>
-        </div>
+        <div class="school-title">EVALUATION OMR</div>
         <div class="sheet-badge" id="printBadgeText">58 QUESTIONS</div>
       </div>
 
-      <!-- Student Metadata Character Boxes (Anti-Scribble / High-Precision OCR) -->
+      <!-- Warning Instruction Line -->
+      <div class="warning-strip">
+        DO NOT FOLD OR TEAR OMR SHEET • USE BLACK OR BLUE BALL POINT PEN ONLY • DARKEN BUBBLE COMPLETELY • DO NOT OVERWRITE
+      </div>
+
+      <!-- Character Boxes -->
       <div class="meta-grid">
         <div class="char-box-wrapper">
           <span class="char-box-label">STUDENT NAME (CAPITAL LETTERS ONLY):</span>
@@ -311,16 +330,13 @@
         </div>
       </div>
 
-      <!-- Core OMR Zone with Left Timing Track -->
+      <!-- Timing Track and 5-Question Boxes -->
       <div class="omr-body">
-        <!-- Vertical Timing Track (Every question row has its own physical black mark) -->
         <div class="timing-track" id="timingTrackCol"></div>
-
-        <!-- 3-Column Question Matrix -->
         <div class="omr-columns" id="printOmrColumns"></div>
       </div>
 
-      <!-- Footer Signatures -->
+      <!-- Footer -->
       <div class="sheet-footer">
         <div>DHK OMR PRO UNIVERSAL ENGINE</div>
         <div class="sig-line">Signature of Invigilator</div>
@@ -395,30 +411,29 @@
       saveKeyMaster();
     }
 
-    // Build the Physical Print DOM with Timing Track & Columns
     function prepareAndPrint() {
-      const schoolTitle = document.getElementById('schoolNameInput').value.trim() || 'PRIMARY SCHOOL EVALUATION';
-      document.getElementById('printSchoolTitle').innerText = schoolTitle;
       document.getElementById('printBadgeText').innerText = `${totalQuestions} QUESTIONS`;
 
       const numCols = 3;
       const rowsPerCol = Math.ceil(totalQuestions / numCols);
+      const numBlocks = Math.ceil(rowsPerCol / 5);
 
-      // 1. Build Timing Track
+      // 1. Build Timing Track grouped to match 5-row blocks
       const timingTrack = document.getElementById('timingTrackCol');
       timingTrack.innerHTML = '';
-      for (let r = 0; r < rowsPerCol; r++) {
-        const dash = document.createElement('div');
-        dash.className = 'timing-dash';
-        timingTrack.appendChild(dash);
-        if ((r + 1) % 5 === 0 && r !== rowsPerCol - 1) {
-          const spacer = document.createElement('div');
-          spacer.className = 'q-block-divider';
-          timingTrack.appendChild(spacer);
+      for (let b = 0; b < numBlocks; b++) {
+        const grp = document.createElement('div');
+        grp.className = 'timing-block-group';
+        const rowsInThisBlock = Math.min(5, rowsPerCol - (b * 5));
+        for (let r = 0; r < rowsInThisBlock; r++) {
+          const dash = document.createElement('div');
+          dash.className = 'timing-dash';
+          grp.appendChild(dash);
         }
+        timingTrack.appendChild(grp);
       }
 
-      // 2. Build 3-Column Question Blocks
+      // 2. Build 3-Column 5-Question Enclosed Boxes
       const colContainer = document.getElementById('printOmrColumns');
       colContainer.innerHTML = '';
       const opts = ['A', 'B', 'C', 'D'];
@@ -427,34 +442,40 @@
         const colDiv = document.createElement('div');
         colDiv.className = 'omr-col';
 
-        for (let r = 0; r < rowsPerCol; r++) {
-          const qNum = (c * rowsPerCol) + r + 1;
-          if (qNum <= totalQuestions) {
-            const qRow = document.createElement('div');
-            qRow.className = 'q-row';
+        for (let b = 0; b < numBlocks; b++) {
+          const groupBox = document.createElement('div');
+          groupBox.className = 'q-group-box';
+          let hasQuestions = false;
 
-            const numSpan = document.createElement('span');
-            numSpan.className = 'q-num';
-            numSpan.innerText = qNum;
-            qRow.appendChild(numSpan);
+          for (let r = 0; r < 5; r++) {
+            const rowInCol = (b * 5) + r;
+            const qNum = (c * rowsPerCol) + rowInCol + 1;
 
-            const bg = document.createElement('div');
-            bg.className = 'bubbles-group';
-            opts.forEach(o => {
-              const b = document.createElement('div');
-              b.className = 'bubble';
-              b.innerText = o;
-              bg.appendChild(b);
-            });
-            qRow.appendChild(bg);
-            colDiv.appendChild(qRow);
+            if (qNum <= totalQuestions && rowInCol < rowsPerCol) {
+              hasQuestions = true;
+              const qRow = document.createElement('div');
+              qRow.className = 'q-row';
 
-            // Add visual block divider every 5 rows
-            if ((r + 1) % 5 === 0 && r !== rowsPerCol - 1) {
-              const blk = document.createElement('div');
-              blk.className = 'q-block-divider';
-              colDiv.appendChild(blk);
+              const numSpan = document.createElement('span');
+              numSpan.className = 'q-num';
+              numSpan.innerText = qNum;
+              qRow.appendChild(numSpan);
+
+              const bg = document.createElement('div');
+              bg.className = 'bubbles-group';
+              opts.forEach(o => {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.innerText = o;
+                bg.appendChild(bubble);
+              });
+              qRow.appendChild(bg);
+              groupBox.appendChild(qRow);
             }
+          }
+
+          if (hasQuestions) {
+            colDiv.appendChild(groupBox);
           }
         }
         colContainer.appendChild(colDiv);
