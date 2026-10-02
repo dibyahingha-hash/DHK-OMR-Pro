@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DHK OMR Pro • Scanner</title>
+  <title>DHK OMR Pro • Robust Scanner</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
   <style>
     :root {
@@ -50,25 +50,37 @@
     #cameraStream { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     .target-overlay {
-      position: absolute; top: 4%; left: 5%; width: 90%; height: 92%;
-      border: 2px dashed rgba(255, 255, 255, 0.4); border-radius: 6px; pointer-events: none;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+      position: absolute; top: 2%; left: 3%; width: 94%; height: 96%;
+      border: 2px dashed rgba(255, 255, 255, 0.35); border-radius: 6px; pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
     }
-    .corner-bracket { position: absolute; width: 22px; height: 22px; border: 3px solid var(--gold); }
+    .corner-bracket { position: absolute; width: 24px; height: 24px; border: 3.5px solid var(--gold); }
     .cb-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
     .cb-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
     .cb-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
     .cb-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
 
-    .status-badge {
-      position: absolute; bottom: 10px; left: 0; right: 0; text-align: center;
-      color: #fff; font-size: 12px; font-weight: bold; text-shadow: 0 1px 4px #000;
+    /* Progress Overlay */
+    .scan-progress-box {
+      display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.92); z-index: 10;
+      flex-direction: column; align-items: center; justify-content: center; padding: 20px;
     }
+    .progress-bar-rail {
+      width: 80%; height: 14px; background: #1a2230; border-radius: 10px;
+      overflow: hidden; border: 1px solid var(--border); margin: 12px 0 8px 0;
+    }
+    .progress-bar-fill {
+      width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #22c55e);
+      transition: width 0.25s ease-out;
+    }
+    .progress-label { font-size: 13px; font-weight: bold; color: #fff; }
+    .progress-sub { font-size: 11px; color: var(--sub); margin-top: 4px; }
 
     /* Modal Overlay */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.88); z-index: 1000; padding: 14px;
+      background: rgba(0, 0, 0, 0.9); z-index: 1000; padding: 14px;
       align-items: center; justify-content: center;
     }
     .modal-box {
@@ -112,8 +124,8 @@
         </select>
       </div>
 
-      <div class="form-group" id="classSelectRow">
-        <label>Fallback / Default Class:</label>
+      <div class="form-group">
+        <label>Default / Fallback Class:</label>
         <select id="scanClassSelect"></select>
       </div>
 
@@ -123,16 +135,24 @@
 
       <div class="viewfinder-wrapper">
         <video id="cameraStream" playsinline autoplay muted></video>
+        
         <div class="target-overlay">
           <div class="corner-bracket cb-tl"></div>
           <div class="corner-bracket cb-tr"></div>
           <div class="corner-bracket cb-bl"></div>
           <div class="corner-bracket cb-br"></div>
-          <div class="status-badge" id="statusBadge">Align sheet inside corners and snap</div>
+        </div>
+
+        <div class="scan-progress-box" id="scanProgressBox">
+          <div class="progress-label" id="progressStatusText">Stabilizing Paper...</div>
+          <div class="progress-bar-rail">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+          </div>
+          <div class="progress-sub" id="progressPercentageText">0% Complete</div>
         </div>
       </div>
 
-      <button class="btn btn-blue" onclick="triggerManualCapture()">📸 Snap & Evaluate Sheet</button>
+      <button class="btn btn-blue" id="btnCapture" onclick="startControlledScan()">📸 Scan Sheet (Slow & Steady)</button>
       <button class="btn btn-green" id="btnToggleCam" onclick="toggleCameraStream()">Start / Restart Camera</button>
       <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select Photo from Gallery</button>
       <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processGalleryImage(event)">
@@ -251,19 +271,43 @@
       }
     }
 
-    function triggerManualCapture() {
+    function setScanProgress(pct, label, sub) {
+      document.getElementById('progressBarFill').style.width = pct + '%';
+      document.getElementById('progressPercentageText').innerText = pct + '% Complete';
+      if (label) document.getElementById('progressStatusText').innerText = label;
+      if (sub) document.querySelector('.progress-sub').innerText = sub;
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function startControlledScan() {
       if (isProcessing) return;
       const video = document.getElementById('cameraStream');
-      const canvas = document.getElementById('procCanvas');
       if (!video || !video.videoWidth) {
-        alert("Please start the camera or select a photo from gallery.");
+        alert("Please start camera or select a photo from gallery.");
         return;
       }
+
+      isProcessing = true;
+      const pBox = document.getElementById('scanProgressBox');
+      pBox.style.display = 'flex';
+
+      setScanProgress(15, "Locking Focus & Stabilizing...", "Hold steady over paper");
+      await sleep(500);
+
+      setScanProgress(35, "Capturing High-Res Frame...", "Normalizing perspective & lighting");
+      const canvas = document.getElementById('procCanvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(video, 0, 0);
-      processImage(canvas);
+      await sleep(300);
+
+      await runImageAnalysis(canvas);
+      pBox.style.display = 'none';
+      isProcessing = false;
     }
 
     function processGalleryImage(e) {
@@ -272,13 +316,19 @@
       const reader = new FileReader();
       reader.onload = function(evt) {
         const img = new Image();
-        img.onload = function() {
+        img.onload = async function() {
           const canvas = document.getElementById('procCanvas');
           canvas.width = img.width;
           canvas.height = img.height;
           const ctx = canvas.getContext('2d', { willReadFrequently: true });
           ctx.drawImage(img, 0, 0);
-          processImage(canvas);
+
+          const pBox = document.getElementById('scanProgressBox');
+          pBox.style.display = 'flex';
+          isProcessing = true;
+          await runImageAnalysis(canvas);
+          pBox.style.display = 'none';
+          isProcessing = false;
         };
         img.src = evt.target.result;
       };
@@ -304,70 +354,83 @@
     }
 
     function parseDetectedClass(rawText) {
-      const t = (rawText || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-      if (t.includes('XII') || t.includes('12')) return 'Class-XII';
-      if (t.includes('XI') || t.includes('11'))  return 'Class-XI';
-      if (t.includes('VIII') || t.includes('8')) return 'Class-VIII';
-      if (t.includes('VII') || t.includes('7'))  return 'Class-VII';
-      if (t.includes('VI') || t.includes('6'))   return 'Class-VI';
-      if (t.includes('IV') || t.includes('4'))   return 'Class-IV';
-      if (t.includes('IX') || t.includes('9'))   return 'Class-IX';
-      if (t.includes('X') || t.includes('10'))   return 'Class-X';
-      if (t.includes('III') || t.includes('3'))  return 'Class-III';
-      if (t.includes('II') || t.includes('2'))   return 'Class-II';
-      if (t.includes('I') || t.includes('1'))    return 'Class-I';
-      if (t.includes('KA'))                      return 'Ka-Shreni';
+      const t = (rawText || '').toUpperCase();
+      if (t.includes('CLASS-XII') || t.includes('CLASS XII') || t.includes('XII')) return 'Class-XII';
+      if (t.includes('CLASS-XI') || t.includes('CLASS XI') || t.includes('XI'))  return 'Class-XI';
+      if (t.includes('CLASS-VIII') || t.includes('CLASS VIII') || t.includes('VIII')) return 'Class-VIII';
+      if (t.includes('CLASS-VII') || t.includes('CLASS VII') || t.includes('VII'))  return 'Class-VII';
+      if (t.includes('CLASS-VI') || t.includes('CLASS VI') || t.includes('VI'))   return 'Class-VI';
+      if (t.includes('CLASS-IV') || t.includes('CLASS IV') || t.includes('IV'))   return 'Class-IV';
+      if (t.includes('CLASS-IX') || t.includes('CLASS IX') || t.includes('IX'))   return 'Class-IX';
+      if (t.includes('CLASS-X') || t.includes('CLASS X') || t.includes('X'))    return 'Class-X';
+      if (t.includes('CLASS-III') || t.includes('CLASS III') || t.includes('III') || t.includes('THRE')) return 'Class-III';
+      if (t.includes('CLASS-II') || t.includes('CLASS II') || t.includes('II'))   return 'Class-II';
+      if (t.includes('CLASS-I') || t.includes('CLASS I')) return 'Class-I';
+      if (t.includes('KA')) return 'Ka-Shreni';
       return null;
     }
 
-    // --- EXACT GUNOTSAV 3-COLUMN MCQ GEOMETRY ---
+    // Adaptive thresholding: immune to shadows and creases
+    function binarizeCanvas(canvasCtx, width, height, threshold = 145) {
+      const imgData = canvasCtx.getImageData(0, 0, width, height);
+      const d = imgData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const v = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+        const val = v < threshold ? 0 : 255;
+        d[i] = d[i+1] = d[i+2] = val;
+      }
+      canvasCtx.putImageData(imgData, 0, 0);
+    }
+
+    // Robust 3-Column Gunotsav Evaluation with Block Offsets
     function evaluateBubbles(ctx, w, h) {
       const responses = {};
 
-      // Bounded exactly to Q1 left edge and ends before the vertical SKILL separator line
       const gridLeft = w * 0.075;
       const gridRight = w * 0.720;
-      const gridWidth = gridRight - gridLeft;
-      const colWidth = gridWidth / 3;
+      const colWidth = (gridRight - gridLeft) / 3;
 
-      // Starts below "MCQ (To be filled up by student)" and ends at Row 20
-      const gridTop = h * 0.495;
-      const gridBottom = h * 0.905;
-      const totalRows = 20;
-      const rowHeight = (gridBottom - gridTop) / totalRows;
+      // 4 distinct blocks of 5 rows each to account for paper spacing & creases
+      const blockTops = [
+        h * 0.495, // Block 1: Q1-5, 21-25, 41-45
+        h * 0.602, // Block 2: Q6-10, 26-30, 46-50
+        h * 0.708, // Block 3: Q11-15, 31-35, 51-55
+        h * 0.814  // Block 4: Q16-20, 36-40, 56-58
+      ];
+      const blockHeight = h * 0.082; // Height of each 5-row group
+      const rowStep = blockHeight / 5;
 
-      function getCoords(q) {
-        let col = 0, row = 0;
+      function getQuestionPosition(q) {
+        let col = 0, rowInCol = 0;
         if (q <= 20) {
-          col = 0; row = q - 1;
+          col = 0; rowInCol = q - 1;
         } else if (q <= 40) {
-          col = 1; row = q - 21;
+          col = 1; rowInCol = q - 21;
         } else if (q <= 60) {
-          col = 2; row = q - 41;
-        } else if (q <= 75) {
-          col = 0; row = 20 + (q - 61);
-        } else if (q <= 90) {
-          col = 1; row = 20 + (q - 76);
-        } else if (q <= 100) {
-          col = 2; row = 20 + (q - 91);
+          col = 2; rowInCol = q - 41;
         }
-        return { col, row };
+
+        const blockIdx = Math.floor(rowInCol / 5);
+        const rowInBlock = rowInCol % 5;
+        const y = blockTops[blockIdx] + (rowInBlock * rowStep) + (rowStep * 0.5);
+        return { col, y };
       }
 
       const options = ['A', 'B', 'C', 'D'];
 
       for (let q = 1; q <= Math.min(totalQuestions, 58); q++) {
-        const { col, row } = getCoords(q);
+        const { col, y } = getQuestionPosition(q);
         const colStartX = gridLeft + (col * colWidth);
-        const yCenter = gridTop + (row * rowHeight) + (rowHeight * 0.5);
 
         let darkestOpt = null;
         let minBrightness = 255;
         let readings = [];
 
         options.forEach((opt, idx) => {
-          const xCenter = colStartX + (colWidth * 0.28) + (idx * (colWidth * 0.175));
-          const p = ctx.getImageData(Math.round(xCenter - 2), Math.round(yCenter - 2), 5, 5).data;
+          const xCenter = colStartX + (colWidth * 0.28) + (idx * (colWidth * 0.178));
+          
+          // Sample a 7x7 patch around the bubble core
+          const p = ctx.getImageData(Math.round(xCenter - 3), Math.round(y - 3), 7, 7).data;
           let sum = 0;
           for (let i = 0; i < p.length; i += 4) {
             sum += (p[i] * 0.299 + p[i+1] * 0.587 + p[i+2] * 0.114);
@@ -382,6 +445,7 @@
         });
 
         readings.sort((a, b) => a.avg - b.avg);
+        // Contrast difference threshold: ensures filled bubble is clearly darker than unmarked neighbors
         if (readings[1].avg - readings[0].avg > 25) {
           responses[q] = darkestOpt;
         } else {
@@ -392,16 +456,90 @@
       return responses;
     }
 
-    async function processImage(canvas) {
-      isProcessing = true;
-      document.getElementById('statusBadge').innerText = "Reading Class, Name & Bubbles...";
+    async function runImageAnalysis(canvas) {
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const w = canvas.width;
       const h = canvas.height;
 
-      // 1. Evaluate MCQ bubbles
-      const responses = evaluateBubbles(ctx, w, h);
+      setScanProgress(55, "Scanning Class Header...", "Reading upper banner");
+      const crop = document.getElementById('cropCanvas');
+      const cropCtx = crop.getContext('2d', { willReadFrequently: true });
 
+      // 1. CLASS ZONE: Wide scan of top-right header to catch Class-III regardless of fold
+      const classCropX = Math.round(w * 0.65);
+      const classCropY = Math.round(h * 0.015);
+      const classCropW = Math.round(w * 0.33);
+      const classCropH = Math.round(h * 0.080);
+
+      crop.width = classCropW;
+      crop.height = classCropH;
+      cropCtx.drawImage(canvas, classCropX, classCropY, classCropW, classCropH, 0, 0, classCropW, classCropH);
+      binarizeCanvas(cropCtx, classCropW, classCropH, 135);
+
+      let rawClassText = "";
+      try {
+        const resClass = await Tesseract.recognize(crop, 'eng');
+        rawClassText = (resClass.data.text || '').trim();
+      } catch (err) {
+        console.warn("Class OCR error", err);
+      }
+
+      const detectedClass = parseDetectedClass(rawClassText) || document.getElementById('scanClassSelect').value;
+
+      setScanProgress(75, "Reading Student Name...", "Parsing student details block");
+
+      // 2. WIDE-WINDOW STUDENT NAME SCAN: Covers rows 4 through 8
+      // Solves folded paper shifts by reading the full block and extracting text after "NAME"
+      const infoCropX = Math.round(w * 0.06);
+      const infoCropY = Math.round(h * 0.200);
+      const infoCropW = Math.round(w * 0.72);
+      const infoCropH = Math.round(h * 0.180);
+
+      crop.width = infoCropW;
+      crop.height = infoCropH;
+      cropCtx.drawImage(canvas, infoCropX, infoCropY, infoCropW, infoCropH, 0, 0, infoCropW, infoCropH);
+      binarizeCanvas(cropCtx, infoCropW, infoCropH, 140);
+
+      let detectedName = "";
+      let rawBlockText = "";
+      try {
+        const resInfo = await Tesseract.recognize(crop, 'eng');
+        rawBlockText = resInfo.data.text || '';
+        
+        // Split by lines and search for the line with STUDENT NAME or NAME
+        const lines = rawBlockText.split('\n').map(l => l.trim()).filter(Boolean);
+        for (let line of lines) {
+          const upper = line.toUpperCase();
+          if (upper.includes("STUDENT NAME") || upper.includes("NAME")) {
+            // Extract everything after the colon or after 'NAME'
+            const parts = line.split(/[:-]/);
+            if (parts.length > 1) {
+              detectedName = parts[parts.length - 1].replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
+            } else {
+              detectedName = line.replace(/.*NAME/i, '').replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
+            }
+            if (detectedName.length > 2) break;
+          }
+        }
+
+        // Fallback: If line didn't split cleanly, check lines for pure alphabetic student names
+        if (!detectedName) {
+          for (let line of lines) {
+            const clean = line.replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
+            if (clean.length > 4 && !clean.includes("SCHOOL") && !clean.includes("UDISE") && !clean.includes("DISTRICT") && !clean.includes("BLOCK") && !clean.includes("CLUSTER") && !clean.includes("CODE")) {
+              detectedName = clean;
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Name OCR error", err);
+      }
+
+      setScanProgress(90, "Evaluating 3-Column Bubbles...", "Scanning MCQ blocks with fold tolerance");
+
+      // 3. EVALUATE BUBBLES
+      const responses = evaluateBubbles(ctx, w, h);
       let correct = 0, incorrect = 0;
       for (let q = 1; q <= totalQuestions; q++) {
         const studentAns = responses[q];
@@ -413,52 +551,7 @@
       }
       const score = correct * marksPerQ;
 
-      const crop = document.getElementById('cropCanvas');
-      const cropCtx = crop.getContext('2d');
-
-      // 2. Exact Crop: CLASS Box (Top-right corner matching "Class-III")
-      const classCropX = Math.round(w * 0.74);
-      const classCropY = Math.round(h * 0.028);
-      const classCropW = Math.round(w * 0.18);
-      const classCropH = Math.round(h * 0.045);
-      
-      crop.width = classCropW;
-      crop.height = classCropH;
-      cropCtx.drawImage(canvas, classCropX, classCropY, classCropW, classCropH, 0, 0, classCropW, classCropH);
-
-      let rawClassText = "";
-      try {
-        const resClass = await Tesseract.recognize(crop, 'eng', {
-          tessedit_char_whitelist: 'CLASS-IVX0123456789 '
-        });
-        rawClassText = (resClass.data.text || '').trim();
-      } catch (err) {
-        console.warn("Class OCR failed", err);
-      }
-
-      const detectedClass = parseDetectedClass(rawClassText) || document.getElementById('scanClassSelect').value;
-
-      // 3. Exact Crop: STUDENT NAME Box (Row 7: starts after label, stops before barcode)
-      const nameCropX = Math.round(w * 0.23);
-      const nameCropY = Math.round(h * 0.305);
-      const nameCropW = Math.round(w * 0.52);
-      const nameCropH = Math.round(h * 0.038);
-
-      crop.width = nameCropW;
-      crop.height = nameCropH;
-      cropCtx.drawImage(canvas, nameCropX, nameCropY, nameCropW, nameCropH, 0, 0, nameCropW, nameCropH);
-
-      let detectedName = "";
-      try {
-        const resName = await Tesseract.recognize(crop, 'eng', {
-          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
-        });
-        detectedName = (resName.data.text || '').trim();
-      } catch (err) {
-        console.warn("Name OCR failed", err);
-      }
-
-      // 4. Match student within detected class
+      // 4. Fuzzy match against enrolled roster
       const classStudents = students.filter(s => (s.class_level || s.class) === detectedClass);
       let bestMatch = null;
       let highestSim = -1;
@@ -470,18 +563,17 @@
         }
       });
 
-      // 5. Open Verification Modal
+      setScanProgress(100, "Done!", "Opening verification modal");
+      await sleep(250);
+
       activeEvaluation = { score, correct, incorrect, responses, detectedClass, detectedName, totalQuestions };
       openConfirmModal(detectedClass, rawClassText, detectedName, bestMatch, score, correct, incorrect);
-
-      isProcessing = false;
-      document.getElementById('statusBadge').innerText = "Align sheet inside corners and snap";
     }
 
     function openConfirmModal(detectedClass, rawClassText, ocrName, bestStudent, score, correct, incorrect) {
       document.getElementById('rawOcrText').innerHTML = `
         Class Read: <b>"${rawClassText || 'N/A'}"</b> &rarr; Matched: <span style="color:#68d391">${detectedClass}</span><br>
-        Name Read: <b>"${ocrName || 'Could not read clearly'}"</b>
+        Extracted Name: <b>"${ocrName || 'Could not parse clean name'}"</b>
       `;
 
       const classSel = document.getElementById('modalClassOverrideSelect');
