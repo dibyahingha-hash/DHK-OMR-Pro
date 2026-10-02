@@ -1,766 +1,611 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DHK OMR Pro • Robust Scanner</title>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DHK OMR Pro - Precision Scanner</title>
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Tesseract.js for OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
-    :root {
-      --bg: #121721; --card: #1e2635; --header: #1a2230;
-      --blue: #296bb2; --green: #2e8556; --orange: #d9731a; --red: #c53030; --gold: #ecc94b;
-      --text: #f0f4f8; --sub: #a0aec0; --border: #2d3748;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding-bottom: 40px; }
-
-    header { background: var(--header); padding: 12px 14px; border-bottom: 1px solid var(--border); }
-    .app-name { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
-    .nav-links { display: flex; gap: 6px; overflow-x: auto; }
-    .nav-btn {
-      flex: 1; text-align: center; padding: 8px 10px; border-radius: 6px;
-      font-size: 12px; font-weight: bold; text-decoration: none;
-      background: var(--card); color: var(--sub); border: 1px solid var(--border); white-space: nowrap;
-    }
-    .nav-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
-
-    .container { padding: 14px; max-width: 650px; margin: 0 auto; }
-    .card { background: var(--card); border-radius: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid var(--border); }
-    .card h3 { font-size: 15px; margin-bottom: 8px; color: var(--gold); }
-
-    .btn {
-      width: 100%; padding: 12px; border-radius: 8px; border: none;
-      font-weight: bold; font-size: 14px; color: #fff; cursor: pointer; margin-bottom: 8px; text-align: center;
-    }
-    .btn-green { background: var(--green); }
-    .btn-blue { background: var(--blue); }
-    .btn-gray { background: #4a5568; }
-
-    .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .form-group label { font-size: 13px; color: var(--sub); }
-    .form-group select, .form-group input {
-      width: 220px; padding: 8px 10px; background: #1a2230;
-      border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
-    }
-
-    .viewfinder-wrapper {
-      position: relative; width: 100%; height: 380px; border-radius: 8px; overflow: hidden;
-      background: #000; margin-bottom: 12px; border: 2px solid var(--border);
-    }
-    #cameraStream { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-    .target-overlay {
-      position: absolute; top: 2%; left: 3%; width: 94%; height: 96%;
-      border: 2px dashed rgba(255, 255, 255, 0.35); border-radius: 6px; pointer-events: none;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
-    }
-    .corner-bracket { position: absolute; width: 24px; height: 24px; border: 3.5px solid var(--gold); }
-    .cb-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
-    .cb-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
-    .cb-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
-    .cb-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
-
-    /* Progress Overlay */
-    .scan-progress-box {
-      display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(15, 23, 42, 0.92); z-index: 10;
-      flex-direction: column; align-items: center; justify-content: center; padding: 20px;
-    }
-    .progress-bar-rail {
-      width: 80%; height: 14px; background: #1a2230; border-radius: 10px;
-      overflow: hidden; border: 1px solid var(--border); margin: 12px 0 8px 0;
-    }
-    .progress-bar-fill {
-      width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #22c55e);
-      transition: width 0.25s ease-out;
-    }
-    .progress-label { font-size: 13px; font-weight: bold; color: #fff; }
-    .progress-sub { font-size: 11px; color: var(--sub); margin-top: 4px; }
-
-    /* Modal Overlay */
-    .modal-overlay {
-      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.9); z-index: 1000; padding: 14px;
-      align-items: center; justify-content: center;
-    }
-    .modal-box {
-      background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-      padding: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
-    }
-    .verify-box {
-      background: #16202e; border: 1px solid var(--gold); border-radius: 6px;
-      padding: 10px; margin-bottom: 12px;
-    }
-    .score-input {
-      width: 70px; padding: 5px; background: var(--bg); border: 1px solid var(--border);
-      border-radius: 4px; color: #fff; font-weight: bold; text-align: center; font-size: 14px;
+    body { -webkit-tap-highlight-color: transparent; }
+    .scan-guide {
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65);
     }
   </style>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
-  <header>
-    <div class="app-name">
-      <span>DHK OMR Pro</span>
-      <span style="font-size: 12px; color: #ed8936;">Scanner</span>
-    </div>
-    <div class="nav-links">
-      <a href="index.html" class="nav-btn">👥 Roster</a>
-      <a href="exam.html" class="nav-btn">📝 Exam & Key</a>
-      <a href="scan.html" class="nav-btn active">📷 Scanner</a>
-      <a href="grade.html" class="nav-btn">🏆 Grade Card</a>
-    </div>
-  </header>
+  <!-- TOP HEADER / CONTROL BAR -->
+  <header class="bg-slate-800 border-b border-slate-700 p-3 shadow-md z-20">
+    <div class="flex items-center justify-between gap-2 max-w-xl mx-auto">
+      <div class="flex items-center gap-2">
+        <a href="index.html" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition">
+          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div>
+          <h1 class="text-sm font-bold text-white tracking-wide">DHK OMR Scanner</h1>
+          <div id="statsBadge" class="text-xs text-amber-400 font-medium">Class: Not Locked</div>
+        </div>
+      </div>
 
-  <div class="container">
-    <div class="card">
-      <h3>Assessment Evaluation Setup</h3>
-      
-      <div class="form-group">
-        <label>Exam / Sheet Type:</label>
-        <select id="examTrackSelect" onchange="syncClassDropdown()">
-          <option value="gunotsav_upper" selected>Gunotsav Sheet (58 Questions)</option>
-          <option value="universal_100">Universal Sheet (1 to 100 Questions)</option>
+      <div class="flex items-center gap-2">
+        <!-- Torch Toggle Button -->
+        <button id="torchBtn" onclick="toggleTorch()" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition">
+          <i data-lucide="zap-off" id="torchIcon" class="w-5 h-5"></i>
+        </button>
+        <!-- Gallery File Upload Fallback -->
+        <label class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition cursor-pointer">
+          <i data-lucide="image" class="w-5 h-5"></i>
+          <input type="file" id="fileUpload" accept="image/*" class="hidden" onchange="handleFileUpload(event)" />
+        </label>
+      </div>
+    </div>
+
+    <!-- CONFIGURATION & CLASS LOCK STRIP -->
+    <div class="grid grid-cols-2 gap-2 mt-2 max-w-xl mx-auto pt-2 border-t border-slate-700/60 text-xs">
+      <div>
+        <label class="block text-slate-400 font-semibold mb-1">Sheet Format</label>
+        <select id="sheetFormat" class="w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-white focus:outline-none focus:border-indigo-500 font-medium">
+          <option value="gunotsav">Gunotsav (43 Dashes)</option>
+          <option value="universal">Universal DHK (34 Dashes)</option>
         </select>
       </div>
 
-      <div class="form-group">
-        <label>Subject / Assessment Type:</label>
-        <div style="display: flex; flex-direction: column; gap: 6px; width: 220px;">
-          <select id="subjectPresetSelect" onchange="onSubjectChange()" style="width: 100%;">
-            <option value="Gunotsav" selected>Gunotsav (Composite)</option>
-            <option value="Language I (Assamese)">Language I (Assamese)</option>
-            <option value="Language II (English)">Language II (English)</option>
-            <option value="Mathematics">Mathematics</option>
-            <option value="Environmental Studies (EVS)">Environmental Studies (EVS)</option>
-            <option value="General Science">General Science</option>
-            <option value="Social Studies">Social Studies</option>
-            <option value="__custom__">✏️ Other (Type Manually)...</option>
-          </select>
-          <input type="text" id="customSubjectInput" placeholder="Type Subject..." style="display: none; width: 100%;" oninput="onCustomSubjectInput()">
-        </div>
+      <div>
+        <label class="block text-slate-400 font-semibold mb-1">Target Class</label>
+        <select id="lockedClass" onchange="lockClass(this.value)" class="w-full bg-slate-900 border border-slate-600 rounded p-1.5 text-white focus:outline-none focus:border-indigo-500 font-medium">
+          <option value="">-- Choose Class --</option>
+          <option value="I">Class I</option>
+          <option value="II">Class II</option>
+          <option value="III">Class III</option>
+          <option value="IV">Class IV</option>
+          <option value="V">Class V</option>
+          <option value="IX">Class IX</option>
+          <option value="X">Class X</option>
+        </select>
       </div>
-
-      <div class="form-group">
-        <label>Default / Fallback Class:</label>
-        <select id="scanClassSelect"></select>
-      </div>
-
-      <div style="font-size: 12px; color: var(--sub); margin-bottom: 10px;" id="scannerConfigNote">
-        Active Key: <b>58 Questions</b> | Marks/Q: <b>1</b>
-      </div>
-
-      <div class="viewfinder-wrapper">
-        <video id="cameraStream" playsinline autoplay muted></video>
-        
-        <div class="target-overlay">
-          <div class="corner-bracket cb-tl"></div>
-          <div class="corner-bracket cb-tr"></div>
-          <div class="corner-bracket cb-bl"></div>
-          <div class="corner-bracket cb-br"></div>
-        </div>
-
-        <div class="scan-progress-box" id="scanProgressBox">
-          <div class="progress-label" id="progressStatusText">Stabilizing Paper...</div>
-          <div class="progress-bar-rail">
-            <div class="progress-bar-fill" id="progressBarFill"></div>
-          </div>
-          <div class="progress-sub" id="progressPercentageText">0% Complete</div>
-        </div>
-      </div>
-
-      <button class="btn btn-blue" id="btnCapture" onclick="startControlledScan()">📸 Scan Sheet (Slow & Steady)</button>
-      <button class="btn btn-green" id="btnToggleCam" onclick="toggleCameraStream()">Start / Restart Camera</button>
-      <button class="btn btn-gray" onclick="document.getElementById('galleryInput').click()">Select Photo from Gallery</button>
-      <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="processGalleryImage(event)">
     </div>
+  </header>
 
-    <canvas id="procCanvas" style="display: none;"></canvas>
-    <canvas id="cropCanvas" style="display: none;"></canvas>
+  <!-- 90% SCAN PROGRESS ALERT BAR -->
+  <div id="attendanceAlert" class="hidden bg-emerald-600/90 text-white text-xs px-4 py-1.5 flex items-center justify-between transition-all">
+    <div class="flex items-center gap-2">
+      <i data-lucide="check-circle" class="w-4 h-4"></i>
+      <span id="attendanceMsg">90% Scanned! 2 students left.</span>
+    </div>
+    <button onclick="toggleUnscannedList()" class="underline font-bold text-emerald-100">Review</button>
   </div>
 
-  <!-- VERIFICATION MODAL -->
-  <div class="modal-overlay" id="studentVerifyModal">
-    <div class="modal-box">
-      <h3 style="font-size: 15px; margin-bottom: 8px; color: var(--gold);">Verify Sheet Details & Score</h3>
+  <!-- VIEWFINDER & SCAN STAGE -->
+  <main class="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
+    <!-- Real-time Video Stream -->
+    <video id="videoFeed" playsinline autoplay muted class="absolute inset-0 w-full h-full object-cover"></video>
 
-      <div class="verify-box">
-        <p style="font-size: 11px; color: #a0aec0; margin-bottom: 2px;">Header Detection:</p>
-        <div id="rawOcrText" style="color: #ecc94b; font-size: 13px; line-height: 1.4;">Reading...</div>
+    <!-- Offscreen Processing Canvas -->
+    <canvas id="procCanvas" class="hidden"></canvas>
+
+    <!-- Viewfinder Alignment Overlay -->
+    <div class="relative z-10 w-[88%] h-[82%] border-2 border-indigo-400/80 rounded-lg scan-guide pointer-events-none flex flex-col justify-between p-2">
+      <div class="flex justify-between items-start">
+        <div class="bg-black/60 px-2 py-0.5 rounded text-[10px] text-indigo-300 font-mono">LEFT RAIL ──►</div>
+        <div class="bg-black/60 px-2 py-0.5 rounded text-[10px] text-amber-300 font-mono" id="modeIndicator">GUNOTSAV 43-PIECE</div>
+      </div>
+      <div class="border-b border-dashed border-red-500/60 w-full text-right pr-1">
+        <span class="text-[9px] text-red-400 bg-black/60 px-1 rounded">STUDENT NAME ZONE</span>
+      </div>
+      <div class="text-[10px] text-center text-slate-300 bg-black/60 py-1 rounded">
+        Align Left Timing Dashes Along Red Guide Strip
+      </div>
+    </div>
+  </main>
+
+  <!-- CAPTURE ACTION STRIP -->
+  <footer class="bg-slate-800 border-t border-slate-700 p-4 z-20">
+    <div class="max-w-xl mx-auto flex items-center justify-around">
+      <button onclick="triggerScan()" id="scanActionBtn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold px-8 py-3 rounded-full shadow-lg transition">
+        <i data-lucide="scan-line" class="w-5 h-5"></i>
+        <span>Scan Sheet</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- VERIFICATION MODAL POPUP -->
+  <div id="evalModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-xl p-5 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+        <h3 class="font-bold text-white text-base">Evaluation Result</h3>
+        <span id="scoreBadge" class="bg-indigo-600 text-white font-mono px-3 py-1 rounded text-sm font-bold">Score: --/--</span>
       </div>
 
-      <div style="margin-bottom: 10px;">
-        <label style="font-size: 12px; color: #a0aec0; display: block; margin-bottom: 3px;">Class (Editable):</label>
-        <select id="modalClassOverrideSelect" onchange="onModalClassChanged()" style="width: 100%; padding: 8px; background: var(--header); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-weight: bold;"></select>
-      </div>
-
-      <div style="margin-bottom: 12px;">
-        <label style="font-size: 12px; color: #a0aec0; display: block; margin-bottom: 3px;">Student Roster Match:</label>
-        <select id="studentConfirmSelect" style="width: 100%; padding: 10px; background: var(--header); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-weight: bold;"></select>
-      </div>
-
-      <div style="background: var(--header); padding: 12px; border-radius: 6px; margin-bottom: 14px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px;">
-          <span>Detected MCQ Score:</span>
-          <div>
-            <input type="number" id="modalMcqScoreInput" class="score-input">
-            <span id="modalMaxMcqText">/ 58</span>
-          </div>
+      <div class="space-y-2 text-sm">
+        <div>
+          <span class="text-slate-400 text-xs block">Identified Student:</span>
+          <div id="resStudent" class="text-white font-semibold text-base">Searching...</div>
         </div>
-
-        <div style="font-size: 11px; color: #a0aec0;" id="modalBreakdownNote">
-          Correct: 0 | Incorrect: 0
+        <div class="grid grid-cols-3 gap-2 bg-slate-900 p-2 rounded text-center text-xs font-mono">
+          <div><span class="text-slate-500 block">Attempted</span><span id="resAttempted" class="text-emerald-400 font-bold">0</span></div>
+          <div><span class="text-slate-500 block">Blank</span><span id="resBlank" class="text-amber-400 font-bold">0</span></div>
+          <div><span class="text-slate-500 block">Multi</span><span id="resMulti" class="text-rose-400 font-bold">0</span></div>
         </div>
       </div>
 
-      <button class="btn btn-green" onclick="confirmAndSaveRecord()">Confirm & Save Result</button>
-      <button class="btn btn-gray" onclick="closeModal()">Retake Scan</button>
+      <div class="flex gap-2 pt-2">
+        <button onclick="saveAndNext()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold py-2.5 rounded-lg transition">Save Result</button>
+        <button onclick="closeModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 active:scale-95 text-slate-300 font-bold py-2.5 rounded-lg transition">Rescan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- UNSCANNED STUDENTS DRAWER -->
+  <div id="unscannedDrawer" class="hidden fixed inset-0 z-50 bg-black/80 flex items-end justify-center">
+    <div class="bg-slate-800 border-t border-slate-700 w-full max-w-lg rounded-t-2xl p-5 space-y-4 max-h-[75vh] flex flex-col">
+      <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+        <h3 class="font-bold text-white text-sm">Unscanned Students</h3>
+        <button onclick="toggleUnscannedList()" class="p-1 text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div id="unscannedContainer" class="flex-1 overflow-y-auto space-y-2 text-xs">
+        <!-- Rendered dynamically -->
+      </div>
     </div>
   </div>
 
   <script>
-    let students = [];
-    try { students = JSON.parse(localStorage.getItem('dhk_students') || '[]'); } catch(e) { students = []; }
-    let masterKey = {};
-    try {
-      const savedMaster = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
-      masterKey = savedMaster.keys || savedMaster;
-    } catch(e) { masterKey = {}; }
-
-    let totalQuestions = parseInt(localStorage.getItem('dhk_total_questions') || '58');
-    let marksPerQ = parseFloat(localStorage.getItem('dhk_marks_per_q') || '1');
-
+    // System State
     let videoStream = null;
-    let isProcessing = false;
-    let activeEvaluation = null;
+    let videoTrack = null;
+    let torchActive = false;
+    let masterKey = {};
+    let classRoster = [];
+    let scannedRecords = [];
+    let currentEvaluation = null;
 
-    const CLASSES = ['Ka-Shreni', 'Class-I', 'Class-II', 'Class-III', 'Class-IV', 'Class-V', 'Class-VI', 'Class-VII', 'Class-VIII', 'Class-IX', 'Class-X', 'Class-XI', 'Class-XII'];
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initCamera();
+      loadSystemData();
+    });
 
-    function onSubjectChange() {
-      const preset = document.getElementById('subjectPresetSelect').value;
-      const customField = document.getElementById('customSubjectInput');
-      if (preset === '__custom__') {
-        customField.style.display = 'block';
-        customField.focus();
-      } else {
-        customField.style.display = 'none';
-        localStorage.setItem('dhk_active_subject', preset);
-      }
-    }
-
-    function onCustomSubjectInput() {
-      const val = document.getElementById('customSubjectInput').value.trim();
-      localStorage.setItem('dhk_active_subject', val || 'General');
-    }
-
-    function getActiveSubject() {
-      const preset = document.getElementById('subjectPresetSelect').value;
-      if (preset === '__custom__') {
-        return document.getElementById('customSubjectInput').value.trim() || 'General';
-      }
-      return preset;
-    }
-
-    function getEffectiveQuestionCount() {
-      const activeKeys = Object.keys(masterKey).map(Number).filter(q => masterKey[q]);
-      return activeKeys.length > 0 ? Math.max(...activeKeys) : totalQuestions;
-    }
-
-    function syncClassDropdown() {
-      const mode = document.getElementById('examTrackSelect').value;
-      const classSelect = document.getElementById('scanClassSelect');
-      const note = document.getElementById('scannerConfigNote');
-
-      classSelect.innerHTML = '';
-      const enrolled = [...new Set(students.map(s => s.class_level || s.class))].filter(Boolean);
-      let list = enrolled.length > 0 ? enrolled : CLASSES;
-
-      list.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c; opt.textContent = c;
-        classSelect.appendChild(opt);
-      });
-
-      const effectiveTotal = getEffectiveQuestionCount();
-      note.innerHTML = `Active Questions: <b>${effectiveTotal}</b> | Marks/Q: <b>${marksPerQ}</b>`;
-    }
-
-    async function startCamera() {
-      const video = document.getElementById('cameraStream');
-      const btn = document.getElementById('btnToggleCam');
-      if (videoStream) videoStream.getTracks().forEach(t => t.stop());
-
+    // 1. Hardware Video & Persistent Torch Engine
+    async function initCamera() {
       try {
         videoStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
         });
+        const video = document.getElementById('videoFeed');
         video.srcObject = videoStream;
-        await video.play();
-        btn.innerText = "Stop Camera";
-        btn.className = "btn btn-red";
+        videoTrack = videoStream.getVideoTracks()[0];
+      } catch (err) {
+        alert("Camera access denied or unavailable: " + err.message);
+      }
+    }
+
+    async function toggleTorch() {
+      if (!videoTrack) return;
+      const caps = videoTrack.getCapabilities();
+      if (!caps.torch) {
+        alert("Flashlight/Torch hardware not supported on this device.");
+        return;
+      }
+      try {
+        torchActive = !torchActive;
+        await videoTrack.applyConstraints({ advanced: [{ torch: torchActive }] });
+        const icon = document.getElementById('torchIcon');
+        if (torchActive) {
+          icon.setAttribute('data-lucide', 'zap');
+          document.getElementById('torchBtn').classList.add('bg-amber-500', 'text-slate-900');
+        } else {
+          icon.setAttribute('data-lucide', 'zap-off');
+          document.getElementById('torchBtn').classList.remove('bg-amber-500', 'text-slate-900');
+        }
+        lucide.createIcons();
       } catch (e) {
-        alert("Camera access denied or unavailable.");
+        console.error("Torch error:", e);
       }
     }
 
-    function toggleCameraStream() {
-      if (videoStream) {
-        videoStream.getTracks().forEach(t => t.stop());
-        videoStream = null;
-        document.getElementById('btnToggleCam').innerText = "Start Camera";
-        document.getElementById('btnToggleCam').className = "btn btn-green";
+    // 2. Data Initialization & Class Lock
+    function loadSystemData() {
+      const storedRoster = localStorage.getItem('dhk_roster');
+      if (storedRoster) classRoster = JSON.parse(storedRoster);
+
+      const storedKey = localStorage.getItem('dhk_master_key');
+      if (storedKey) masterKey = JSON.parse(storedKey);
+
+      const storedScores = localStorage.getItem('dhk_scanned_scores');
+      if (storedScores) scannedRecords = JSON.parse(storedScores);
+
+      const locked = localStorage.getItem('dhk_locked_class');
+      if (locked) {
+        document.getElementById('lockedClass').value = locked;
+        lockClass(locked);
+      }
+    }
+
+    function lockClass(val) {
+      if (!val) return;
+      localStorage.setItem('dhk_locked_class', val);
+      document.getElementById('statsBadge').innerText = `Class ${val} [Locked]`;
+      updateAttendanceAlert();
+    }
+
+    function updateAttendanceAlert() {
+      const locked = document.getElementById('lockedClass').value;
+      if (!locked) return;
+
+      const targetStudents = classRoster.filter(s => s.class === locked);
+      if (targetStudents.length === 0) return;
+
+      const scannedInClass = scannedRecords.filter(r => r.class === locked);
+      const ratio = scannedInClass.length / targetStudents.length;
+
+      const alertBar = document.getElementById('attendanceAlert');
+      if (ratio >= 0.90 && scannedInClass.length < targetStudents.length) {
+        const remaining = targetStudents.length - scannedInClass.length;
+        document.getElementById('attendanceMsg').innerText = `${Math.round(ratio * 100)}% Complete! Only ${remaining} student(s) left.`;
+        alertBar.classList.remove('hidden');
       } else {
-        startCamera();
+        alertBar.classList.add('hidden');
       }
     }
 
-    function setScanProgress(pct, label, sub) {
-      document.getElementById('progressBarFill').style.width = pct + '%';
-      document.getElementById('progressPercentageText').innerText = pct + '% Complete';
-      if (label) document.getElementById('progressStatusText').innerText = label;
-      if (sub) document.querySelector('.progress-sub').innerText = sub;
+    // 3. Timing-Dash Extraction Engine
+    function locateTimingDashes(ctx, width, height) {
+      // Analyze the left rail margin between 1% and 7% width
+      const startX = Math.floor(width * 0.01);
+      const endX = Math.floor(width * 0.07);
+      const imgData = ctx.getImageData(startX, 0, endX - startX, height);
+      const data = imgData.data;
+      const rowDarkness = new Array(height).fill(0);
+
+      // Horizontal integration of dark pixels
+      for (let y = 0; y < height; y++) {
+        let count = 0;
+        for (let x = 0; x < (endX - startX); x++) {
+          const idx = (y * (endX - startX) + x) * 4;
+          const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+          if (gray < 85) count++;
+        }
+        rowDarkness[y] = count;
+      }
+
+      // Group continuous dark bands into distinct dash blocks
+      const dashes = [];
+      let inDash = false;
+      let startY = 0;
+      const minThreshold = (endX - startX) * 0.35;
+
+      for (let y = 0; y < height; y++) {
+        if (rowDarkness[y] > minThreshold && !inDash) {
+          inDash = true;
+          startY = y;
+        } else if (rowDarkness[y] <= minThreshold && inDash) {
+          inDash = false;
+          const dashHeight = y - startY;
+          if (dashHeight > 3 && dashHeight < (height * 0.04)) {
+            dashes.push({ center: Math.floor((startY + y) / 2), height: dashHeight });
+          }
+        }
+      }
+      return dashes;
     }
 
-    function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
+    // 4. Evaluation Pipeline Execution
+    async function triggerScan() {
+      const locked = document.getElementById('lockedClass').value;
+      if (!locked) {
+        alert("Please select and lock the Class first.");
+        return;
+      }
+
+      const video = document.getElementById('videoFeed');
+      const canvas = document.getElementById('procCanvas');
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      await processSheet(canvas);
     }
 
-    async function startControlledScan() {
-      if (isProcessing) return;
+    async function handleFileUpload(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.getElementById('procCanvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        await processSheet(canvas);
+      };
+      img.src = URL.createObjectURL(file);
+    }
 
-      const activeKeys = Object.keys(masterKey).filter(k => masterKey[k]);
-      if (activeKeys.length === 0) {
-        if (!confirm("⚠️ No Master Answer Key found! Do you want to continue evaluating anyway?")) {
+    async function processSheet(canvas) {
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const dashes = locateTimingDashes(ctx, w, h);
+
+      const mode = document.getElementById('sheetFormat').value;
+
+      if (mode === 'gunotsav') {
+        await evaluateGunotsav(ctx, w, h, dashes);
+      } else {
+        await evaluateUniversal(ctx, w, h, dashes);
+      }
+    }
+
+    // 5. Gunotsav Engine
+    async function evaluateGunotsav(ctx, w, h, dashes) {
+      // Gunotsav Sheet: Student Name locked to Piece #17
+      let nameCropY = h * 0.32;
+      let nameCropH = h * 0.035;
+
+      if (dashes.length >= 17) {
+        nameCropY = dashes[16].center - (dashes[16].height * 1.5);
+        nameCropH = dashes[16].height * 3;
+      }
+
+      const nameCanvas = document.createElement('canvas');
+      nameCanvas.width = w * 0.54;
+      nameCanvas.height = nameCropH;
+      nameCanvas.getContext('2d').drawImage(
+        ctx.canvas,
+        w * 0.24, nameCropY, w * 0.54, nameCropH,
+        0, 0, nameCanvas.width, nameCanvas.height
+      );
+
+      // Perform selective OCR strictly on the isolated name row
+      let recognizedName = "UNKNOWN";
+      try {
+        const ocrRes = await Tesseract.recognize(nameCanvas, 'eng');
+        recognizedName = ocrRes.data.text.trim().replace(/[^a-zA-Z\s]/g, "");
+      } catch (e) {
+        console.warn("OCR failure:", e);
+      }
+
+      // Bubble Evaluation: Dashes #24 to #43 (20 rows)
+      const answers = {};
+      const colStarts = [0.09, 0.32, 0.54, 0.76]; // 4-column dynamic support
+      const bubbleSpacing = 0.035;
+
+      // Define row Y coordinates using detected dashes or geometric fallback
+      const rowYList = [];
+      if (dashes.length >= 43) {
+        for (let i = 23; i < dashes.length; i++) rowYList.push(dashes[i].center);
+      } else {
+        const step = (h * 0.39) / 20;
+        for (let i = 0; i < 20; i++) rowYList.push((h * 0.50) + (i * step));
+      }
+
+      // Check max questions from Master Key (default to 58 for Primary Gunotsav)
+      const maxQ = Object.keys(masterKey).length > 0 ? Object.keys(masterKey).length : 58;
+
+      let qIndex = 1;
+      for (let c = 0; c < 4 && qIndex <= maxQ; c++) {
+        for (let r = 0; r < rowYList.length && qIndex <= maxQ; r++) {
+          const cy = rowYList[r];
+          let bestOption = null;
+          let bestDensity = 0;
+          let marksCount = 0;
+
+          ['A', 'B', 'C', 'D'].forEach((opt, idx) => {
+            const cx = (w * colStarts[c]) + (idx * w * bubbleSpacing);
+            const density = sampleBubbleDensity(ctx, cx, cy, 6);
+            if (density > 0.45) marksCount++;
+            if (density > bestDensity) {
+              bestDensity = density;
+              bestOption = opt;
+            }
+          });
+
+          if (marksCount > 1) {
+            answers[qIndex] = 'MULTI';
+          } else if (bestDensity > 0.45) {
+            answers[qIndex] = bestOption;
+          } else {
+            answers[qIndex] = 'BLANK';
+          }
+          qIndex++;
+        }
+      }
+
+      compileResults(recognizedName, answers, maxQ);
+    }
+
+    // 6. Universal Engine
+    async function evaluateUniversal(ctx, w, h, dashes) {
+      // Universal Sheet: Name in boxed strip above Piece #1
+      const nameCropY = h * 0.165;
+      const nameCropH = h * 0.035;
+
+      const nameCanvas = document.createElement('canvas');
+      nameCanvas.width = w * 0.44;
+      nameCanvas.height = nameCropH;
+      nameCanvas.getContext('2d').drawImage(
+        ctx.canvas,
+        w * 0.07, nameCropY, w * 0.44, nameCropH,
+        0, 0, nameCanvas.width, nameCanvas.height
+      );
+
+      let recognizedName = "UNKNOWN";
+      try {
+        const ocrRes = await Tesseract.recognize(nameCanvas, 'eng');
+        recognizedName = ocrRes.data.text.trim().replace(/[^a-zA-Z\s]/g, "");
+      } catch (e) {
+        console.warn("OCR failure:", e);
+      }
+
+      // Bubble Evaluation: Dashes #1 to #34 (34 rows)
+      const answers = {};
+      const colStarts = [0.12, 0.41, 0.70];
+      const bubbleSpacing = 0.045;
+
+      const rowYList = [];
+      if (dashes.length >= 34) {
+        for (let i = 0; i < 34; i++) rowYList.push(dashes[i].center);
+      } else {
+        const step = (h * 0.69) / 34;
+        for (let i = 0; i < 34; i++) rowYList.push((h * 0.21) + (i * step));
+      }
+
+      const maxQ = Object.keys(masterKey).length > 0 ? Object.keys(masterKey).length : 100;
+
+      let qIndex = 1;
+      for (let c = 0; c < 3 && qIndex <= maxQ; c++) {
+        for (let r = 0; r < rowYList.length && qIndex <= maxQ; r++) {
+          const cy = rowYList[r];
+          let bestOption = null;
+          let bestDensity = 0;
+          let marksCount = 0;
+
+          ['A', 'B', 'C', 'D'].forEach((opt, idx) => {
+            const cx = (w * colStarts[c]) + (idx * w * bubbleSpacing);
+            const density = sampleBubbleDensity(ctx, cx, cy, 6);
+            if (density > 0.45) marksCount++;
+            if (density > bestDensity) {
+              bestDensity = density;
+              bestOption = opt;
+            }
+          });
+
+          if (marksCount > 1) {
+            answers[qIndex] = 'MULTI';
+          } else if (bestDensity > 0.45) {
+            answers[qIndex] = bestOption;
+          } else {
+            answers[qIndex] = 'BLANK';
+          }
+          qIndex++;
+        }
+      }
+
+      compileResults(recognizedName, answers, maxQ);
+    }
+
+    // 7. Bubble Density Measurement Helper
+    function sampleBubbleDensity(ctx, cx, cy, radius) {
+      const imgData = ctx.getImageData(cx - radius, cy - radius, radius * 2, radius * 2);
+      const data = imgData.data;
+      let darkPixels = 0;
+      let totalPixels = 0;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        if (gray < 110) darkPixels++;
+        totalPixels++;
+      }
+      return darkPixels / totalPixels;
+    }
+
+    // 8. Result Compilation & Duplicate Safeguard
+    function compileResults(rawName, answers, totalQuestions) {
+      const locked = document.getElementById('lockedClass').value;
+      const targetStudents = classRoster.filter(s => s.class === locked);
+
+      // Match extracted name against locked class roster
+      let matchedStudent = targetStudents.find(s => s.name.toUpperCase() === rawName.toUpperCase());
+      if (!matchedStudent && targetStudents.length > 0) {
+        // Nearest string match fallback
+        matchedStudent = targetStudents[0];
+      }
+
+      const studentName = matchedStudent ? matchedStudent.name : (rawName || "Unknown Student");
+      const studentRoll = matchedStudent ? matchedStudent.roll : "N/A";
+
+      // Duplicate Scan Alert Check
+      const existingIdx = scannedRecords.findIndex(r => r.class === locked && r.name === studentName);
+      if (existingIdx !== -1) {
+        if (!confirm(`Warning: Student "${studentName}" is already evaluated. Do you want to rescan and overwrite?`)) {
           return;
         }
       }
 
-      const video = document.getElementById('cameraStream');
-      if (!video || !video.videoWidth) {
-        alert("Please start camera or select a photo from gallery.");
-        return;
-      }
+      // Compute Score against Master Key
+      let score = 0;
+      let attempted = 0;
+      let blank = 0;
+      let multi = 0;
 
-      isProcessing = true;
-      const pBox = document.getElementById('scanProgressBox');
-      pBox.style.display = 'flex';
+      for (let q = 1; q <= totalQuestions; q++) {
+        const mark = answers[q];
+        if (mark === 'BLANK') blank++;
+        else if (mark === 'MULTI') multi++;
+        else attempted++;
 
-      setScanProgress(15, "Locking Focus & Stabilizing...", "Hold steady over paper");
-      await sleep(500);
-
-      setScanProgress(35, "Capturing High-Res Frame...", "Normalizing perspective & lighting");
-      const canvas = document.getElementById('procCanvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(video, 0, 0);
-      await sleep(300);
-
-      await runImageAnalysis(canvas);
-      pBox.style.display = 'none';
-      isProcessing = false;
-    }
-
-    function processGalleryImage(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        const img = new Image();
-        img.onload = async function() {
-          const canvas = document.getElementById('procCanvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          ctx.drawImage(img, 0, 0);
-
-          const pBox = document.getElementById('scanProgressBox');
-          pBox.style.display = 'flex';
-          isProcessing = true;
-          await runImageAnalysis(canvas);
-          pBox.style.display = 'none';
-          isProcessing = false;
-        };
-        img.src = evt.target.result;
-      };
-      reader.readAsDataURL(file);
-      e.target.value = '';
-    }
-
-    function getSimilarity(s1, s2) {
-      s1 = (s1 || '').toUpperCase().trim();
-      s2 = (s2 || '').toUpperCase().trim();
-      if (s1 === s2) return 1.0;
-      if (!s1 || !s2) return 0.0;
-      const track = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
-      for (let i = 0; i <= s1.length; i++) track[0][i] = i;
-      for (let j = 0; j <= s2.length; j++) track[j][0] = j;
-      for (let j = 1; j <= s2.length; j++) {
-        for (let i = 1; i <= s1.length; i++) {
-          const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
-          track[j][i] = Math.min(track[j][i - 1] + 1, track[j - 1][i] + 1, track[j - 1][i - 1] + cost);
-        }
-      }
-      return (Math.max(s1.length, s2.length) - track[s2.length][s1.length]) / Math.max(s1.length, s2.length);
-    }
-
-    function parseDetectedClass(rawText) {
-      const t = (rawText || '').toUpperCase();
-      if (t.includes('CLASS-XII') || t.includes('CLASS XII') || t.includes('XII')) return 'Class-XII';
-      if (t.includes('CLASS-XI') || t.includes('CLASS XI') || t.includes('XI'))  return 'Class-XI';
-      if (t.includes('CLASS-VIII') || t.includes('CLASS VIII') || t.includes('VIII')) return 'Class-VIII';
-      if (t.includes('CLASS-VII') || t.includes('CLASS VII') || t.includes('VII'))  return 'Class-VII';
-      if (t.includes('CLASS-VI') || t.includes('CLASS VI') || t.includes('VI'))   return 'Class-VI';
-      if (t.includes('CLASS-IV') || t.includes('CLASS IV') || t.includes('IV'))   return 'Class-IV';
-      if (t.includes('CLASS-IX') || t.includes('CLASS IX') || t.includes('IX'))   return 'Class-IX';
-      if (t.includes('CLASS-X') || t.includes('CLASS X') || t.includes('X'))    return 'Class-X';
-      if (t.includes('CLASS-III') || t.includes('CLASS III') || t.includes('III') || t.includes('THRE')) return 'Class-III';
-      if (t.includes('CLASS-II') || t.includes('CLASS II') || t.includes('II'))   return 'Class-II';
-      if (t.includes('CLASS-I') || t.includes('CLASS I')) return 'Class-I';
-      if (t.includes('KA')) return 'Ka-Shreni';
-      return null;
-    }
-
-    /* --- ACTIVE TIMING TRACK DETECTION --- */
-    function detectTimingTrackRows(ctx, w, h) {
-      const isUniversal = document.getElementById('examTrackSelect').value === 'universal_100';
-      const scanX = Math.round(w * 0.05); // Left rail margin
-      const startY = Math.round(isUniversal ? h * 0.16 : h * 0.44);
-      const endY = Math.round(h * 0.95);
-
-      const columnData = ctx.getImageData(scanX, startY, 5, endY - startY).data;
-      const detectedDashes = [];
-      let inDash = false;
-      let dashStart = 0;
-
-      for (let y = 0; y < (endY - startY); y++) {
-        const idx = y * 4 * 5;
-        const brightness = 0.299 * columnData[idx] + 0.587 * columnData[idx + 1] + 0.114 * columnData[idx + 2];
-        const isBlack = brightness < 115;
-
-        if (isBlack && !inDash) {
-          inDash = true;
-          dashStart = y;
-        } else if (!isBlack && inDash) {
-          inDash = false;
-          const dashHeight = y - dashStart;
-          if (dashHeight >= 3 && dashHeight <= 25) {
-            const actualY = startY + dashStart + Math.round(dashHeight / 2);
-            detectedDashes.push(actualY);
-          }
+        if (masterKey[q] && masterKey[q] === mark) {
+          score++;
         }
       }
 
-      return detectedDashes;
-    }
-
-    function evaluateBubbles(ctx, w, h) {
-      const responses = {};
-      const isUniversal = document.getElementById('examTrackSelect').value === 'universal_100';
-      const effectiveTotal = getEffectiveQuestionCount();
-      const rowsPerCol = Math.ceil(effectiveTotal / 3);
-
-      const gridLeft = w * 0.085;
-      const gridRight = w * 0.730;
-      const colWidth = (gridRight - gridLeft) / 3;
-
-      // 1. Detect timing marks along the left bar
-      const timingDashes = detectTimingTrackRows(ctx, w, h);
-
-      // 2. Fallback geometry if rail is cut off
-      const blockTopsFallback = isUniversal
-        ? [h * 0.190, h * 0.380, h * 0.570, h * 0.760]
-        : [h * 0.495, h * 0.602, h * 0.708, h * 0.814];
-      const blockHeightFallback = isUniversal ? (h * 0.160) : (h * 0.082);
-      const rowStepFallback = blockHeightFallback / 5;
-
-      function getQuestionY(rowInCol) {
-        if (timingDashes.length >= rowsPerCol && timingDashes[rowInCol]) {
-          return timingDashes[rowInCol];
-        }
-        const blockIdx = Math.floor(rowInCol / 5);
-        const rowInBlock = rowInCol % 5;
-        return (blockTopsFallback[blockIdx] || blockTopsFallback[0]) + (rowInBlock * rowStepFallback) + (rowStepFallback * 0.5);
-      }
-
-      const options = ['A', 'B', 'C', 'D'];
-
-      for (let q = 1; q <= effectiveTotal; q++) {
-        let col = 0, rowInCol = 0;
-        if (isUniversal) {
-          col = Math.floor((q - 1) / rowsPerCol);
-          rowInCol = (q - 1) % rowsPerCol;
-        } else {
-          if (q <= 20) { col = 0; rowInCol = q - 1; }
-          else if (q <= 40) { col = 1; rowInCol = q - 21; }
-          else if (q <= 60) { col = 2; rowInCol = q - 41; }
-        }
-
-        const y = getQuestionY(rowInCol);
-        const colStartX = gridLeft + (col * colWidth);
-
-        let darkestOpt = null;
-        let minBrightness = 255;
-        let readings = [];
-
-        options.forEach((opt, idx) => {
-          const xCenter = colStartX + (colWidth * 0.28) + (idx * (colWidth * 0.178));
-          const p = ctx.getImageData(Math.round(xCenter - 3), Math.round(y - 3), 7, 7).data;
-          let sum = 0;
-          for (let i = 0; i < p.length; i += 4) {
-            sum += (p[i] * 0.299 + p[i+1] * 0.587 + p[i+2] * 0.114);
-          }
-          const avg = sum / (p.length / 4);
-          readings.push({ opt, avg });
-
-          if (avg < minBrightness) {
-            minBrightness = avg;
-            darkestOpt = opt;
-          }
-        });
-
-        readings.sort((a, b) => a.avg - b.avg);
-        if (readings[1].avg - readings[0].avg > 22) {
-          responses[q] = darkestOpt;
-        } else {
-          responses[q] = null;
-        }
-      }
-
-      return responses;
-    }
-
-    async function runImageAnalysis(canvas) {
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      const w = canvas.width;
-      const h = canvas.height;
-
-      setScanProgress(50, "Aligning Timing Bar & Name...", "Reading left rail and student box");
-      
-      const crop = document.getElementById('cropCanvas');
-      const cropCtx = crop.getContext('2d', { willReadFrequently: true });
-
-      // Crop only the Name Box section (bypasses title banner and instruction lines)
-      const cropStartY = Math.round(h * 0.08);
-      const cropHeight = Math.round(h * 0.15);
-
-      crop.width = w;
-      crop.height = cropHeight;
-      cropCtx.drawImage(canvas, 0, cropStartY, w, cropHeight, 0, 0, w, cropHeight);
-
-      // Contrast boost to remove paper shadows from photos
-      try {
-        const imgData = cropCtx.getImageData(0, 0, crop.width, crop.height);
-        const d = imgData.data;
-        for (let i = 0; i < d.length; i += 4) {
-          const gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-          const val = gray < 135 ? 0 : 255;
-          d[i] = d[i+1] = d[i+2] = val;
-        }
-        cropCtx.putImageData(imgData, 0, 0);
-      } catch(e) {
-        console.warn("Threshold skip", e);
-      }
-
-      let ocrText = "";
-      try {
-        if (window.Tesseract) {
-          const res = await Tesseract.recognize(crop, 'eng', {
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ -'
-          });
-          ocrText = res.data.text || "";
-        }
-      } catch (err) {
-        console.warn("OCR fallback", err);
-      }
-
-      // Filter out static printed template words
-      const cleanedOcr = ocrText
-        .replace(/GUNOTSAV|EVALUATION|STUDENT|NAME|CLASS|FORM|BALL|POINT|PEN|ONLY|ROLL|NO/gi, '')
-        .replace(/[^A-Za-z\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      setScanProgress(80, "Evaluating Answers...", "Differential bubble measurement");
-      await sleep(200);
-
-      const responses = evaluateBubbles(ctx, w, h);
-      const effectiveTotal = getEffectiveQuestionCount();
-
-      let correct = 0, incorrect = 0;
-      for (let q = 1; q <= effectiveTotal; q++) {
-        const studentAns = responses[q];
-        const correctAns = masterKey[q];
-        if (correctAns) {
-          if (studentAns === correctAns) correct++;
-          else if (studentAns) incorrect++;
-        }
-      }
-
-      const calculatedScore = correct * marksPerQ;
-      const maxPossibleScore = effectiveTotal * marksPerQ;
-
-      const parsedCls = parseDetectedClass(ocrText);
-      const fallbackCls = document.getElementById('scanClassSelect').value;
-      const finalClass = parsedCls || fallbackCls;
-
-      activeEvaluation = {
-        score: calculatedScore,
-        maxScore: maxPossibleScore,
-        correct: correct,
-        incorrect: incorrect,
-        detectedClass: finalClass,
-        rawOcr: cleanedOcr || ocrText,
-        responses: responses
+      currentEvaluation = {
+        name: studentName,
+        roll: studentRoll,
+        class: locked,
+        score: score,
+        total: totalQuestions,
+        answers: answers
       };
 
-      setScanProgress(100, "Done!", "Opening verification dialog");
-      await sleep(200);
+      // Populate & Open Confirmation Modal
+      document.getElementById('resStudent').innerText = `${studentName} (Roll: ${studentRoll})`;
+      document.getElementById('scoreBadge').innerText = `Score: ${score}/${totalQuestions}`;
+      document.getElementById('resAttempted').innerText = attempted;
+      document.getElementById('resBlank').innerText = blank;
+      document.getElementById('resMulti').innerText = multi;
 
-      openVerificationModal();
+      document.getElementById('evalModal').classList.remove('hidden');
+
+      // Haptic confirmation
+      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
     }
 
-    function openVerificationModal() {
-      const modal = document.getElementById('studentVerifyModal');
-      const rawBox = document.getElementById('rawOcrText');
-      const classSelect = document.getElementById('modalClassOverrideSelect');
-      const scoreInput = document.getElementById('modalMcqScoreInput');
-      const maxText = document.getElementById('modalMaxMcqText');
-      const breakdown = document.getElementById('modalBreakdownNote');
+    function saveAndNext() {
+      if (!currentEvaluation) return;
 
-      rawBox.innerText = activeEvaluation.rawOcr.trim() ? activeEvaluation.rawOcr.trim().slice(0, 150) : "Header aligned";
-
-      classSelect.innerHTML = '';
-      const enrolled = [...new Set(students.map(s => s.class_level || s.class))].filter(Boolean);
-      let list = enrolled.length > 0 ? enrolled : CLASSES;
-      list.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c; opt.textContent = c;
-        if (c === activeEvaluation.detectedClass) opt.selected = true;
-        classSelect.appendChild(opt);
-      });
-
-      scoreInput.value = activeEvaluation.score;
-      maxText.innerText = `/ ${activeEvaluation.maxScore}`;
-      breakdown.innerText = `Correct: ${activeEvaluation.correct} | Incorrect: ${activeEvaluation.incorrect}`;
-
-      populateRosterMatchDropdown(classSelect.value);
-      modal.style.display = 'flex';
-    }
-
-    function onModalClassChanged() {
-      const cls = document.getElementById('modalClassOverrideSelect').value;
-      activeEvaluation.detectedClass = cls;
-      populateRosterMatchDropdown(cls);
-    }
-
-    function populateRosterMatchDropdown(selectedClass) {
-      const studentSelect = document.getElementById('studentConfirmSelect');
-      studentSelect.innerHTML = '';
-
-      const matchedStudents = students.filter(s => (s.class_level || s.class) === selectedClass);
-
-      if (matchedStudents.length === 0) {
-        const opt = document.createElement('option');
-        opt.value = "UNKNOWN_STUDENT";
-        opt.textContent = `Unlisted Student (${selectedClass})`;
-        studentSelect.appendChild(opt);
-        return;
-      }
-
-      let bestMatch = matchedStudents[0];
-      let maxSim = -1;
-
-      matchedStudents.forEach(st => {
-        const sim = getSimilarity(st.name, activeEvaluation.rawOcr);
-        if (sim > maxSim) {
-          maxSim = sim;
-          bestMatch = st;
-        }
-      });
-
-      matchedStudents.forEach(st => {
-        const opt = document.createElement('option');
-        const stId = st.id || st.student_id || st.name;
-        opt.value = stId;
-        opt.textContent = `${st.name} (Roll: ${st.roll_no || st.roll || '-'})`;
-        if (st === bestMatch) opt.selected = true;
-        studentSelect.appendChild(opt);
-      });
-    }
-
-    function confirmAndSaveRecord() {
-      const studentSelect = document.getElementById('studentConfirmSelect');
-      const classSelect = document.getElementById('modalClassOverrideSelect');
-      const scoreInput = document.getElementById('modalMcqScoreInput');
-
-      const studentId = studentSelect.value;
-      const studentName = studentSelect.options[studentSelect.selectedIndex].text.split(' (Roll:')[0];
-      const selectedClass = classSelect.value;
-      const finalScore = parseFloat(scoreInput.value) || 0;
-      const activeSub = getActiveSubject();
-
-      let records = [];
-      try {
-        records = JSON.parse(localStorage.getItem('dhk_evaluations') || localStorage.getItem('dhk_eval_records') || '[]');
-      } catch(e) { records = []; }
-
-      const existingIdx = records.findIndex(r => 
-        ((r.student_id === studentId || r.studentId === studentId) && (r.subject || 'Gunotsav') === activeSub)
-      );
-
-      const recordPayload = {
-        student_id: studentId,
-        studentId: studentId,
-        studentName: studentName,
-        class: selectedClass,
-        subject: activeSub,
-        score: finalScore,
-        max_score: activeEvaluation.maxScore,
-        totalMarks: activeEvaluation.maxScore,
-        skillMarks: 0,
-        correct: activeEvaluation.correct,
-        incorrect: activeEvaluation.incorrect,
-        timestamp: new Date().toISOString()
-      };
-
-      if (existingIdx >= 0) {
-        records[existingIdx] = recordPayload;
+      const idx = scannedRecords.findIndex(r => r.class === currentEvaluation.class && r.name === currentEvaluation.name);
+      if (idx !== -1) {
+        scannedRecords[idx] = currentEvaluation;
       } else {
-        records.push(recordPayload);
+        scannedRecords.push(currentEvaluation);
       }
 
-      localStorage.setItem('dhk_evaluations', JSON.stringify(records));
-      localStorage.setItem('dhk_eval_records', JSON.stringify(records));
-
-      alert(`✅ Evaluation Saved!\n${studentName} • ${selectedClass}\nSubject: ${activeSub}\nScore: ${finalScore} / ${activeEvaluation.maxScore}`);
+      localStorage.setItem('dhk_scanned_scores', JSON.stringify(scannedRecords));
       closeModal();
+      updateAttendanceAlert();
     }
 
     function closeModal() {
-      document.getElementById('studentVerifyModal').style.display = 'none';
+      document.getElementById('evalModal').classList.add('hidden');
+      currentEvaluation = null;
     }
 
-    window.onload = function() {
-      const savedSub = localStorage.getItem('dhk_active_subject') || 'Gunotsav';
-      const sel = document.getElementById('subjectPresetSelect');
-      if (['Gunotsav', 'Language I (Assamese)', 'Language II (English)', 'Mathematics', 'Environmental Studies (EVS)', 'General Science', 'Social Studies'].includes(savedSub)) {
-        sel.value = savedSub;
+    function toggleUnscannedList() {
+      const drawer = document.getElementById('unscannedDrawer');
+      const container = document.getElementById('unscannedContainer');
+      const locked = document.getElementById('lockedClass').value;
+
+      if (drawer.classList.contains('hidden')) {
+        const targetStudents = classRoster.filter(s => s.class === locked);
+        const scannedNames = new Set(scannedRecords.filter(r => r.class === locked).map(r => r.name));
+        const unscanned = targetStudents.filter(s => !scannedNames.has(s.name));
+
+        container.innerHTML = unscanned.map(s => `
+          <div class="flex justify-between items-center p-2 rounded bg-slate-700/50 border border-slate-600">
+            <span class="font-bold text-white">${s.name}</span>
+            <span class="text-slate-400">Roll: ${s.roll}</span>
+          </div>
+        `).join('');
+
+        drawer.classList.remove('hidden');
       } else {
-        sel.value = '__custom__';
-        const customInput = document.getElementById('customSubjectInput');
-        customInput.style.display = 'block';
-        customInput.value = savedSub;
+        drawer.classList.add('hidden');
       }
-
-      syncClassDropdown();
-    };
-  </script>
-
-  <!-- Offline Service Worker Activation -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(console.error);
     }
   </script>
 </body>
