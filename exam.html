@@ -15,6 +15,7 @@
       --accent-green: #16a34a;
       --accent-yellow: #eab308;
       --accent-red: #dc2626;
+      --accent-purple: #7c3aed;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: var(--bg-dark); color: var(--text-main); padding: 12px; }
@@ -37,6 +38,8 @@
     .btn { display: inline-block; width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-align: center; margin-bottom: 8px; }
     .btn-green { background: var(--accent-green); color: #fff; }
     .btn-blue { background: var(--accent-blue); color: #fff; }
+    .btn-purple { background: var(--accent-purple); color: #fff; }
+    .btn-gray { background: #4a5568; color: #fff; }
     .btn-outline { background: transparent; border: 1px solid var(--card-border); color: var(--text-main); }
 
     /* Answer Key Grid */
@@ -45,12 +48,28 @@
     .key-opt-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 0.7rem; font-weight: bold; cursor: pointer; margin-left: 2px; }
     .key-opt-btn.active { background: #2563eb; border-color: #60a5fa; color: #fff; }
 
+    /* Key Scanner Modal */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.9); z-index: 1000; padding: 14px;
+      align-items: center; justify-content: center;
+    }
+    .modal-box {
+      background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px;
+      padding: 16px; width: 100%; max-width: 500px;
+    }
+    .viewfinder-wrapper {
+      position: relative; width: 100%; height: 260px; border-radius: 6px; overflow: hidden;
+      background: #000; margin-bottom: 10px; border: 2px solid var(--card-border);
+    }
+    #keyVideo { width: 100%; height: 100%; object-fit: cover; }
+
     /* --- PRINT STYLES --- */
     #printArea { display: none; }
 
     @media print {
       body { background: #fff !important; color: #000 !important; padding: 0 !important; margin: 0 !important; }
-      .no-print, .nav-bar, .card, .btn { display: none !important; }
+      .no-print, .nav-bar, .card, .btn, .modal-overlay { display: none !important; }
       #printArea { display: block !important; width: 100%; }
 
       @page {
@@ -274,17 +293,41 @@
     <button class="btn btn-blue" onclick="prepareAndPrint()">🖨️ Print Tamper-Proof Universal OMR Sheet</button>
   </div>
 
+  <!-- Master Key Config Card -->
   <div class="card no-print">
     <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
       <span>2. Master Answer Key Configuration</span>
       <button class="btn btn-outline" style="width:auto; padding:4px 8px; margin:0;" onclick="randomizeMasterKey()">🎲 Demo Fill</button>
     </div>
+    
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <button class="btn btn-purple" style="margin:0;" onclick="openKeyScannerModal()">📷 Scan Master Sheet to Set Key</button>
+      <button class="btn btn-gray" style="margin:0;" onclick="document.getElementById('keyGalleryInput').click()">📁 Gallery</button>
+      <input type="file" id="keyGalleryInput" accept="image/*" style="display:none;" onchange="processKeyGalleryImage(event)">
+    </div>
+
     <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">
-      Tap the correct option for each question. Saved automatically for scanner comparison.
+      <b>Option A:</b> Tap any option below to set manually. <br>
+      <b>Option B:</b> Tap <i>Scan Master Sheet</i> above to automatically read a shaded teacher's sheet.
     </p>
+
     <div class="key-grid" id="keyGrid"></div>
-    <button class="btn btn-green" onclick="saveKeyMaster(true)">💾 Save Answer Key</button>
+    <button class="btn btn-green" onclick="saveKeyMaster(true)">💾 Save & Lock Answer Key</button>
   </div>
+
+  <!-- Scan Key Modal -->
+  <div class="modal-overlay" id="keyScanModal">
+    <div class="modal-box">
+      <h3 style="font-size: 14px; margin-bottom: 8px; color: #facc15;">Scan Master Answer Sheet</h3>
+      <div class="viewfinder-wrapper">
+        <video id="keyVideo" playsinline autoplay muted></video>
+      </div>
+      <button class="btn btn-purple" onclick="captureAndDetectKey()">📸 Capture & Extract Key</button>
+      <button class="btn btn-gray" onclick="closeKeyScannerModal()">Close</button>
+    </div>
+  </div>
+
+  <canvas id="keyCanvas" style="display:none;"></canvas>
 
   <!-- --- PRINTABLE UNIVERSAL OMR SHEET --- -->
   <div id="printArea">
@@ -294,18 +337,15 @@
       <div class="reg-block reg-bl"></div>
       <div class="reg-block reg-br"></div>
 
-      <!-- Clean Header -->
       <div class="sheet-header">
         <div class="school-title">EVALUATION OMR</div>
         <div class="sheet-badge" id="printBadgeText">58 QUESTIONS</div>
       </div>
 
-      <!-- Warning Instruction Line -->
       <div class="warning-strip">
         DO NOT FOLD OR TEAR OMR SHEET • USE BLACK OR BLUE BALL POINT PEN ONLY • DARKEN BUBBLE COMPLETELY • DO NOT OVERWRITE
       </div>
 
-      <!-- Character Boxes -->
       <div class="meta-grid">
         <div class="char-box-wrapper">
           <span class="char-box-label">STUDENT NAME (CAPITAL LETTERS ONLY):</span>
@@ -330,13 +370,11 @@
         </div>
       </div>
 
-      <!-- Timing Track and 5-Question Boxes -->
       <div class="omr-body">
         <div class="timing-track" id="timingTrackCol"></div>
         <div class="omr-columns" id="printOmrColumns"></div>
       </div>
 
-      <!-- Footer -->
       <div class="sheet-footer">
         <div>DHK OMR PRO UNIVERSAL ENGINE</div>
         <div class="sig-line">Signature of Invigilator</div>
@@ -349,6 +387,7 @@
     let totalQuestions = parseInt(localStorage.getItem('dhk_total_questions') || '58');
     let marksPerQ = parseFloat(localStorage.getItem('dhk_marks_per_q') || '1');
     let masterKey = {};
+    let keyStream = null;
 
     try {
       const saved = JSON.parse(localStorage.getItem('dhk_master_key') || '{}');
@@ -411,6 +450,120 @@
       saveKeyMaster();
     }
 
+    /* --- SCAN MASTER KEY MODAL LOGIC --- */
+    async function openKeyScannerModal() {
+      document.getElementById('keyScanModal').style.display = 'flex';
+      const video = document.getElementById('keyVideo');
+      try {
+        keyStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+        });
+        video.srcObject = keyStream;
+        await video.play();
+      } catch(e) {
+        alert("Camera preview not available. Please use Gallery upload option.");
+      }
+    }
+
+    function closeKeyScannerModal() {
+      if (keyStream) {
+        keyStream.getTracks().forEach(t => t.stop());
+        keyStream = null;
+      }
+      document.getElementById('keyScanModal').style.display = 'none';
+    }
+
+    function captureAndDetectKey() {
+      const video = document.getElementById('keyVideo');
+      const canvas = document.getElementById('keyCanvas');
+      if (!video || !video.videoWidth) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      detectKeyFromCanvas(canvas);
+      closeKeyScannerModal();
+    }
+
+    function processKeyGalleryImage(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.getElementById('keyCanvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          detectKeyFromCanvas(canvas);
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    }
+
+    // Auto-detect darkest bubble for each question from the master teacher sheet
+    function detectKeyFromCanvas(canvas) {
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const gridLeft = w * 0.075;
+      const gridRight = w * 0.720;
+      const colWidth = (gridRight - gridLeft) / 3;
+      const blockTops = [h * 0.495, h * 0.602, h * 0.708, h * 0.814];
+      const blockHeight = h * 0.082;
+      const rowStep = blockHeight / 5;
+
+      const options = ['A', 'B', 'C', 'D'];
+      let detectedCount = 0;
+
+      for (let q = 1; q <= Math.min(totalQuestions, 58); q++) {
+        let col = 0, rowInCol = 0;
+        if (q <= 20) { col = 0; rowInCol = q - 1; }
+        else if (q <= 40) { col = 1; rowInCol = q - 21; }
+        else if (q <= 60) { col = 2; rowInCol = q - 41; }
+
+        const blockIdx = Math.floor(rowInCol / 5);
+        const rowInBlock = rowInCol % 5;
+        const y = blockTops[blockIdx] + (rowInBlock * rowStep) + (rowStep * 0.5);
+        const colStartX = gridLeft + (col * colWidth);
+
+        let darkestOpt = null;
+        let minBrightness = 255;
+        let readings = [];
+
+        options.forEach((opt, idx) => {
+          const xCenter = colStartX + (colWidth * 0.28) + (idx * (colWidth * 0.178));
+          const p = ctx.getImageData(Math.round(xCenter - 2), Math.round(y - 2), 5, 5).data;
+          let sum = 0;
+          for (let i = 0; i < p.length; i += 4) {
+            sum += (p[i] * 0.299 + p[i+1] * 0.587 + p[i+2] * 0.114);
+          }
+          const avg = sum / (p.length / 4);
+          readings.push({ opt, avg });
+          if (avg < minBrightness) {
+            minBrightness = avg;
+            darkestOpt = opt;
+          }
+        });
+
+        readings.sort((a, b) => a.avg - b.avg);
+        if (readings[1].avg - readings[0].avg > 20) {
+          masterKey[q] = darkestOpt;
+          detectedCount++;
+        }
+      }
+
+      renderKeyGrid();
+      saveKeyMaster();
+      alert(`Master Key scanned successfully! Extracted ${detectedCount} out of ${totalQuestions} keys.`);
+    }
+
+    /* --- PRINT PREPARATION --- */
     function prepareAndPrint() {
       document.getElementById('printBadgeText').innerText = `${totalQuestions} QUESTIONS`;
 
@@ -418,7 +571,6 @@
       const rowsPerCol = Math.ceil(totalQuestions / numCols);
       const numBlocks = Math.ceil(rowsPerCol / 5);
 
-      // 1. Build Timing Track grouped to match 5-row blocks
       const timingTrack = document.getElementById('timingTrackCol');
       timingTrack.innerHTML = '';
       for (let b = 0; b < numBlocks; b++) {
@@ -433,7 +585,6 @@
         timingTrack.appendChild(grp);
       }
 
-      // 2. Build 3-Column 5-Question Enclosed Boxes
       const colContainer = document.getElementById('printOmrColumns');
       colContainer.innerHTML = '';
       const opts = ['A', 'B', 'C', 'D'];
