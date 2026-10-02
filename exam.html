@@ -3,9 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>DHK OMR Pro - Answer Key Configuration</title>
+  <title>DHK OMR Pro - Answer Key & Sheet Generator</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @media print {
+      body * { visibility: hidden; }
+      #printableArea, #printableArea * { visibility: visible; }
+      #printableArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 5mm;
+        display: block !important;
+      }
+    }
+  </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
@@ -18,15 +33,14 @@
         </a>
         <div>
           <h1 class="text-xs font-black uppercase tracking-wider text-white">Answer Key Configuration</h1>
-          <div id="keyStatusBadge" class="text-[11px] font-medium text-amber-400">
-            Editing Keys (0 Set)
-          </div>
+          <div id="keyStatusBadge" class="text-[11px] font-medium text-amber-400">Editing Class III (0 Keys Set)</div>
         </div>
       </div>
 
-      <button id="lockKeyBtn" onclick="toggleKeyLock()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1 border border-slate-700">
-        <i data-lucide="lock" class="w-3.5 h-3.5" id="lockIcon"></i>
-        <span id="lockBtnText">Lock Key</span>
+      <!-- Quick Action: Print Custom Blank Template -->
+      <button onclick="printCustomSheet()" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 shadow">
+        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+        <span>Print Sheet</span>
       </button>
     </div>
 
@@ -49,12 +63,8 @@
       </div>
 
       <div>
-        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Format / Question Count</label>
-        <select id="totalQuestions" onchange="onQuestionCountChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-400 font-bold">
-          <option value="58">58 Questions (Gunotsav 43-Rail)</option>
-          <option value="100">100 Questions (Universal 34-Rail)</option>
-          <option value="75">75 Questions (Custom/Secondary)</option>
-        </select>
+        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Total Questions Needed</label>
+        <input type="number" id="customQCount" min="1" max="100" value="58" onchange="onCustomCountChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-400 font-bold font-mono focus:outline-none focus:border-cyan-400" />
       </div>
     </div>
   </header>
@@ -62,7 +72,7 @@
   <!-- KEY QUESTIONS LIST -->
   <main class="flex-1 max-w-lg mx-auto w-full p-3.5 space-y-2 pb-24">
     <div id="questionsContainer" class="space-y-1.5">
-      <!-- Dynamically generated rows Q01 to Q58 or Q100 -->
+      <!-- Generated based on your chosen number -->
     </div>
   </main>
 
@@ -72,18 +82,41 @@
       <button onclick="resetCurrentKey()" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold border border-slate-700">
         Reset Key
       </button>
-      <button onclick="saveAndProceed()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg transition text-xs flex items-center justify-center gap-1.5">
+      <button onclick="saveAndProceed()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
         <i data-lucide="scan-line" class="w-4 h-4"></i>
-        <span>Save & Proceed to Scanner</span>
+        <span>Save & Go to Scanner</span>
       </button>
     </div>
   </footer>
+
+  <!-- PRINT VIEW (Triggered on Print) -->
+  <div id="printableArea" class="hidden bg-white text-black font-sans">
+    <div style="border: 2px solid #000; padding: 12px; border-radius: 6px;">
+      <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 6px;">
+        <h2 style="font-size: 16pt; font-weight: 900; margin: 0; text-transform: uppercase;">DHK Custom OMR Evaluation Sheet</h2>
+        <p style="font-size: 8pt; margin: 2px 0 0 0; font-weight: bold;">Class <span id="printClassVal">III</span> • <span id="printCountVal">58</span> Questions</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin: 8px 0; border: 1px solid #000; padding: 6px; font-size: 8pt;">
+        <div><b>Student Name:</b> ___________________________</div>
+        <div><b>Class / Sec:</b> <span id="printClassVal2">III</span></div>
+        <div><b>Roll No:</b> _________</div>
+      </div>
+
+      <div id="printGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 8pt; margin-top: 8px;"></div>
+
+      <div style="margin-top: 10px; border-top: 1px solid #000; padding-top: 4px; font-size: 7pt; display: flex; justify-content: space-between;">
+        <span>• Use Blue / Black Ballpoint Pen only</span>
+        <span>• Darken circles completely: [ ● ]</span>
+        <span>DHK OMR PRO ENGINE</span>
+      </div>
+    </div>
+  </div>
 
   <script>
     let currentClass = 'III';
     let questionCount = 58;
     let answerKey = {};
-    let isLocked = false;
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
@@ -95,14 +128,15 @@
       const stored = localStorage.getItem(`dhk_key_${cls}`);
       answerKey = stored ? JSON.parse(stored) : {};
 
-      const storedCount = Object.keys(answerKey).length;
-      if (storedCount > 58) {
-        questionCount = 100;
-        document.getElementById('totalQuestions').value = "100";
+      const storedQCount = localStorage.getItem(`dhk_qcount_${cls}`);
+      if (storedQCount) {
+        questionCount = parseInt(storedQCount);
       } else {
-        questionCount = parseInt(document.getElementById('totalQuestions').value);
+        const keysArr = Object.keys(answerKey).map(Number);
+        questionCount = keysArr.length > 0 ? Math.max(...keysArr) : (cls === 'III' ? 58 : 50);
       }
 
+      document.getElementById('customQCount').value = questionCount;
       renderQuestions();
       updateStatusBadge();
     }
@@ -112,8 +146,13 @@
       loadKeyForClass(val);
     }
 
-    function onQuestionCountChange(val) {
-      questionCount = parseInt(val);
+    function onCustomCountChange(val) {
+      let num = parseInt(val) || 1;
+      if (num < 1) num = 1;
+      if (num > 100) num = 100;
+      questionCount = num;
+      document.getElementById('customQCount').value = num;
+      localStorage.setItem(`dhk_qcount_${currentClass}`, num);
       renderQuestions();
       updateStatusBadge();
     }
@@ -132,7 +171,7 @@
           <span class="text-xs font-mono font-bold text-slate-300">Q${qNum}</span>
           <div class="flex gap-2">
             ${['A', 'B', 'C', 'D'].map(opt => `
-              <button onclick="setOption(${i}, '${opt}')" class="w-8 h-8 rounded-full font-bold text-xs transition ${                 selected === opt                   ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-400'                   : 'bg-slate-950 text-slate-400 border border-slate-800 hover:border-slate-600'               }">${opt}</button>
+              <button onclick="setOption(${i}, '${opt}')" class="w-8 h-8 rounded-full font-bold text-xs transition ${                 selected === opt ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-400' : 'bg-slate-950 text-slate-400 border border-slate-800 hover:border-slate-700'               }">${opt}</button>
             `).join('')}
           </div>
         `;
@@ -141,61 +180,81 @@
     }
 
     function setOption(q, opt) {
-      if (answerKey[q] === opt) {
-        delete answerKey[q];
-      } else {
-        answerKey[q] = opt;
-      }
+      answerKey[q] = (answerKey[q] === opt) ? null : opt;
+      if (!answerKey[q]) delete answerKey[q];
       renderQuestions();
       updateStatusBadge();
-      saveKey();
+      saveState();
     }
 
     function updateStatusBadge() {
       const count = Object.keys(answerKey).length;
-      const badge = document.getElementById('keyStatusBadge');
-      if (count === 0) {
-        badge.innerText = `Editing Class ${currentClass} (0 Keys Set)`;
-        badge.className = "text-[11px] font-medium text-amber-400";
-      } else {
-        badge.innerText = `Class ${currentClass} (${count}/${questionCount} Keys Set)`;
-        badge.className = "text-[11px] font-medium text-emerald-400";
-      }
+      document.getElementById('keyStatusBadge').innerText = `Editing Class ${currentClass} (${count}/${questionCount} Keys Set)`;
     }
 
-    function saveKey() {
+    function saveState() {
       localStorage.setItem(`dhk_key_${currentClass}`, JSON.stringify(answerKey));
-      localStorage.setItem('dhk_master_key', JSON.stringify(answerKey));
-    }
-
-    function toggleKeyLock() {
-      isLocked = !isLocked;
-      const icon = document.getElementById('lockIcon');
-      const text = document.getElementById('lockBtnText');
-      if (isLocked) {
-        text.innerText = "Unlock Key";
-        icon.setAttribute('data-lucide', 'unlock');
-      } else {
-        text.innerText = "Lock Key";
-        icon.setAttribute('data-lucide', 'lock');
-      }
-      lucide.createIcons();
+      localStorage.setItem(`dhk_qcount_${currentClass}`, questionCount);
     }
 
     function resetCurrentKey() {
-      if (confirm(`Reset all answer keys for Class ${currentClass}?`)) {
+      if (confirm(`Reset answer key for Class ${currentClass}?`)) {
         answerKey = {};
-        saveKey();
+        localStorage.removeItem(`dhk_key_${currentClass}`);
         renderQuestions();
         updateStatusBadge();
       }
     }
 
     function saveAndProceed() {
-      saveKey();
+      saveState();
       localStorage.setItem('dhk_locked_class', currentClass);
-      const isUniversal = questionCount > 58;
-      window.location.href = `scan-mcq.html?format=${isUniversal ? 'universal' : 'gunotsav'}`;
+      localStorage.setItem('dhk_active_total_q', questionCount);
+      window.location.href = `scan-mcq.html?total=${questionCount}`;
+    }
+
+    function printCustomSheet() {
+      document.getElementById('printClassVal').innerText = currentClass;
+      document.getElementById('printClassVal2').innerText = currentClass;
+      document.getElementById('printCountVal').innerText = questionCount;
+
+      const grid = document.getElementById('printGrid');
+      grid.innerHTML = '';
+
+      const cols = questionCount > 40 ? 3 : 2;
+      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      const perCol = Math.ceil(questionCount / cols);
+
+      for (let c = 0; c < cols; c++) {
+        const colDiv = document.createElement('div');
+        colDiv.style.border = '1px solid #ccc';
+        colDiv.style.padding = '4px';
+
+        const start = c * perCol + 1;
+        const end = Math.min((c + 1) * perCol, questionCount);
+
+        for (let q = start; q <= end; q++) {
+          const row = document.createElement('div');
+          row.style.display = 'flex';
+          row.style.justifyContent = 'space-between';
+          row.style.alignItems = 'center';
+          row.style.padding = '2px 0';
+          row.style.borderBottom = '0.5px dashed #eee';
+          row.innerHTML = `
+            <span style="font-family: monospace; font-weight: bold; width: 28px;">Q${String(q).padStart(2, '0')}</span>
+            <span style="display: flex; gap: 4px;">
+              <span style="display:inline-block; width:14px; height:14px; border:1px solid #000; border-radius:50%; text-align:center; line-height:14px; font-size:6pt;">A</span>
+              <span style="display:inline-block; width:14px; height:14px; border:1px solid #000; border-radius:50%; text-align:center; line-height:14px; font-size:6pt;">B</span>
+              <span style="display:inline-block; width:14px; height:14px; border:1px solid #000; border-radius:50%; text-align:center; line-height:14px; font-size:6pt;">C</span>
+              <span style="display:inline-block; width:14px; height:14px; border:1px solid #000; border-radius:50%; text-align:center; line-height:14px; font-size:6pt;">D</span>
+            </span>
+          `;
+          colDiv.appendChild(row);
+        }
+        grid.appendChild(colDiv);
+      }
+
+      window.print();
     }
   </script>
 </body>
