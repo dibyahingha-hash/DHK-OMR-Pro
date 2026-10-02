@@ -8,23 +8,32 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     @media print {
-      body * { visibility: hidden; }
-      #printableArea, #printableArea * { visibility: visible; }
+      body * { visibility: hidden !important; }
+      #printableArea, #printableArea * { visibility: visible !important; }
       #printableArea {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 5mm;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
         display: block !important;
+        background: #fff !important;
       }
+      @page {
+        size: A4 portrait;
+        margin: 6mm;
+      }
+    }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
-  <!-- HEADER -->
+  <!-- APP VIEW (Hidden during printing) -->
   <header class="bg-slate-900 border-b border-slate-800 p-3 sticky top-0 z-30 shadow-lg">
     <div class="flex items-center justify-between max-w-lg mx-auto">
       <div class="flex items-center gap-2">
@@ -32,12 +41,12 @@
           <i data-lucide="arrow-left" class="w-4 h-4"></i>
         </a>
         <div>
-          <h1 class="text-xs font-black uppercase tracking-wider text-white">Answer Key Configuration</h1>
+          <h1 class="text-xs font-black uppercase tracking-wider text-white">Answer Key & Sheets</h1>
           <div id="keyStatusBadge" class="text-[11px] font-medium text-amber-400">Editing Class III (0 Keys Set)</div>
         </div>
       </div>
 
-      <!-- Quick Action: Print Custom Blank Template -->
+      <!-- Print Sheet Trigger -->
       <button onclick="printCustomSheet()" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 shadow">
         <i data-lucide="printer" class="w-3.5 h-3.5"></i>
         <span>Print Sheet</span>
@@ -49,7 +58,10 @@
       <div>
         <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Active Class</label>
         <select id="selectedClass" onchange="onClassChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold">
-          <option value="III">Class III</option>
+          <option value="Ka-Shreni">Ka-Shreni</option>
+          <option value="I">Class I</option>
+          <option value="II">Class II</option>
+          <option value="III" selected>Class III</option>
           <option value="IV">Class IV</option>
           <option value="V">Class V</option>
           <option value="VI">Class VI</option>
@@ -71,9 +83,7 @@
 
   <!-- KEY QUESTIONS LIST -->
   <main class="flex-1 max-w-lg mx-auto w-full p-3.5 space-y-2 pb-24">
-    <div id="questionsContainer" class="space-y-1.5">
-      <!-- Generated based on your chosen number -->
-    </div>
+    <div id="questionsContainer" class="space-y-1.5"></div>
   </main>
 
   <!-- FOOTER -->
@@ -89,27 +99,50 @@
     </div>
   </footer>
 
-  <!-- PRINT VIEW (Triggered on Print) -->
-  <div id="printableArea" class="hidden bg-white text-black font-sans">
-    <div style="border: 2px solid #000; padding: 12px; border-radius: 6px;">
-      <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 6px;">
-        <h2 style="font-size: 16pt; font-weight: 900; margin: 0; text-transform: uppercase;">DHK Custom OMR Evaluation Sheet</h2>
-        <p style="font-size: 8pt; margin: 2px 0 0 0; font-weight: bold;">Class <span id="printClassVal">III</span> • <span id="printCountVal">58</span> Questions</p>
+  <!-- FULL OMR PRINTABLE CONTAINER WITH TIMING RAILS & FIDUCIALS -->
+  <div id="printableArea" class="hidden text-black font-sans">
+    <div style="position: relative; width: 100%; border: 2.5px solid #000; padding: 14px 10px; background: #fff; box-sizing: border-box;">
+      
+      <!-- 4 SOLID CORNER FIDUCIAL MARKERS -->
+      <div style="position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: #000;"></div>
+      <div style="position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; background: #000;"></div>
+      <div style="position: absolute; bottom: 3px; left: 3px; width: 20px; height: 20px; background: #000;"></div>
+      <div style="position: absolute; bottom: 3px; right: 3px; width: 20px; height: 20px; background: #000;"></div>
+
+      <!-- HEADER -->
+      <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin: 0 20px;">
+        <h2 id="printTitle" style="font-size: 15pt; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">DHK Precision OMR Answer Sheet</h2>
+        <p id="printSub" style="font-size: 8pt; margin: 2px 0 0 0; font-weight: bold; color: #222;">Class <span id="printClassVal">III</span> • <span id="printCountVal">58</span> Questions • Calibration Rail Enabled</p>
       </div>
 
-      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin: 8px 0; border: 1px solid #000; padding: 6px; font-size: 8pt;">
-        <div><b>Student Name:</b> ___________________________</div>
+      <!-- STUDENT METADATA ROW -->
+      <div style="display: grid; grid-template-columns: 2.5fr 1fr 1fr; gap: 8px; margin: 8px 20px; border: 1.5px solid #000; padding: 5px 8px; font-size: 8.5pt;">
+        <div><b>Candidate Name:</b> ___________________________</div>
         <div><b>Class / Sec:</b> <span id="printClassVal2">III</span></div>
         <div><b>Roll No:</b> _________</div>
       </div>
 
-      <div id="printGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 8pt; margin-top: 8px;"></div>
+      <!-- TIMING RAILS + QUESTION GRID CONTAINER -->
+      <div style="display: flex; justify-content: space-between; align-items: stretch; margin: 6px 4px;">
+        
+        <!-- LEFT 34-DASH TIMING RAIL -->
+        <div id="printLeftRail" style="width: 14px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 2px 0;"></div>
 
-      <div style="margin-top: 10px; border-top: 1px solid #000; padding-top: 4px; font-size: 7pt; display: flex; justify-content: space-between;">
-        <span>• Use Blue / Black Ballpoint Pen only</span>
-        <span>• Darken circles completely: [ ● ]</span>
-        <span>DHK OMR PRO ENGINE</span>
+        <!-- MAIN QUESTION BUBBLE GRID -->
+        <div id="printGrid" style="flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 6px;"></div>
+
+        <!-- RIGHT 34-DASH TIMING RAIL -->
+        <div id="printRightRail" style="width: 14px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 2px 0;"></div>
+
       </div>
+
+      <!-- BOTTOM INSTRUCTION / FOOTER -->
+      <div style="margin: 6px 20px 0 20px; border-top: 1.5px solid #000; padding-top: 4px; font-size: 7pt; display: flex; justify-content: space-between; font-weight: bold;">
+        <span>• Use Blue or Black Ballpoint Pen only</span>
+        <span>• Darken bubbles completely: [ ● ]</span>
+        <span>DHK OMR PRO 34-RAIL VISION SYSTEM</span>
+      </div>
+
     </div>
   </div>
 
@@ -218,6 +251,24 @@
       document.getElementById('printClassVal2').innerText = currentClass;
       document.getElementById('printCountVal').innerText = questionCount;
 
+      // 1. Populate the 34 solid black timing dashes on left and right borders
+      const leftRail = document.getElementById('printLeftRail');
+      const rightRail = document.getElementById('printRightRail');
+      leftRail.innerHTML = '';
+      rightRail.innerHTML = '';
+
+      const timingDashes = 34;
+      for (let d = 0; d < timingDashes; d++) {
+        const dash1 = document.createElement('div');
+        dash1.style.cssText = "width: 12px; height: 4px; background: #000; margin: 2px 0;";
+        leftRail.appendChild(dash1);
+
+        const dash2 = document.createElement('div');
+        dash2.style.cssText = "width: 12px; height: 4px; background: #000; margin: 2px 0;";
+        rightRail.appendChild(dash2);
+      }
+
+      // 2. Populate the Question & Option Bubble Columns
       const grid = document.getElementById('printGrid');
       grid.innerHTML = '';
 
@@ -227,26 +278,21 @@
 
       for (let c = 0; c < cols; c++) {
         const colDiv = document.createElement('div');
-        colDiv.style.border = '1px solid #ccc';
-        colDiv.style.padding = '4px';
+        colDiv.style.cssText = "border: 1px solid #777; border-radius: 4px; padding: 4px; display: flex; flex-direction: column; justify-content: space-between;";
 
         const start = c * perCol + 1;
         const end = Math.min((c + 1) * perCol, questionCount);
 
         for (let q = start; q <= end; q++) {
           const row = document.createElement('div');
-          row.style.display = 'flex';
-          row.style.justifyContent = 'space-between';
-          row.style.alignItems = 'center';
-          row.style.padding = '2px 0';
-          row.style.borderBottom = '0.5px dashed #eee';
+          row.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 2px 2px; border-bottom: 0.5px dashed #ccc; height: 18px;";
           row.innerHTML = `
-            <span style="font-family: monospace; font-weight: bold; width: 28px;">Q${String(q).padStart(2, '0')}</span>
+            <span style="font-family: monospace; font-size: 7pt; font-weight: bold; width: 24px;">Q${String(q).padStart(2, '0')}</span>
             <span style="display: flex; gap: 4px;">
-              <span style="display:inline-block; width:14px; height:14px; border:1px solid #000; border-radius:50%; text-align:center; line-height:14px; font-size:6pt;">A</span>
-              <span style="display:inline-block; width:14px; height:14px; border:1px solid #000; border-radius:50%; text-align:center; line-height:14px; font-size:6pt;">B</span>
-              <span style="display:inline-block; width:14px; height:14px; border:1px solid #000; border-radius:50%; text-align:center; line-height:14px; font-size:6pt;">C</span>
-              <span style="display:inline-block; width:14px; height:14px; border:1px solid #000; border-radius:50%; text-align:center; line-height:14px; font-size:6pt;">D</span>
+              <span style="display:inline-block; width:13px; height:13px; border:1.2px solid #000; border-radius:50%; text-align:center; line-height:12px; font-size:6pt; font-weight:bold;">A</span>
+              <span style="display:inline-block; width:13px; height:13px; border:1.2px solid #000; border-radius:50%; text-align:center; line-height:12px; font-size:6pt; font-weight:bold;">B</span>
+              <span style="display:inline-block; width:13px; height:13px; border:1.2px solid #000; border-radius:50%; text-align:center; line-height:12px; font-size:6pt; font-weight:bold;">C</span>
+              <span style="display:inline-block; width:13px; height:13px; border:1.2px solid #000; border-radius:50%; text-align:center; line-height:12px; font-size:6pt; font-weight:bold;">D</span>
             </span>
           `;
           colDiv.appendChild(row);
