@@ -38,7 +38,7 @@
 
     .form-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .form-group label { font-size: 13px; color: var(--sub); }
-    .form-group select {
+    .form-group select, .form-group input {
       width: 220px; padding: 8px 10px; background: #1a2230;
       border: 1px solid var(--border); border-radius: 6px; color: #fff; font-size: 13px;
     }
@@ -122,6 +122,23 @@
           <option value="gunotsav_upper" selected>Gunotsav Sheet (58 Questions)</option>
           <option value="universal_100">Universal Sheet (1 to 100 Questions)</option>
         </select>
+      </div>
+
+      <div class="form-group">
+        <label>Subject / Assessment Type:</label>
+        <div style="display: flex; flex-direction: column; gap: 6px; width: 220px;">
+          <select id="subjectPresetSelect" onchange="onSubjectChange()" style="width: 100%;">
+            <option value="Gunotsav" selected>Gunotsav (Composite)</option>
+            <option value="Language I (Assamese)">Language I (Assamese)</option>
+            <option value="Language II (English)">Language II (English)</option>
+            <option value="Mathematics">Mathematics</option>
+            <option value="Environmental Studies (EVS)">Environmental Studies (EVS)</option>
+            <option value="General Science">General Science</option>
+            <option value="Social Studies">Social Studies</option>
+            <option value="__custom__">✏️ Other (Type Manually)...</option>
+          </select>
+          <input type="text" id="customSubjectInput" placeholder="Type Subject..." style="display: none; width: 100%;" oninput="onCustomSubjectInput()">
+        </div>
       </div>
 
       <div class="form-group">
@@ -219,6 +236,36 @@
 
     const CLASSES = ['Ka-Shreni', 'Class-I', 'Class-II', 'Class-III', 'Class-IV', 'Class-V', 'Class-VI', 'Class-VII', 'Class-VIII', 'Class-IX', 'Class-X', 'Class-XI', 'Class-XII'];
 
+    function onSubjectChange() {
+      const preset = document.getElementById('subjectPresetSelect').value;
+      const customField = document.getElementById('customSubjectInput');
+      if (preset === '__custom__') {
+        customField.style.display = 'block';
+        customField.focus();
+      } else {
+        customField.style.display = 'none';
+        localStorage.setItem('dhk_active_subject', preset);
+      }
+    }
+
+    function onCustomSubjectInput() {
+      const val = document.getElementById('customSubjectInput').value.trim();
+      localStorage.setItem('dhk_active_subject', val || 'General');
+    }
+
+    function getActiveSubject() {
+      const preset = document.getElementById('subjectPresetSelect').value;
+      if (preset === '__custom__') {
+        return document.getElementById('customSubjectInput').value.trim() || 'General';
+      }
+      return preset;
+    }
+
+    function getEffectiveQuestionCount() {
+      const activeKeys = Object.keys(masterKey).map(Number).filter(q => masterKey[q]);
+      return activeKeys.length > 0 ? Math.max(...activeKeys) : totalQuestions;
+    }
+
     function syncClassDropdown() {
       const mode = document.getElementById('examTrackSelect').value;
       const classSelect = document.getElementById('scanClassSelect');
@@ -234,12 +281,8 @@
         classSelect.appendChild(opt);
       });
 
-      if (mode === 'gunotsav_upper') {
-        totalQuestions = 58;
-      } else {
-        totalQuestions = parseInt(localStorage.getItem('dhk_total_questions') || '100');
-      }
-      note.innerHTML = `Active Questions: <b>${totalQuestions}</b> | Marks/Q: <b>${marksPerQ}</b>`;
+      const effectiveTotal = getEffectiveQuestionCount();
+      note.innerHTML = `Active Questions: <b>${effectiveTotal}</b> | Marks/Q: <b>${marksPerQ}</b>`;
     }
 
     async function startCamera() {
@@ -284,6 +327,14 @@
 
     async function startControlledScan() {
       if (isProcessing) return;
+
+      const activeKeys = Object.keys(masterKey).filter(k => masterKey[k]);
+      if (activeKeys.length === 0) {
+        if (!confirm("⚠️ No Master Answer Key found! Do you want to continue evaluating anyway?")) {
+          return;
+        }
+      }
+
       const video = document.getElementById('cameraStream');
       if (!video || !video.videoWidth) {
         alert("Please start camera or select a photo from gallery.");
@@ -370,55 +421,44 @@
       return null;
     }
 
-    // Adaptive thresholding: immune to shadows and creases
-    function binarizeCanvas(canvasCtx, width, height, threshold = 145) {
-      const imgData = canvasCtx.getImageData(0, 0, width, height);
-      const d = imgData.data;
-      for (let i = 0; i < d.length; i += 4) {
-        const v = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-        const val = v < threshold ? 0 : 255;
-        d[i] = d[i+1] = d[i+2] = val;
-      }
-      canvasCtx.putImageData(imgData, 0, 0);
-    }
-
-    // Robust 3-Column Gunotsav Evaluation with Block Offsets
     function evaluateBubbles(ctx, w, h) {
       const responses = {};
+      const isUniversal = document.getElementById('examTrackSelect').value === 'universal_100';
 
       const gridLeft = w * 0.075;
       const gridRight = w * 0.720;
       const colWidth = (gridRight - gridLeft) / 3;
 
-      // 4 distinct blocks of 5 rows each to account for paper spacing & creases
-      const blockTops = [
-        h * 0.495, // Block 1: Q1-5, 21-25, 41-45
-        h * 0.602, // Block 2: Q6-10, 26-30, 46-50
-        h * 0.708, // Block 3: Q11-15, 31-35, 51-55
-        h * 0.814  // Block 4: Q16-20, 36-40, 56-58
-      ];
-      const blockHeight = h * 0.082; // Height of each 5-row group
+      const blockTops = isUniversal
+        ? [h * 0.190, h * 0.380, h * 0.570, h * 0.760]
+        : [h * 0.495, h * 0.602, h * 0.708, h * 0.814];
+
+      const blockHeight = isUniversal ? (h * 0.160) : (h * 0.082);
       const rowStep = blockHeight / 5;
+
+      const effectiveTotal = getEffectiveQuestionCount();
+      const rowsPerCol = Math.ceil(effectiveTotal / 3);
 
       function getQuestionPosition(q) {
         let col = 0, rowInCol = 0;
-        if (q <= 20) {
-          col = 0; rowInCol = q - 1;
-        } else if (q <= 40) {
-          col = 1; rowInCol = q - 21;
-        } else if (q <= 60) {
-          col = 2; rowInCol = q - 41;
+        if (isUniversal) {
+          col = Math.floor((q - 1) / rowsPerCol);
+          rowInCol = (q - 1) % rowsPerCol;
+        } else {
+          if (q <= 20) { col = 0; rowInCol = q - 1; }
+          else if (q <= 40) { col = 1; rowInCol = q - 21; }
+          else if (q <= 60) { col = 2; rowInCol = q - 41; }
         }
 
         const blockIdx = Math.floor(rowInCol / 5);
         const rowInBlock = rowInCol % 5;
-        const y = blockTops[blockIdx] + (rowInBlock * rowStep) + (rowStep * 0.5);
+        const y = (blockTops[blockIdx] || blockTops[0]) + (rowInBlock * rowStep) + (rowStep * 0.5);
         return { col, y };
       }
 
       const options = ['A', 'B', 'C', 'D'];
 
-      for (let q = 1; q <= Math.min(totalQuestions, 58); q++) {
+      for (let q = 1; q <= effectiveTotal; q++) {
         const { col, y } = getQuestionPosition(q);
         const colStartX = gridLeft + (col * colWidth);
 
@@ -428,8 +468,6 @@
 
         options.forEach((opt, idx) => {
           const xCenter = colStartX + (colWidth * 0.28) + (idx * (colWidth * 0.178));
-          
-          // Sample a 7x7 patch around the bubble core
           const p = ctx.getImageData(Math.round(xCenter - 3), Math.round(y - 3), 7, 7).data;
           let sum = 0;
           for (let i = 0; i < p.length; i += 4) {
@@ -445,7 +483,6 @@
         });
 
         readings.sort((a, b) => a.avg - b.avg);
-        // Contrast difference threshold: ensures filled bubble is clearly darker than unmarked neighbors
         if (readings[1].avg - readings[0].avg > 25) {
           responses[q] = darkestOpt;
         } else {
@@ -461,207 +498,210 @@
       const w = canvas.width;
       const h = canvas.height;
 
-      setScanProgress(55, "Scanning Class Header...", "Reading upper banner");
+      setScanProgress(55, "Scanning Header...", "Extracting Class & Name");
       const crop = document.getElementById('cropCanvas');
       const cropCtx = crop.getContext('2d', { willReadFrequently: true });
 
-      // 1. CLASS ZONE: Wide scan of top-right header to catch Class-III regardless of fold
-      const classCropX = Math.round(w * 0.65);
-      const classCropY = Math.round(h * 0.015);
-      const classCropW = Math.round(w * 0.33);
-      const classCropH = Math.round(h * 0.080);
+      // Crop upper header where Class and Student Name boxes reside
+      crop.width = w;
+      crop.height = Math.round(h * 0.26);
+      cropCtx.drawImage(canvas, 0, 0, w, crop.height, 0, 0, w, crop.height);
 
-      crop.width = classCropW;
-      crop.height = classCropH;
-      cropCtx.drawImage(canvas, classCropX, classCropY, classCropW, classCropH, 0, 0, classCropW, classCropH);
-      binarizeCanvas(cropCtx, classCropW, classCropH, 135);
-
-      let rawClassText = "";
+      let ocrText = "";
       try {
-        const resClass = await Tesseract.recognize(crop, 'eng');
-        rawClassText = (resClass.data.text || '').trim();
-      } catch (err) {
-        console.warn("Class OCR error", err);
-      }
-
-      const detectedClass = parseDetectedClass(rawClassText) || document.getElementById('scanClassSelect').value;
-
-      setScanProgress(75, "Reading Student Name...", "Parsing student details block");
-
-      // 2. WIDE-WINDOW STUDENT NAME SCAN: Covers rows 4 through 8
-      // Solves folded paper shifts by reading the full block and extracting text after "NAME"
-      const infoCropX = Math.round(w * 0.06);
-      const infoCropY = Math.round(h * 0.200);
-      const infoCropW = Math.round(w * 0.72);
-      const infoCropH = Math.round(h * 0.180);
-
-      crop.width = infoCropW;
-      crop.height = infoCropH;
-      cropCtx.drawImage(canvas, infoCropX, infoCropY, infoCropW, infoCropH, 0, 0, infoCropW, infoCropH);
-      binarizeCanvas(cropCtx, infoCropW, infoCropH, 140);
-
-      let detectedName = "";
-      let rawBlockText = "";
-      try {
-        const resInfo = await Tesseract.recognize(crop, 'eng');
-        rawBlockText = resInfo.data.text || '';
-        
-        // Split by lines and search for the line with STUDENT NAME or NAME
-        const lines = rawBlockText.split('\n').map(l => l.trim()).filter(Boolean);
-        for (let line of lines) {
-          const upper = line.toUpperCase();
-          if (upper.includes("STUDENT NAME") || upper.includes("NAME")) {
-            // Extract everything after the colon or after 'NAME'
-            const parts = line.split(/[:-]/);
-            if (parts.length > 1) {
-              detectedName = parts[parts.length - 1].replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
-            } else {
-              detectedName = line.replace(/.*NAME/i, '').replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
-            }
-            if (detectedName.length > 2) break;
-          }
-        }
-
-        // Fallback: If line didn't split cleanly, check lines for pure alphabetic student names
-        if (!detectedName) {
-          for (let line of lines) {
-            const clean = line.replace(/[^A-Za-z\s]/g, '').trim().toUpperCase();
-            if (clean.length > 4 && !clean.includes("SCHOOL") && !clean.includes("UDISE") && !clean.includes("DISTRICT") && !clean.includes("BLOCK") && !clean.includes("CLUSTER") && !clean.includes("CODE")) {
-              detectedName = clean;
-              break;
-            }
-          }
+        if (window.Tesseract) {
+          const res = await Tesseract.recognize(crop, 'eng');
+          ocrText = res.data.text || "";
         }
       } catch (err) {
-        console.warn("Name OCR error", err);
+        console.warn("OCR non-critical fallback", err);
       }
 
-      setScanProgress(90, "Evaluating 3-Column Bubbles...", "Scanning MCQ blocks with fold tolerance");
+      setScanProgress(80, "Evaluating Answers...", "Differential bubble measurement");
+      await sleep(200);
 
-      // 3. EVALUATE BUBBLES
       const responses = evaluateBubbles(ctx, w, h);
+      const effectiveTotal = getEffectiveQuestionCount();
+
       let correct = 0, incorrect = 0;
-      for (let q = 1; q <= totalQuestions; q++) {
+      for (let q = 1; q <= effectiveTotal; q++) {
         const studentAns = responses[q];
         const correctAns = masterKey[q];
-        if (studentAns && correctAns) {
+        if (correctAns) {
           if (studentAns === correctAns) correct++;
-          else incorrect++;
+          else if (studentAns) incorrect++;
         }
       }
-      const score = correct * marksPerQ;
 
-      // 4. Fuzzy match against enrolled roster
-      const classStudents = students.filter(s => (s.class_level || s.class) === detectedClass);
-      let bestMatch = null;
-      let highestSim = -1;
-      classStudents.forEach(s => {
-        const sim = getSimilarity(detectedName, s.name);
-        if (sim > highestSim) {
-          highestSim = sim;
-          bestMatch = s;
-        }
-      });
+      const calculatedScore = correct * marksPerQ;
+      const maxPossibleScore = effectiveTotal * marksPerQ;
 
-      setScanProgress(100, "Done!", "Opening verification modal");
-      await sleep(250);
+      // Extract detected class or fallback to selected UI class
+      const parsedCls = parseDetectedClass(ocrText);
+      const fallbackCls = document.getElementById('scanClassSelect').value;
+      const finalClass = parsedCls || fallbackCls;
 
-      activeEvaluation = { score, correct, incorrect, responses, detectedClass, detectedName, totalQuestions };
-      openConfirmModal(detectedClass, rawClassText, detectedName, bestMatch, score, correct, incorrect);
+      activeEvaluation = {
+        score: calculatedScore,
+        maxScore: maxPossibleScore,
+        correct: correct,
+        incorrect: incorrect,
+        detectedClass: finalClass,
+        rawOcr: ocrText,
+        responses: responses
+      };
+
+      setScanProgress(100, "Done!", "Opening verification dialog");
+      await sleep(200);
+
+      openVerificationModal();
     }
 
-    function openConfirmModal(detectedClass, rawClassText, ocrName, bestStudent, score, correct, incorrect) {
-      document.getElementById('rawOcrText').innerHTML = `
-        Class Read: <b>"${rawClassText || 'N/A'}"</b> &rarr; Matched: <span style="color:#68d391">${detectedClass}</span><br>
-        Extracted Name: <b>"${ocrName || 'Could not parse clean name'}"</b>
-      `;
+    function openVerificationModal() {
+      const modal = document.getElementById('studentVerifyModal');
+      const rawBox = document.getElementById('rawOcrText');
+      const classSelect = document.getElementById('modalClassOverrideSelect');
+      const scoreInput = document.getElementById('modalMcqScoreInput');
+      const maxText = document.getElementById('modalMaxMcqText');
+      const breakdown = document.getElementById('modalBreakdownNote');
 
-      const classSel = document.getElementById('modalClassOverrideSelect');
-      classSel.innerHTML = '';
-      CLASSES.forEach(c => {
+      rawBox.innerText = activeEvaluation.rawOcr.trim() ? activeEvaluation.rawOcr.trim().slice(0, 150) : "Header clear / auto-aligned";
+
+      // Setup Class dropdown
+      classSelect.innerHTML = '';
+      const enrolled = [...new Set(students.map(s => s.class_level || s.class))].filter(Boolean);
+      let list = enrolled.length > 0 ? enrolled : CLASSES;
+      list.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c; opt.textContent = c;
-        if (c === detectedClass) opt.selected = true;
-        classSel.appendChild(opt);
+        if (c === activeEvaluation.detectedClass) opt.selected = true;
+        classSelect.appendChild(opt);
       });
 
-      populateModalStudents(detectedClass, bestStudent ? bestStudent.name : null);
+      scoreInput.value = activeEvaluation.score;
+      maxText.innerText = `/ ${activeEvaluation.maxScore}`;
+      breakdown.innerText = `Correct: ${activeEvaluation.correct} | Incorrect: ${activeEvaluation.incorrect}`;
 
-      document.getElementById('modalMcqScoreInput').value = score;
-      document.getElementById('modalMaxMcqText').innerText = `/ ${totalQuestions * marksPerQ}`;
-      document.getElementById('modalBreakdownNote').innerText = `Correct: ${correct} | Incorrect: ${incorrect}`;
-      document.getElementById('studentVerifyModal').style.display = 'flex';
+      populateRosterMatchDropdown(classSelect.value);
+      modal.style.display = 'flex';
     }
 
     function onModalClassChanged() {
-      const newClass = document.getElementById('modalClassOverrideSelect').value;
-      populateModalStudents(newClass, null);
+      const cls = document.getElementById('modalClassOverrideSelect').value;
+      activeEvaluation.detectedClass = cls;
+      populateRosterMatchDropdown(cls);
     }
 
-    function populateModalStudents(targetClass, selectedStudentName) {
-      const sel = document.getElementById('studentConfirmSelect');
-      sel.innerHTML = '';
-      const filtered = students.filter(s => (s.class_level || s.class) === targetClass);
+    function populateRosterMatchDropdown(selectedClass) {
+      const studentSelect = document.getElementById('studentConfirmSelect');
+      studentSelect.innerHTML = '';
 
-      if (filtered.length === 0) {
+      const matchedStudents = students.filter(s => (s.class_level || s.class) === selectedClass);
+
+      if (matchedStudents.length === 0) {
         const opt = document.createElement('option');
-        opt.value = ""; opt.textContent = `No students enrolled in ${targetClass}`;
-        sel.appendChild(opt);
+        opt.value = "UNKNOWN_STUDENT";
+        opt.textContent = `Unlisted Student (${selectedClass})`;
+        studentSelect.appendChild(opt);
         return;
       }
 
-      filtered.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id || s.student_id || s.name;
-        opt.textContent = `${s.name} (ID: ${s.student_id || 'N/A'})`;
-        if (selectedStudentName && s.name.toUpperCase() === selectedStudentName.toUpperCase()) {
-          opt.selected = true;
+      // Rank students using fuzzy similarity to OCR text
+      let bestMatch = matchedStudents[0];
+      let maxSim = -1;
+
+      matchedStudents.forEach(st => {
+        const sim = getSimilarity(st.name, activeEvaluation.rawOcr);
+        if (sim > maxSim) {
+          maxSim = sim;
+          bestMatch = st;
         }
-        sel.appendChild(opt);
+      });
+
+      matchedStudents.forEach(st => {
+        const opt = document.createElement('option');
+        const stId = st.id || st.student_id || st.name;
+        opt.value = stId;
+        opt.textContent = `${st.name} (Roll: ${st.roll_no || st.roll || '-'})`;
+        if (st === bestMatch) opt.selected = true;
+        studentSelect.appendChild(opt);
       });
     }
 
     function confirmAndSaveRecord() {
-      const sel = document.getElementById('studentConfirmSelect');
-      const studentId = sel.value;
-      if (!studentId) {
-        alert("Please select a student from the list.");
-        return;
-      }
+      const studentSelect = document.getElementById('studentConfirmSelect');
+      const classSelect = document.getElementById('modalClassOverrideSelect');
+      const scoreInput = document.getElementById('modalMcqScoreInput');
 
-      const finalScore = parseFloat(document.getElementById('modalMcqScoreInput').value) || 0;
-      
+      const studentId = studentSelect.value;
+      const studentName = studentSelect.options[studentSelect.selectedIndex].text.split(' (Roll:')[0];
+      const selectedClass = classSelect.value;
+      const finalScore = parseFloat(scoreInput.value) || 0;
+      const activeSub = getActiveSubject();
+
       let records = [];
-      try { 
-        records = JSON.parse(localStorage.getItem('dhk_evaluations') || localStorage.getItem('dhk_eval_records') || '[]'); 
+      try {
+        records = JSON.parse(localStorage.getItem('dhk_evaluations') || localStorage.getItem('dhk_eval_records') || '[]');
       } catch(e) { records = []; }
-      
-      records.push({
+
+      // Deduplicate: replace any existing record for this student and subject
+      const existingIdx = records.findIndex(r => 
+        ((r.student_id === studentId || r.studentId === studentId) && (r.subject || 'Gunotsav') === activeSub)
+      );
+
+      const recordPayload = {
         student_id: studentId,
         studentId: studentId,
+        studentName: studentName,
+        class: selectedClass,
+        subject: activeSub,
         score: finalScore,
-        max_score: totalQuestions * marksPerQ,
-        totalMarks: totalQuestions * marksPerQ,
+        max_score: activeEvaluation.maxScore,
+        totalMarks: activeEvaluation.maxScore,
         skillMarks: 0,
         correct: activeEvaluation.correct,
         incorrect: activeEvaluation.incorrect,
         timestamp: new Date().toISOString()
-      });
+      };
+
+      if (existingIdx >= 0) {
+        records[existingIdx] = recordPayload;
+      } else {
+        records.push(recordPayload);
+      }
 
       localStorage.setItem('dhk_evaluations', JSON.stringify(records));
       localStorage.setItem('dhk_eval_records', JSON.stringify(records));
-      alert("Result confirmed & saved successfully!");
+
+      alert(`✅ Evaluation Saved!\n${studentName} • ${selectedClass}\nSubject: ${activeSub}\nScore: ${finalScore} / ${activeEvaluation.maxScore}`);
       closeModal();
     }
 
     function closeModal() {
       document.getElementById('studentVerifyModal').style.display = 'none';
-      activeEvaluation = null;
     }
 
     window.onload = function() {
+      const savedSub = localStorage.getItem('dhk_active_subject') || 'Gunotsav';
+      const sel = document.getElementById('subjectPresetSelect');
+      if (['Gunotsav', 'Language I (Assamese)', 'Language II (English)', 'Mathematics', 'Environmental Studies (EVS)', 'General Science', 'Social Studies'].includes(savedSub)) {
+        sel.value = savedSub;
+      } else {
+        sel.value = '__custom__';
+        const customInput = document.getElementById('customSubjectInput');
+        customInput.style.display = 'block';
+        customInput.value = savedSub;
+      }
+
       syncClassDropdown();
     };
+  </script>
+
+  <!-- Offline Service Worker Activation -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    }
   </script>
 </body>
 </html>
