@@ -379,5 +379,12 @@
     renderClassTabs();
     renderStudents();
   </script>
+
+  <!-- Offline Service Worker Activation -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    }
+  </script>
 </body>
 </html>
