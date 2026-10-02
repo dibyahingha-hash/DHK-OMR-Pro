@@ -33,7 +33,7 @@
     .input-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
     .input-group input, .input-group select { width: 100%; background: #0f172a; border: 1px solid var(--card-border); color: #fff; padding: 8px; border-radius: 6px; font-size: 0.85rem; }
 
-    /* Tab Switcher for Key Entry (Resolves Issue #4) */
+    /* Tab Switcher for Key Entry */
     .key-mode-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
     .key-mode-btn { flex: 1; padding: 8px; font-size: 0.8rem; background: #0f172a; color: var(--text-muted); border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; text-align: center; }
     .key-mode-btn.active { background: #2563eb; color: #fff; border-color: #3b82f6; font-weight: 600; }
@@ -53,18 +53,158 @@
     .btn-red { background: var(--accent-red); color: #fff; }
     .btn-blue { background: var(--accent-blue); color: #fff; width: 100%; margin-top: 8px; }
 
-    /* PRINT SHEET AREA (Strictly formatted for A4 Universal OMR) */
-    #printableOmrArea { display: none; background: #fff; color: #000; padding: 15mm 10mm; }
+    /* PRINT SHEET AREA: Millimeter-aligned with Gunotsav geometry */
+    #printableOmrArea { display: none; }
     
     @media print {
+      @page { size: A4 portrait; margin: 4mm; }
+      body { background: #fff !important; padding: 0 !important; }
       body * { visibility: hidden; }
       #printableOmrArea, #printableOmrArea * { visibility: visible; }
       #printableOmrArea {
         position: absolute;
         left: 0;
         top: 0;
+        width: 198mm;
+        height: 284mm;
+        display: flex !important;
+        background: #fff;
+        color: #000;
+        border: 1.5px solid #000;
+        padding: 4mm 3mm;
+        box-sizing: border-box;
+      }
+      .print-timing-col {
+        width: 6mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        margin-right: 3mm;
+      }
+      .print-t-block {
+        width: 5.2mm;
+        height: 2.2mm;
+        background: #000;
+        margin-bottom: 1.1mm;
+      }
+      .print-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+      .print-anchor {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 6mm;
+        height: 6mm;
+        background: #000;
+      }
+      .print-top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 2mm;
+        padding-right: 8mm;
+      }
+      .print-title-area h2 {
+        font-size: 11pt;
+        font-weight: bold;
+      }
+      .print-title-area h3 {
+        font-size: 8pt;
+        font-weight: normal;
+        margin-top: 1mm;
+      }
+      .print-class-box {
+        border: 1.5px solid #000;
+        padding: 1.5mm 3mm;
+        text-align: center;
+        min-width: 32mm;
+      }
+      .print-class-box .lbl {
+        font-size: 6.5pt;
+        font-weight: bold;
+        display: block;
+      }
+      .print-class-box .val {
+        font-size: 10pt;
+        font-weight: 900;
+      }
+      .print-info-table {
         width: 100%;
-        display: block !important;
+        border-collapse: collapse;
+        margin-bottom: 2.5mm;
+      }
+      .print-info-table td {
+        border: 1.2px solid #000;
+        padding: 1.6mm 2mm;
+        font-size: 7.2pt;
+        font-weight: bold;
+      }
+      .print-info-table .lbl {
+        background: #f0f0f0;
+        width: 22%;
+        text-align: left;
+      }
+      .print-info-table .val {
+        width: 78%;
+      }
+      .print-grid {
+        display: flex;
+        justify-content: space-between;
+        gap: 3mm;
+        flex: 1;
+        border-top: 1.5px solid #000;
+        padding-top: 2mm;
+      }
+      .print-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      .print-c-head {
+        display: flex;
+        justify-content: space-around;
+        padding-left: 5.5mm;
+        font-size: 7pt;
+        font-weight: bold;
+        margin-bottom: 1mm;
+      }
+      .print-q-block {
+        border-bottom: 1px solid #999;
+        padding-bottom: 0.8mm;
+        margin-bottom: 1.2mm;
+      }
+      .print-q-block:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+      .print-q-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.6mm;
+        height: 3.4mm;
+      }
+      .print-q-num {
+        width: 5.5mm;
+        font-size: 6.2pt;
+        font-weight: bold;
+        text-align: right;
+        padding-right: 1.2mm;
+      }
+      .print-bubble {
+        width: 3.4mm;
+        height: 3.4mm;
+        border: 1.1px solid #000;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 5pt;
+        font-weight: bold;
       }
     }
   </style>
@@ -135,41 +275,52 @@
       <button class="btn btn-red" onclick="resetMasterKey()">Reset Key</button>
     </div>
     
-    <!-- Dynamic Print Button (Fixes unparsed $N$) -->
+    <!-- Dynamic Print Button -->
     <button class="btn btn-blue" id="printOmrBtn" onclick="triggerUniversalOmrPrint()">
       🖨️ Print Universal OMR Sheet (50 Qs)
     </button>
   </div>
 
-  <!-- PRINTABLE OMR TEMPLATE (Resolves Issue #3 Blank Print) -->
+  <!-- PRINTABLE GUNOTSAV-MATCHED UNIVERSAL OMR -->
   <div id="printableOmrArea">
-    <!-- 4 Fiducial Alignment Markers for Scanning -->
-    <div style="display: flex; justify-content: space-between;">
-      <div style="width: 22px; height: 22px; background: #000;"></div>
-      <div style="text-align: center;">
-        <h2 id="printSchoolHeader" style="margin: 0; font-size: 16pt;">UNIVERSAL OMR EVALUATION SHEET</h2>
-        <p id="printExamHeader" style="margin: 4px 0 0 0; font-size: 11pt;">Annual Examination</p>
+    <div class="print-timing-col" id="printTimingRail"></div>
+
+    <div class="print-main">
+      <div class="print-anchor"></div>
+
+      <div class="print-top-row">
+        <div class="print-title-area">
+          <h2 id="printSchoolHeader">UNIVERSAL ASSESSMENT EVALUATION OMR SHEET</h2>
+          <h3 id="printExamHeader">CONTINUOUS COMPREHENSIVE SCHOOL EVALUATION</h3>
+        </div>
+        <div class="print-class-box">
+          <span class="lbl">TARGET CLASS</span>
+          <span class="val">CLASS: _______</span>
+        </div>
       </div>
-      <div style="width: 22px; height: 22px; background: #000;"></div>
-    </div>
 
-    <!-- Student Metadata Fill Area -->
-    <div style="display: flex; justify-content: space-between; border: 1px solid #000; padding: 8px; margin: 12px 0;">
-      <div><strong>STUDENT NAME:</strong> _________________________________</div>
-      <div><strong>CLASS:</strong> ______</div>
-      <div><strong>ROLL NO:</strong> ______</div>
-    </div>
+      <table class="print-info-table">
+        <tr>
+          <td class="lbl">SCHOOL NAME:</td>
+          <td class="val" colspan="3" id="printSchoolTableVal"></td>
+        </tr>
+        <tr>
+          <td class="lbl">STUDENT NAME:</td>
+          <td class="val" colspan="3" style="letter-spacing: 1px; font-size: 8pt; color: #777;">(WRITE IN CAPITAL LETTERS)</td>
+        </tr>
+        <tr>
+          <td class="lbl" style="width: 20%;">ROLL / SEC:</td>
+          <td class="val" style="width: 30%;"></td>
+          <td class="lbl" style="width: 20%;">SUBJECT / EXAM:</td>
+          <td class="val" style="width: 30%;" id="printSubjectTableVal"></td>
+        </tr>
+      </table>
 
-    <!-- Bubbles Grid for Print -->
-    <div id="printSheetQuestions" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 10pt;">
-      <!-- Populated via JS -->
-    </div>
-
-    <!-- Bottom Alignment Markers -->
-    <div style="display: flex; justify-content: space-between; margin-top: 20px;">
-      <div style="width: 22px; height: 22px; background: #000;"></div>
-      <span style="font-size: 8pt; color: #555;">DHK OMR PRO ENGINE • SECURE ASSESSMENT SHEET</span>
-      <div style="width: 22px; height: 22px; background: #000;"></div>
+      <div class="print-grid">
+        <div class="print-col" id="pCol1"><div class="print-c-head"><span>A</span><span>B</span><span>C</span><span>D</span></div></div>
+        <div class="print-col" id="pCol2"><div class="print-c-head"><span>A</span><span>B</span><span>C</span><span>D</span></div></div>
+        <div class="print-col" id="pCol3"><div class="print-c-head"><span>A</span><span>B</span><span>C</span><span>D</span></div></div>
+      </div>
     </div>
   </div>
 
@@ -214,7 +365,6 @@
         row.innerHTML = `<span class="q-num">Q${i}</span><div class="bubble-group">${bubblesHtml}</div>`;
         container.appendChild(row);
       }
-      // Update dynamic print button text
       document.getElementById('printOmrBtn').innerText = `🖨️ Print Universal OMR Sheet (${total} Qs)`;
     }
 
@@ -240,9 +390,7 @@
     }
 
     function launchMasterKeyScanner() {
-      // Save exam meta first
       saveDraftScheme();
-      // Redirect to scanner with query param
       window.location.href = `scan.html?mode=master_key&totalQ=${document.getElementById('totalQuestions').value}`;
     }
 
@@ -257,6 +405,9 @@
         keys: masterKeyMap
       };
       localStorage.setItem('dhk_master_key', JSON.stringify(data));
+      // Save global configs for scan.html
+      localStorage.setItem('dhk_total_questions', data.totalQ);
+      localStorage.setItem('dhk_marks_per_q', data.scheme.pos);
     }
 
     function lockMasterKey() {
@@ -276,33 +427,67 @@
 
     function triggerUniversalOmrPrint() {
       const total = parseInt(document.getElementById('totalQuestions').value) || 50;
-      const schoolInfo = JSON.parse(localStorage.getItem('dhk_school_info')) || {};
-      
-      document.getElementById('printSchoolHeader').innerText = (schoolInfo.name || "UNIVERSAL OMR EVALUATION SHEET").toUpperCase();
-      document.getElementById('printExamHeader').innerText = document.getElementById('examTitle').value;
+      let schoolInfo = {};
+      try { schoolInfo = JSON.parse(localStorage.getItem('dhk_school_info')) || {}; } catch(e){}
 
-      const printQContainer = document.getElementById('printSheetQuestions');
-      printQContainer.innerHTML = '';
+      const schoolName = (schoolInfo.name || "ASSAM ELEMENTARY SCHOOL").toUpperCase();
+      const examName = document.getElementById('examTitle').value || "Annual Assessment";
 
-      for (let i = 1; i <= total; i++) {
-        const item = document.createElement('div');
-        item.style.display = 'flex';
-        item.style.alignItems = 'center';
-        item.style.justifyContent = 'space-between';
-        item.style.padding = '2px 0';
-        item.style.borderBottom = '1px dotted #ccc';
+      document.getElementById('printSchoolHeader').innerText = schoolName;
+      document.getElementById('printSchoolTableVal').innerText = schoolName;
+      document.getElementById('printExamHeader').innerText = examName;
+      document.getElementById('printSubjectTableVal').innerText = examName;
 
-        item.innerHTML = `
-          <strong>${i}.</strong>
-          <span style="display:flex; gap:6px;">
-            <span style="display:inline-block; width:16px; height:16px; border:1px solid #000; border-radius:50%; text-align:center; font-size:8pt; line-height:16px;">A</span>
-            <span style="display:inline-block; width:16px; height:16px; border:1px solid #000; border-radius:50%; text-align:center; font-size:8pt; line-height:16px;">B</span>
-            <span style="display:inline-block; width:16px; height:16px; border:1px solid #000; border-radius:50%; text-align:center; font-size:8pt; line-height:16px;">C</span>
-            <span style="display:inline-block; width:16px; height:16px; border:1px solid #000; border-radius:50%; text-align:center; font-size:8pt; line-height:16px;">D</span>
-          </span>
-        `;
-        printQContainer.appendChild(item);
+      // Build left timing track
+      const rail = document.getElementById('printTimingRail');
+      rail.innerHTML = '';
+      for (let i = 0; i < 54; i++) {
+        const d = document.createElement('div');
+        d.className = 'print-t-block';
+        rail.appendChild(d);
       }
+
+      // Build 3 columns according to Gunotsav geometry
+      function renderCol(colId, qList) {
+        const col = document.getElementById(colId);
+        col.innerHTML = '<div class="print-c-head"><span>A</span><span>B</span><span>C</span><span>D</span></div>';
+        let blk = null;
+        qList.filter(q => q <= total).forEach((q, idx) => {
+          if (idx % 5 === 0) {
+            blk = document.createElement('div');
+            blk.className = 'print-q-block';
+            col.appendChild(blk);
+          }
+          const row = document.createElement('div');
+          row.className = 'print-q-row';
+          row.innerHTML = `
+            <span class="print-q-num">${q}</span>
+            <div class="print-bubble">A</div>
+            <div class="print-bubble">B</div>
+            <div class="print-bubble">C</div>
+            <div class="print-bubble">D</div>
+          `;
+          blk.appendChild(row);
+        });
+      }
+
+      // Col 1: 1-20 then 61-75
+      const c1 = [];
+      for(let i=1; i<=20; i++) c1.push(i);
+      for(let i=61; i<=75; i++) c1.push(i);
+      renderCol('pCol1', c1);
+
+      // Col 2: 21-40 then 76-90
+      const c2 = [];
+      for(let i=21; i<=40; i++) c2.push(i);
+      for(let i=76; i<=90; i++) c2.push(i);
+      renderCol('pCol2', c2);
+
+      // Col 3: 41-60 then 91-100
+      const c3 = [];
+      for(let i=41; i<=60; i++) c3.push(i);
+      for(let i=91; i<=100; i++) c3.push(i);
+      renderCol('pCol3', c3);
 
       window.print();
     }
