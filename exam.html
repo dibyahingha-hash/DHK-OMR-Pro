@@ -2,210 +2,245 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DHK OMR Pro • Exam Sheet Generator</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>DHK OMR PRO • Universal 100 Sheet</title>
   <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+    .toolbar {
+      width: 100%;
+      max-width: 210mm;
+      background: #fff;
+      padding: 10px 16px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sheet-page {
+      width: 210mm;
+      height: 290mm;
+      max-height: 290mm;
+      background: #fff;
+      overflow: hidden;
+      page-break-after: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
     @media print {
-      body * { visibility: hidden; }
-      #printArea, #printArea * { visibility: visible; }
-      #printArea { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
-      @page { size: A4 portrait; margin: 6mm; }
+      html, body {
+        width: 210mm;
+        height: 297mm;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: none !important;
+        overflow: hidden !important;
+      }
+      .toolbar {
+        display: none !important;
+      }
+      .sheet-page {
+        width: 210mm !important;
+        height: 290mm !important;
+        max-height: 290mm !important;
+        margin: 0 auto !important;
+        box-shadow: none !important;
+        overflow: hidden !important;
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 3mm 0 0 0;
+      }
     }
   </style>
 </head>
-<body class="bg-gray-100 p-4">
-  <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md mb-6 no-print">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-xl font-black text-gray-800">DHK OMR PRO • SHEET GENERATOR</h1>
-        <p class="text-xs text-gray-500">Universal 100-Question Standardized OMR Matrix</p>
-      </div>
-      <button onclick="window.print()" class="px-5 py-2.5 bg-black text-white font-bold rounded-lg hover:bg-gray-800">
-        Print Sheet (A4)
-      </button>
+<body>
+
+  <div class="toolbar">
+    <div>
+      <strong style="font-size: 14px;">DHK OMR PRO</strong>
+      <span style="font-size: 11px; color: #555; margin-left: 6px;">Universal 100-Q Matrix (Single A4)</span>
     </div>
+    <button onclick="window.print()" style="padding: 7px 16px; font-weight: bold; background: #000; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
+      Print Sheet (A4)
+    </button>
   </div>
 
-  <!-- Master Printable Area -->
-  <div id="printArea" class="flex justify-center bg-white">
-    <svg id="omrSvg" viewBox="0 0 1000 1414" width="1000" height="1414" xmlns="http://www.w3.org/2000/svg" style="background:#fff;">
-      <!-- Corner Fiducials -->
-      <rect x="25" y="25" width="950" height="1364" fill="none" stroke="#000" stroke-width="2.5" />
-      <rect x="25" y="25" width="40" height="40" fill="#000" />
-      <rect x="935" y="25" width="40" height="40" fill="#000" />
-      <rect x="25" y="1349" width="40" height="40" fill="#000" />
-      <rect x="935" y="1349" width="40" height="40" fill="#000" />
+  <div class="sheet-page">
+    <svg viewBox="0 0 1000 1350" xmlns="http://www.w3.org/2000/svg">
+      <!-- Outer Border & Fiducial Markers -->
+      <rect x="25" y="20" width="950" height="1310" fill="none" stroke="#000" stroke-width="2" />
+      <rect x="25" y="20" width="36" height="36" fill="#000" />
+      <rect x="939" y="20" width="36" height="36" fill="#000" />
+      <rect x="25" y="1294" width="36" height="36" fill="#000" />
+      <rect x="939" y="1294" width="36" height="36" fill="#000" />
 
-      <!-- Top Header -->
-      <text x="70" y="70" font-size="20" font-weight="900" font-family="Arial, sans-serif">EVALUATION OMR</text>
-      <rect x="800" y="52" width="135" height="24" fill="none" stroke="#000" stroke-width="1.5" />
-      <text x="867" y="69" text-anchor="middle" font-size="11" font-weight="bold" font-family="Arial, sans-serif">100 QUESTIONS</text>
-      <line x1="70" y1="84" x2="935" y2="84" stroke="#000" stroke-width="1.5" />
-      <text x="502" y="97" text-anchor="middle" font-size="8.5" font-weight="bold" font-family="Arial, sans-serif">
-        DO NOT FOLD OR TEAR OMR SHEET • USE BLACK OR BLUE BALL POINT PEN ONLY • DARKEN BUBBLE COMPLETELY • DO NOT OVERWRITE
+      <!-- Header & Warning -->
+      <text x="70" y="52" font-size="18" font-weight="900">EVALUATION OMR</text>
+      <rect x="805" y="36" width="132" height="20" fill="none" stroke="#000" stroke-width="1.3" />
+      <text x="871" y="50" text-anchor="middle" font-size="10" font-weight="bold">100 QUESTIONS</text>
+      
+      <line x1="70" y1="62" x2="937" y2="62" stroke="#000" stroke-width="1.2" />
+      <text x="503" y="73" text-anchor="middle" font-size="7.8" font-weight="bold">
+        DO NOT FOLD OR TEAR OMR SHEET • USE BLACK/BLUE BALL PEN ONLY • DARKEN COMPLETELY
       </text>
-      <line x1="70" y1="105" x2="935" y2="105" stroke="#000" stroke-width="1.5" />
+      <line x1="70" y1="80" x2="937" y2="80" stroke="#000" stroke-width="1.2" />
 
-      <!-- Student Metadata Section -->
-      <text x="70" y="121" font-size="9" font-weight="bold" font-family="Arial, sans-serif">STUDENT NAME (CAPITAL LETTERS ONLY):</text>
-      <!-- 18 Individual Name Write-in Character Boxes -->
-      <g id="nameBoxes"></g>
+      <!-- Dash #1: Horizontal Name Anchor -->
+      <rect x="40" y="96" width="22" height="8" fill="#000" />
 
-      <text x="520" y="121" font-size="9" font-weight="bold" font-family="Arial, sans-serif">CLASS:</text>
-      <rect x="520" y="127" width="190" height="22" fill="none" stroke="#000" stroke-width="1.5" />
+      <!-- Student Info Strip -->
+      <text x="70" y="93" font-size="8" font-weight="bold">STUDENT NAME (CAPITAL LETTERS):</text>
+      <g id="nameCells"></g>
 
-      <text x="730" y="121" font-size="9" font-weight="bold" font-family="Arial, sans-serif">ROLL NO:</text>
-      <rect x="730" y="127" width="205" height="22" fill="none" stroke="#000" stroke-width="1.5" />
+      <text x="520" y="93" font-size="8" font-weight="bold">CLASS:</text>
+      <rect x="520" y="97" width="180" height="19" fill="none" stroke="#000" stroke-width="1.2" />
 
-      <!-- Left Margin Timing Dashes (Grouped by Box) -->
-      <g id="timingDashes"></g>
+      <text x="720" y="93" font-size="8" font-weight="bold">ROLL NO:</text>
+      <rect x="720" y="97" width="217" height="19" fill="none" stroke="#000" stroke-width="1.2" />
 
-      <!-- 20 Boxes of 5 Questions Each -->
-      <g id="questionBoxes"></g>
+      <!-- Timing Rail Dashes (#2 to #36) -->
+      <g id="timingRail"></g>
 
-      <!-- Footer Signatures & Identifier -->
-      <line x1="70" y1="1335" x2="935" y2="1335" stroke="#000" stroke-width="1.5" />
-      <text x="70" y="1352" font-size="9" font-weight="bold" font-family="Arial, sans-serif">DHK OMR PRO UNIVERSAL ENGINE</text>
-      <text x="502" y="1352" text-anchor="middle" font-size="9" font-weight="bold" font-family="Arial, sans-serif">Signature of Invigilator</text>
-      <text x="935" y="1352" text-anchor="end" font-size="9" font-weight="bold" font-family="Arial, sans-serif">Signature of Head Master / Evaluator</text>
+      <!-- 20 Question Boxes (3 Columns, 7 Tiers) -->
+      <g id="questionGrid"></g>
+
+      <!-- Footer & Signatures -->
+      <line x1="70" y1="1285" x2="937" y2="1285" stroke="#000" stroke-width="1.2" />
+      <text x="70" y="1302" font-size="8" font-weight="bold">DHK OMR PRO ENGINE</text>
+      <text x="503" y="1302" text-anchor="middle" font-size="8" font-weight="bold">Signature of Invigilator</text>
+      <text x="937" y="1302" text-anchor="end" font-size="8" font-weight="bold">Signature of Head Master / Evaluator</text>
     </svg>
   </div>
 
   <script>
-    function renderSheet() {
-      const nameBoxesG = document.getElementById('nameBoxes');
-      const timingG = document.getElementById('timingDashes');
-      const boxesG = document.getElementById('questionBoxes');
+    (function initLayout() {
+      const nameGroup = document.getElementById('nameCells');
+      const railGroup = document.getElementById('timingRail');
+      const gridGroup = document.getElementById('questionGrid');
 
-      nameBoxesG.innerHTML = '';
-      timingG.innerHTML = '';
-      boxesG.innerHTML = '';
-
-      // 1. Render 18 character cells for Student Name
+      // 18 Name write-in boxes
       for (let b = 0; b < 18; b++) {
-        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rect.setAttribute("x", 70 + (b * 24));
-        rect.setAttribute("y", "127");
-        rect.setAttribute("width", "24");
-        rect.setAttribute("height", "22");
-        rect.setAttribute("fill", "none");
-        rect.setAttribute("stroke", "#000");
-        rect.setAttribute("stroke-width", "1.5");
-        nameBoxesG.appendChild(rect);
+        const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        r.setAttribute("x", 70 + (b * 23.5));
+        r.setAttribute("y", "97");
+        r.setAttribute("width", "23.5");
+        r.setAttribute("height", "19");
+        r.setAttribute("fill", "none");
+        r.setAttribute("stroke", "#000");
+        r.setAttribute("stroke-width", "1.2");
+        nameGroup.appendChild(r);
       }
 
-      // Timing Dash #1: Anchors the Student Name horizontal scanline
-      const nameDash = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      nameDash.setAttribute("x", "48");
-      nameDash.setAttribute("y", "133");
-      nameDash.setAttribute("width", "22");
-      nameDash.setAttribute("height", "10");
-      nameDash.setAttribute("fill", "#000");
-      timingG.appendChild(nameDash);
-
-      // Geometry Constants
+      // Compact Layout Coordinates
       const colX = [70, 365, 660];
-      const colW = 275;
-      const startY = 165;
-      const blockH = 152;
-      const blockGapY = 14;
-      const rowH = 26;
-      const rowPadTop = 18;
-      const optGapX = 26;
+      const colW = 277;
+      const startY = 126;
+      const blockH = 148;
+      const blockGap = 15;
+      const rowPitch = 24.8;
+      const rowPad = 17;
       const bubbleStartX = 155;
+      const optGapX = 26;
 
-      // 20 boxes arranged across 7 visual tiers:
       const boxMap = [
         [1, 5],   [21, 25], [41, 45],
         [6, 10],  [26, 30], [46, 50],
         [11, 15], [31, 35], [51, 55],
-        [16, 20], [36, 40], [56, 60], // Contains 59 & 60
+        [16, 20], [36, 40], [56, 60],
         [61, 65], [66, 70], [71, 75],
         [76, 80], [81, 85], [86, 90],
         [91, 95], [96, 100]
       ];
 
-      // 2. Render the 7 horizontal block tiers
-      for (let r = 0; r < 7; r++) {
-        const by = startY + (r * (blockH + blockGapY));
+      for (let t = 0; t < 7; t++) {
+        const blockY = startY + (t * (blockH + blockGap));
 
-        // 5 timing dashes per block (Dashes #2 through #36)
-        for (let i = 0; i < 5; i++) {
-          const qRowY = by + rowPadTop + (i * rowH);
+        // 5 Dashes per Tier
+        for (let d = 0; d < 5; d++) {
+          const dashY = blockY + rowPad + (d * rowPitch);
           const dash = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-          dash.setAttribute("x", "48");
-          dash.setAttribute("y", qRowY - 5);
+          dash.setAttribute("x", "40");
+          dash.setAttribute("y", dashY - 4);
           dash.setAttribute("width", "22");
-          dash.setAttribute("height", "10");
+          dash.setAttribute("height", "8");
           dash.setAttribute("fill", "#000");
-          timingG.appendChild(dash);
+          railGroup.appendChild(dash);
         }
 
-        // 3 Columns per row
+        // 3 Columns
         for (let c = 0; c < 3; c++) {
-          const boxIdx = (r * 3) + c;
-          if (boxIdx >= boxMap.length) continue;
+          const idx = (t * 3) + c;
+          if (idx >= boxMap.length) continue;
 
           const bx = colX[c];
-          const [qStart, qEnd] = boxMap[boxIdx];
+          const [qStart, qEnd] = boxMap[idx];
 
-          // Box Border
           const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
           rect.setAttribute("x", bx);
-          rect.setAttribute("y", by);
+          rect.setAttribute("y", blockY);
           rect.setAttribute("width", colW);
           rect.setAttribute("height", blockH);
           rect.setAttribute("fill", "none");
           rect.setAttribute("stroke", "#000");
-          rect.setAttribute("stroke-width", "1.5");
-          rect.setAttribute("rx", "3");
-          boxesG.appendChild(rect);
+          rect.setAttribute("stroke-width", "1.3");
+          rect.setAttribute("rx", "2");
+          gridGroup.appendChild(rect);
 
-          // 5 Question Rows
           for (let q = qStart; q <= qEnd; q++) {
             const offset = q - qStart;
-            const qRowY = by + rowPadTop + (offset * rowH);
+            const qY = blockY + rowPad + (offset * rowPitch);
 
-            // Question Number Label
             const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            txt.setAttribute("x", bx + 16);
-            txt.setAttribute("y", qRowY + 4);
-            txt.setAttribute("font-size", "11");
-            txt.setAttribute("font-family", "Arial, sans-serif");
+            txt.setAttribute("x", bx + 12);
+            txt.setAttribute("y", qY + 3.5);
+            txt.setAttribute("font-size", "9.5");
             txt.setAttribute("font-weight", "bold");
             txt.textContent = q;
-            boxesG.appendChild(txt);
+            gridGroup.appendChild(txt);
 
-            // A, B, C, D Bubbles
             ['A', 'B', 'C', 'D'].forEach((opt, oIdx) => {
               const cx = bx + bubbleStartX + (oIdx * optGapX);
 
               const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
               circle.setAttribute("cx", cx);
-              circle.setAttribute("cy", qRowY);
-              circle.setAttribute("r", "8.5");
+              circle.setAttribute("cy", qY);
+              circle.setAttribute("r", "8");
               circle.setAttribute("fill", "#fff");
               circle.setAttribute("stroke", "#000");
-              circle.setAttribute("stroke-width", "1.3");
-              boxesG.appendChild(circle);
+              circle.setAttribute("stroke-width", "1.2");
+              gridGroup.appendChild(circle);
 
-              const optLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-              optLabel.setAttribute("x", cx);
-              optLabel.setAttribute("y", qRowY + 3.2);
-              optLabel.setAttribute("text-anchor", "middle");
-              optLabel.setAttribute("font-size", "8");
-              optLabel.setAttribute("font-family", "Arial, sans-serif");
-              optLabel.setAttribute("font-weight", "bold");
-              optLabel.textContent = opt;
-              boxesG.appendChild(optLabel);
+              const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+              label.setAttribute("x", cx);
+              label.setAttribute("y", qY + 2.8);
+              label.setAttribute("text-anchor", "middle");
+              label.setAttribute("font-size", "7.5");
+              label.setAttribute("font-weight", "bold");
+              label.textContent = opt;
+              gridGroup.appendChild(label);
             });
           }
         }
       }
-    }
-
-    window.onload = renderSheet;
+    })();
   </script>
 </body>
 </html>
