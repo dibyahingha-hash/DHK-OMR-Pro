@@ -217,7 +217,8 @@
 
         const newStudents = json.map(r => ({
           name: String(r['Student Name'] || r['name'] || r['NAME'] || '').trim(),
-          class: String(r['Class'] || r['class'] || r['CLASS'] || 'III').replace(/Class[- ]?/i, '').trim(),
+          class: String(r['Class'] || r['CLASS'] || r['class'] || r['Grade'] || r['GRADE'] || r['grade'] || r['Standard'] || r['Std'] || 'III').replace(/Class[- ]?/i, '').trim(),
+          
           roll: String(r['Student ID'] || r['ID'] || r['Roll'] || '').trim(),
           sec: String(r['Section'] || 'A').trim()
         })).filter(s => s.name.length > 0);
