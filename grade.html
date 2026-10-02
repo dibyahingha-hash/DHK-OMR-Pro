@@ -41,14 +41,16 @@
     /* Form Fields */
     .field-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .field-label { font-size: 0.85rem; color: var(--text-main); }
-    .field-input { width: 65px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; padding: 6px; border-radius: 6px; text-align: center; font-size: 0.9rem; }
+    .field-input { width: 75px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; padding: 6px; border-radius: 6px; text-align: center; font-size: 0.9rem; font-weight: bold; }
 
     /* Tables */
     .table-container { overflow-x: auto; margin-top: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left; }
-    th { background: #0f172a; padding: 8px 6px; color: var(--text-muted); border-bottom: 1px solid var(--card-border); font-size: 0.7rem; text-transform: uppercase; }
-    td { padding: 8px 6px; border-bottom: 1px solid var(--card-border); color: #e2e8f0; }
+    th { background: #0f172a; padding: 8px 6px; color: var(--text-muted); border-bottom: 1px solid var(--card-border); font-size: 0.7rem; text-transform: uppercase; white-space: nowrap; }
+    td { padding: 8px 6px; border-bottom: 1px solid var(--card-border); color: #e2e8f0; vertical-align: middle; }
     .empty-msg { text-align: center; color: var(--text-muted); padding: 16px; font-size: 0.85rem; }
+
+    .table-input { width: 55px; background: #0f172a; border: 1px solid var(--card-border); color: #facc15; padding: 4px 6px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; }
 
     /* Buttons */
     .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-align: center; margin-bottom: 8px; }
@@ -58,11 +60,6 @@
     .btn-warning-outline { background: transparent; border: 1px solid var(--accent-yellow); color: #facc15; }
     .btn-del-sm { background: #ef4444; color: #fff; border: none; border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; cursor: pointer; }
 
-    /* Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 12px; }
-    .modal-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; width: 100%; max-width: 450px; padding: 16px; }
-
-    /* Print styling */
     @media print {
       body { background: #fff; color: #000; padding: 0; }
       .nav-bar, .btn, .no-print, input { display: none !important; }
@@ -70,7 +67,9 @@
       .card-title { color: #000; border-bottom: 1px solid #000; padding-bottom: 4px; }
       th, td { color: #000 !important; border-bottom: 1px solid #ddd; }
       .kpi-value { color: #000 !important; }
+      .table-input-val { display: inline !important; font-weight: bold; color: #000; }
     }
+    .table-input-val { display: none; }
   </style>
 </head>
 <body>
@@ -102,16 +101,23 @@
     </div>
   </div>
 
-  <!-- 1. Composite Weightage Settings -->
+  <!-- 1. Assessment & Skill Marks Setup -->
   <div class="card">
-    <div class="card-title">1. Composite Weightage Settings</div>
+    <div class="card-title">1. Assessment & Skill Marks Configuration</div>
     <div class="field-row">
-      <label class="field-label" for="scholasticWeight">Scholastic Evaluation Weight (%):</label>
+      <label class="field-label" for="maxSkillMarks">Max Skill / Descriptive Marks (Editable):</label>
+      <input type="number" id="maxSkillMarks" class="field-input" value="0" min="0" onchange="updateMaxSkillMarks()">
+    </div>
+    <div class="field-row">
+      <label class="field-label" for="scholasticWeight">Scholastic Weight (%):</label>
       <input type="number" id="scholasticWeight" class="field-input" value="90" min="0" max="100" onchange="updateWeights('scholastic')">
     </div>
     <div class="field-row">
       <label class="field-label" for="schoolWeight">School Evaluation (24 Indicators) Weight (%):</label>
       <input type="number" id="schoolWeight" class="field-input" value="10" min="0" max="100" onchange="updateWeights('school')">
+    </div>
+    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+      * Set <b>Max Skill Marks</b> to 0 for pure MCQ tests, or 18 for official Gunotsav, or any custom value.
     </div>
   </div>
 
@@ -136,23 +142,28 @@
     </div>
   </div>
 
-  <!-- 3. Evaluated Students Records & Per-Student Actions -->
+  <!-- 3. Evaluated Student Records with Editable Skill Marks -->
   <div class="card">
-    <div class="card-title">3. Evaluated Student Records</div>
+    <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>3. Evaluated Student Records</span>
+      <span style="font-size: 0.75rem; color: var(--accent-yellow);">Type Skill marks directly in table</span>
+    </div>
     <div class="table-container">
       <table>
         <thead>
           <tr>
-            <th>Roll</th>
             <th>Name</th>
             <th>Class</th>
-            <th>Score</th>
+            <th>MCQ Score</th>
+            <th>Skill Marks</th>
+            <th>Total Score</th>
             <th>%</th>
+            <th>Grade</th>
             <th class="no-print">Action</th>
           </tr>
         </thead>
         <tbody id="studentRecordsBody">
-          <tr><td colspan="6" class="empty-msg">No scanned evaluation records yet.</td></tr>
+          <tr><td colspan="8" class="empty-msg">No scanned evaluation records yet.</td></tr>
         </tbody>
       </table>
     </div>
@@ -165,7 +176,7 @@
     <button class="btn btn-blue" onclick="window.print()">🖨️ Print School Grade Card</button>
   </div>
 
-  <!-- 5. Session & Data Management (Resolves Issue #5) -->
+  <!-- 5. Session & Data Management -->
   <div class="card no-print" style="border-color: #7f1d1d;">
     <div class="card-title" style="color: #f87171;">5. Session & Data Management</div>
     <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
@@ -177,11 +188,19 @@
   </div>
 
   <script>
-    // State initialization
-    let students = JSON.parse(localStorage.getItem('dhk_students')) || [];
-    let evalRecords = JSON.parse(localStorage.getItem('dhk_eval_records')) || [];
-    let schoolEval = JSON.parse(localStorage.getItem('dhk_school_eval_data')) || { totalYes: 0, score: 0 };
-    let evalRules = JSON.parse(localStorage.getItem('dhk_eval_rules')) || {
+    let students = [];
+    try { students = JSON.parse(localStorage.getItem('dhk_students') || '[]'); } catch(e) { students = []; }
+
+    // Normalize records between dhk_evaluations and dhk_eval_records
+    let evalRecords = [];
+    try {
+      evalRecords = JSON.parse(localStorage.getItem('dhk_evaluations') || localStorage.getItem('dhk_eval_records') || '[]');
+    } catch(e) { evalRecords = []; }
+
+    let schoolEval = JSON.parse(localStorage.getItem('dhk_school_eval_data') || '{"totalYes":0,"score":0}');
+    let maxSkillMarks = parseFloat(localStorage.getItem('dhk_max_skill_marks') || '0');
+
+    let evalRules = JSON.parse(localStorage.getItem('dhk_eval_rules') || 'null') || {
       weights: { scholasticWeight: 90, schoolEvalWeight: 10 },
       gradeBands: [
         { grade: "A+", min: 87, max: 100 },
@@ -192,8 +211,11 @@
       ]
     };
 
-    function saveRules() {
+    function saveState() {
+      localStorage.setItem('dhk_evaluations', JSON.stringify(evalRecords));
+      localStorage.setItem('dhk_eval_records', JSON.stringify(evalRecords));
       localStorage.setItem('dhk_eval_rules', JSON.stringify(evalRules));
+      localStorage.setItem('dhk_max_skill_marks', maxSkillMarks.toString());
     }
 
     function calculateGrade(pct) {
@@ -201,6 +223,13 @@
         if (pct >= b.min && pct <= b.max) return b.grade;
       }
       return 'D';
+    }
+
+    function updateMaxSkillMarks() {
+      const val = parseFloat(document.getElementById('maxSkillMarks').value);
+      maxSkillMarks = isNaN(val) || val < 0 ? 0 : val;
+      saveState();
+      renderAll();
     }
 
     function updateWeights(source) {
@@ -220,11 +249,19 @@
       }
       evalRules.weights.scholasticWeight = s;
       evalRules.weights.schoolEvalWeight = e;
-      saveRules();
+      saveState();
+      renderAll();
+    }
+
+    function updateStudentSkill(idx, val) {
+      const parsed = parseFloat(val);
+      evalRecords[idx].skillMarks = isNaN(parsed) ? 0 : parsed;
+      saveState();
       renderAll();
     }
 
     function renderAll() {
+      document.getElementById('maxSkillMarks').value = maxSkillMarks;
       document.getElementById('scholasticWeight').value = evalRules.weights.scholasticWeight;
       document.getElementById('schoolWeight').value = evalRules.weights.schoolEvalWeight;
 
@@ -233,9 +270,20 @@
       document.getElementById('kpiEvaluated').innerText = `${totalEvaluated} / ${totalEnrolled}`;
 
       let totalPct = 0;
-      evalRecords.forEach(r => totalPct += (r.percentage || 0));
-      const scholasticAvgPct = totalEvaluated > 0 ? (totalPct / totalEvaluated) : 0;
+      evalRecords.forEach(r => {
+        const mcqScore = r.score || 0;
+        const maxMcq = r.max_score || r.totalMarks || 58;
+        const skill = r.skillMarks || 0;
+        const compTotal = mcqScore + skill;
+        const compMax = maxMcq + maxSkillMarks;
+        const pct = compMax > 0 ? (compTotal / compMax) * 100 : 0;
+        r._calcPct = pct;
+        r._calcTotal = compTotal;
+        r._calcMax = compMax;
+        totalPct += pct;
+      });
 
+      const scholasticAvgPct = totalEvaluated > 0 ? (totalPct / totalEvaluated) : 0;
       const schoolEvalPct = schoolEval.score ? (schoolEval.score / 24) * 100 : 0;
       const wScholastic = (evalRules.weights.scholasticWeight || 90) / 100;
       const wSchool = (evalRules.weights.schoolEvalWeight || 10) / 100;
@@ -259,22 +307,28 @@
         tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">No student records found in roster.</td></tr>';
         return;
       }
-      const classes = [...new Set(students.map(s => s.class))].sort();
+
+      const classes = [...new Set(students.map(s => s.class_level || s.class))].filter(Boolean).sort();
       let html = '';
 
       classes.forEach(cls => {
-        const classStudents = students.filter(s => s.class === cls);
-        const classEvals = evalRecords.filter(r => r.class === cls);
+        const classStudents = students.filter(s => (s.class_level || s.class) === cls);
+        const classEvals = evalRecords.filter(r => {
+          const matched = students.find(s => (s.id || s.student_id || s.name) === (r.student_id || r.studentId));
+          return matched ? (matched.class_level || matched.class) === cls : (r.class === cls);
+        });
+
         let avgPct = 0;
         if (classEvals.length > 0) {
-          avgPct = classEvals.reduce((acc, curr) => acc + (curr.percentage || 0), 0) / classEvals.length;
+          avgPct = classEvals.reduce((acc, curr) => acc + (curr._calcPct || 0), 0) / classEvals.length;
         }
+
         html += `
           <tr>
             <td><strong>${cls}</strong></td>
             <td>${classStudents.length}</td>
             <td>${classEvals.length}</td>
-            <td>${avgPct > 0 ? avgPct.toFixed(1) + '%' : '-'}</td>
+            <td>${classEvals.length > 0 ? avgPct.toFixed(1) + '%' : '-'}</td>
             <td><span style="color:#facc15; font-weight:700;">${classEvals.length > 0 ? calculateGrade(avgPct) : '-'}</span></td>
           </tr>
         `;
@@ -285,20 +339,37 @@
     function renderStudentRecords() {
       const tbody = document.getElementById('studentRecordsBody');
       if (evalRecords.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No scanned evaluation records yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">No scanned evaluation records yet.</td></tr>';
         return;
       }
+
       let html = '';
       evalRecords.forEach((r, idx) => {
+        const st = students.find(s => (s.id || s.student_id || s.name) === (r.student_id || r.studentId)) || {};
+        const name = st.name || r.studentName || 'Student ' + (idx + 1);
+        const cls = st.class_level || st.class || r.class || '-';
+        const mcq = r.score || 0;
+        const maxMcq = r.max_score || r.totalMarks || 58;
+        const skill = r.skillMarks || 0;
+        const total = r._calcTotal || (mcq + skill);
+        const maxTotal = r._calcMax || (maxMcq + maxSkillMarks);
+        const pct = r._calcPct || 0;
+        const grade = calculateGrade(pct);
+
         html += `
           <tr>
-            <td>${r.rollNo || '-'}</td>
-            <td>${r.studentName || 'Student ' + (idx + 1)}</td>
-            <td>${r.class || '-'}</td>
-            <td>${r.score || 0}</td>
-            <td>${(r.percentage || 0).toFixed(1)}%</td>
+            <td><strong>${name}</strong></td>
+            <td>${cls}</td>
+            <td>${mcq} / ${maxMcq}</td>
+            <td>
+              <input type="number" class="table-input" value="${skill}" min="0" onchange="updateStudentSkill(${idx}, this.value)">
+              <span class="table-input-val">${skill}</span>
+            </td>
+            <td><strong>${total}</strong> / ${maxTotal}</td>
+            <td>${pct.toFixed(1)}%</td>
+            <td><span style="color:#facc15; font-weight:bold;">${grade}</span></td>
             <td class="no-print">
-              <button class="btn-del-sm" onclick="deleteStudentRecord('${r.studentId || idx}')">✕</button>
+              <button class="btn-del-sm" onclick="deleteStudentRecord(${idx})">✕</button>
             </td>
           </tr>
         `;
@@ -306,18 +377,17 @@
       tbody.innerHTML = html;
     }
 
-    // Deletion and Purge Handlers
-    function deleteStudentRecord(id) {
+    function deleteStudentRecord(idx) {
       if (!confirm("Are you sure you want to delete this student's evaluation record?")) return;
-      evalRecords = evalRecords.filter((r, idx) => (r.studentId ? r.studentId !== id : idx != id));
-      localStorage.setItem('dhk_eval_records', JSON.stringify(evalRecords));
+      evalRecords.splice(idx, 1);
+      saveState();
       renderAll();
     }
 
     function clearExamScans() {
       if (!confirm("⚠️ This will remove ALL scanned student results for the current exam. Roster and School setup will NOT be deleted. Proceed?")) return;
       evalRecords = [];
-      localStorage.removeItem('dhk_eval_records');
+      saveState();
       renderAll();
       alert("Evaluation records have been reset.");
     }
@@ -344,17 +414,34 @@
         alert("No evaluation records available to export.");
         return;
       }
-      const data = evalRecords.map(r => ({
-        "Student ID": r.studentId || '',
-        "Roll No": r.rollNo || '',
-        "Name": r.studentName || '',
-        "Class": r.class || '',
-        "Score Obtained": r.score || 0,
-        "Total Marks": r.totalMarks || 0,
-        "Percentage": (r.percentage || 0).toFixed(2) + '%',
-        "Grade": calculateGrade(r.percentage || 0),
-        "Scan Date": r.date || new Date().toLocaleDateString()
-      }));
+
+      const data = evalRecords.map((r, idx) => {
+        const st = students.find(s => (s.id || s.student_id || s.name) === (r.student_id || r.studentId)) || {};
+        const name = st.name || r.studentName || 'Student ' + (idx + 1);
+        const cls = st.class_level || st.class || r.class || '-';
+        const mcq = r.score || 0;
+        const maxMcq = r.max_score || r.totalMarks || 58;
+        const skill = r.skillMarks || 0;
+        const total = r._calcTotal || (mcq + skill);
+        const maxTotal = r._calcMax || (maxMcq + maxSkillMarks);
+        const pct = r._calcPct || 0;
+
+        return {
+          "Student ID": st.student_id || st.id || '',
+          "Name": name,
+          "Class": cls,
+          "MCQ Score": mcq,
+          "Max MCQ": maxMcq,
+          "Skill / Subjective Marks": skill,
+          "Max Skill": maxSkillMarks,
+          "Composite Total": total,
+          "Max Composite Total": maxTotal,
+          "Percentage": pct.toFixed(2) + '%',
+          "Grade": calculateGrade(pct),
+          "Evaluation Date": r.timestamp || new Date().toLocaleDateString()
+        };
+      });
+
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Exam Results");
