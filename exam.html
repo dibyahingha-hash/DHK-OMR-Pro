@@ -3,261 +3,199 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>DHK OMR Pro - Answer Key Manager</title>
+  <title>DHK OMR Pro - Answer Key Configuration</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    body { -webkit-tap-highlight-color: transparent; }
-  </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
-  <!-- TOP HEADER -->
-  <header class="bg-slate-900 border-b border-slate-800 p-3 shadow-md z-20 sticky top-0">
-    <div class="flex items-center justify-between max-w-2xl mx-auto">
+  <!-- HEADER -->
+  <header class="bg-slate-900 border-b border-slate-800 p-3 sticky top-0 z-30 shadow-lg">
+    <div class="flex items-center justify-between max-w-lg mx-auto">
       <div class="flex items-center gap-2">
-        <a href="index.html" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
-          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        <a href="index.html" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
         </a>
         <div>
-          <h1 class="text-sm font-bold text-white tracking-wide uppercase">Answer Key Configuration</h1>
-          <div id="keyStatusBadge" class="text-xs text-amber-400 font-medium">Select a class to edit</div>
+          <h1 class="text-xs font-black uppercase tracking-wider text-white">Answer Key Configuration</h1>
+          <div id="keyStatusBadge" class="text-[11px] font-medium text-amber-400">
+            Editing Keys (0 Set)
+          </div>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <button id="lockKeyBtn" onclick="toggleKeyLock()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-xs font-bold text-slate-200 transition">
-          <i data-lucide="lock" id="lockKeyIcon" class="w-4 h-4"></i>
-          <span id="lockKeyText">Lock Key</span>
-        </button>
-      </div>
+      <button id="lockKeyBtn" onclick="toggleKeyLock()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1 border border-slate-700">
+        <i data-lucide="lock" class="w-3.5 h-3.5" id="lockIcon"></i>
+        <span id="lockBtnText">Lock Key</span>
+      </button>
     </div>
 
-    <!-- CLASS & QUESTION COUNT STRIP -->
-    <div class="grid grid-cols-2 gap-2 mt-3 max-w-2xl mx-auto pt-2 border-t border-slate-800 text-xs">
+    <!-- CONTROLS STRIP -->
+    <div class="grid grid-cols-2 gap-2 mt-2 max-w-lg mx-auto text-xs">
       <div>
-        <label class="block text-slate-400 font-semibold mb-1 uppercase text-[10px]">Active Class</label>
-        <select id="examClass" onchange="switchExamClass(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold focus:outline-none focus:border-indigo-500">
-          <option value="">-- Choose Class --</option>
-          <option value="I">Class I</option>
-          <option value="II">Class II</option>
+        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Active Class</label>
+        <select id="selectedClass" onchange="onClassChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold">
           <option value="III">Class III</option>
           <option value="IV">Class IV</option>
           <option value="V">Class V</option>
+          <option value="VI">Class VI</option>
+          <option value="VII">Class VII</option>
+          <option value="VIII">Class VIII</option>
           <option value="IX">Class IX</option>
           <option value="X">Class X</option>
+          <option value="XI">Class XI</option>
+          <option value="XII">Class XII</option>
         </select>
       </div>
 
       <div>
-        <label class="block text-slate-400 font-semibold mb-1 uppercase text-[10px]">Total Questions</label>
-        <select id="examTotalQ" onchange="changeQuestionCount(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold focus:outline-none focus:border-indigo-500">
-          <option value="58">58 Questions (Gunotsav Primary)</option>
-          <option value="75">75 Questions</option>
-          <option value="100">100 Questions (Universal DHK)</option>
-          <option value="50">50 Questions</option>
-          <option value="30">30 Questions</option>
+        <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Format / Question Count</label>
+        <select id="totalQuestions" onchange="onQuestionCountChange(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-cyan-400 font-bold">
+          <option value="58">58 Questions (Gunotsav 43-Rail)</option>
+          <option value="100">100 Questions (Universal 34-Rail)</option>
+          <option value="75">75 Questions (Custom/Secondary)</option>
         </select>
       </div>
     </div>
   </header>
 
-  <!-- ANSWER KEY GRID -->
-  <main class="flex-1 max-w-2xl mx-auto w-full p-4 overflow-y-auto">
-    <div id="gridContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pb-20">
-      <!-- Generated via JS -->
+  <!-- KEY QUESTIONS LIST -->
+  <main class="flex-1 max-w-lg mx-auto w-full p-3.5 space-y-2 pb-24">
+    <div id="questionsContainer" class="space-y-1.5">
+      <!-- Dynamically generated rows Q01 to Q58 or Q100 -->
     </div>
   </main>
 
-  <!-- BOTTOM ACTION BAR -->
-  <footer class="bg-slate-900 border-t border-slate-800 p-3 sticky bottom-0 z-20 shadow-xl">
-    <div class="max-w-2xl mx-auto flex items-center justify-between gap-3">
-      <button onclick="clearCurrentKey()" id="clearKeyBtn" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-900/40 text-rose-400 border border-slate-700 text-xs font-bold transition">
+  <!-- FOOTER -->
+  <footer class="bg-slate-900 border-t border-slate-800 p-3 sticky bottom-0 z-30 shadow-2xl">
+    <div class="max-w-lg mx-auto flex items-center justify-between gap-2.5">
+      <button onclick="resetCurrentKey()" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold border border-slate-700">
         Reset Key
       </button>
-      <a href="scan.html" class="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold py-2.5 rounded-xl transition text-sm">
+      <button onclick="saveAndProceed()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg transition text-xs flex items-center justify-center gap-1.5">
         <i data-lucide="scan-line" class="w-4 h-4"></i>
-        <span>Proceed to Scanner</span>
-      </a>
+        <span>Save & Proceed to Scanner</span>
+      </button>
     </div>
   </footer>
 
   <script>
-    let activeClass = "";
-    let activeKey = {};
-    let isKeyLocked = false;
+    let currentClass = 'III';
+    let questionCount = 58;
+    let answerKey = {};
+    let isLocked = false;
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
-      const lastClass = localStorage.getItem('dhk_locked_class') || "III";
-      document.getElementById('examClass').value = lastClass;
-      switchExamClass(lastClass);
+      loadKeyForClass(currentClass);
     });
 
-    function switchExamClass(className) {
-      if (!className) {
-        document.getElementById('gridContainer').innerHTML = `
-          <div class="col-span-full py-12 text-center text-slate-500 text-sm">
-            Please choose a class from above to configure its answer key.
-          </div>`;
-        document.getElementById('keyStatusBadge').innerText = "Select a class to edit";
-        return;
-      }
+    function loadKeyForClass(cls) {
+      currentClass = cls;
+      const stored = localStorage.getItem(`dhk_key_${cls}`);
+      answerKey = stored ? JSON.parse(stored) : {};
 
-      activeClass = className;
-      localStorage.setItem('dhk_locked_class', activeClass);
-
-      // Load class-specific key from local storage
-      const stored = localStorage.getItem(`dhk_key_${activeClass}`);
-      if (stored) {
-        try {
-          activeKey = JSON.parse(stored);
-        } catch(e) {
-          activeKey = {};
-        }
+      const storedCount = Object.keys(answerKey).length;
+      if (storedCount > 58) {
+        questionCount = 100;
+        document.getElementById('totalQuestions').value = "100";
       } else {
-        activeKey = {};
+        questionCount = parseInt(document.getElementById('totalQuestions').value);
       }
 
-      // Check if locked
-      isKeyLocked = localStorage.getItem(`dhk_key_locked_${activeClass}`) === 'true';
-
-      const totalQ = Object.keys(activeKey).length > 58 ? Object.keys(activeKey).length : 58;
-      document.getElementById('examTotalQ').value = totalQ;
-
-      renderGrid(totalQ);
-      applyLockUI();
+      renderQuestions();
+      updateStatusBadge();
     }
 
-    function changeQuestionCount(count) {
-      renderGrid(parseInt(count, 10));
-      saveCurrentKey();
+    function onClassChange(val) {
+      currentClass = val;
+      loadKeyForClass(val);
     }
 
-    function renderGrid(total) {
-      const container = document.getElementById('gridContainer');
-      container.innerHTML = "";
+    function onQuestionCountChange(val) {
+      questionCount = parseInt(val);
+      renderQuestions();
+      updateStatusBadge();
+    }
 
-      for (let q = 1; q <= total; q++) {
-        const selected = activeKey[q] || "";
+    function renderQuestions() {
+      const container = document.getElementById('questionsContainer');
+      container.innerHTML = '';
+
+      for (let i = 1; i <= questionCount; i++) {
+        const qNum = String(i).padStart(questionCount > 99 ? 3 : 2, '0');
+        const selected = answerKey[i] || null;
+
         const row = document.createElement('div');
-        row.className = "flex items-center justify-between bg-slate-900 border border-slate-800 p-2 rounded-xl key-row";
-        row.id = `q_row_${q}`;
-
-        let optionsHtml = ['A', 'B', 'C', 'D'].map(opt => `
-          <button type="button" 
-                  onclick="selectOption(${q}, '${opt}')" 
-                  data-q="${q}" data-opt="${opt}"
-                  class="bubble-btn w-8 h-8 rounded-full border text-xs font-bold transition flex items-center justify-center ${selected === opt ? 'bg-indigo-600 border-indigo-400 text-white shadow-md' : 'bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-500'}">
-            ${opt}
-          </button>
-        `).join('');
-
+        row.className = "flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800";
         row.innerHTML = `
-          <span class="text-xs font-mono font-bold text-slate-400 w-10">Q${q < 10 ? '0' + q : q}</span>
-          <div class="flex items-center gap-2">
-            ${optionsHtml}
+          <span class="text-xs font-mono font-bold text-slate-300">Q${qNum}</span>
+          <div class="flex gap-2">
+            ${['A', 'B', 'C', 'D'].map(opt => `
+              <button onclick="setOption(${i}, '${opt}')" class="w-8 h-8 rounded-full font-bold text-xs transition ${                 selected === opt                   ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-400'                   : 'bg-slate-950 text-slate-400 border border-slate-800 hover:border-slate-600'               }">${opt}</button>
+            `).join('')}
           </div>
         `;
         container.appendChild(row);
       }
     }
 
-    function selectOption(q, opt) {
-      if (isKeyLocked) return;
-
-      if (activeKey[q] === opt) {
-        delete activeKey[q];
+    function setOption(q, opt) {
+      if (answerKey[q] === opt) {
+        delete answerKey[q];
       } else {
-        activeKey[q] = opt;
+        answerKey[q] = opt;
       }
-
-      updateRowUI(q);
-      saveCurrentKey();
-    }
-
-    function updateRowUI(q) {
-      const row = document.getElementById(`q_row_${q}`);
-      if (!row) return;
-
-      const selected = activeKey[q] || "";
-      row.querySelectorAll('.bubble-btn').forEach(btn => {
-        const opt = btn.getAttribute('data-opt');
-        if (opt === selected) {
-          btn.className = "bubble-btn w-8 h-8 rounded-full border text-xs font-bold transition flex items-center justify-center bg-indigo-600 border-indigo-400 text-white shadow-md";
-        } else {
-          btn.className = "bubble-btn w-8 h-8 rounded-full border text-xs font-bold transition flex items-center justify-center bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-500";
-        }
-      });
-    }
-
-    function saveCurrentKey() {
-      if (!activeClass) return;
-      localStorage.setItem(`dhk_key_${activeClass}`, JSON.stringify(activeKey));
-      localStorage.setItem('dhk_master_key', JSON.stringify(activeKey)); // legacy fallback
+      renderQuestions();
       updateStatusBadge();
-    }
-
-    function toggleKeyLock() {
-      if (!activeClass) {
-        alert("Select a class first.");
-        return;
-      }
-      isKeyLocked = !isKeyLocked;
-      localStorage.setItem(`dhk_key_locked_${activeClass}`, isKeyLocked ? 'true' : 'false');
-      applyLockUI();
-    }
-
-    function applyLockUI() {
-      const lockBtnText = document.getElementById('lockKeyText');
-      const lockIcon = document.getElementById('lockKeyIcon');
-      const clearBtn = document.getElementById('clearKeyBtn');
-      const totalQSelect = document.getElementById('examTotalQ');
-
-      // Physical locking of DOM elements
-      document.querySelectorAll('.bubble-btn').forEach(btn => {
-        btn.disabled = isKeyLocked;
-        btn.style.pointerEvents = isKeyLocked ? 'none' : 'auto';
-      });
-      totalQSelect.disabled = isKeyLocked;
-      clearBtn.disabled = isKeyLocked;
-      clearBtn.style.opacity = isKeyLocked ? '0.4' : '1';
-
-      if (isKeyLocked) {
-        lockBtnText.innerText = "Unlock Key";
-        lockIcon.setAttribute('data-lucide', 'unlock');
-      } else {
-        lockBtnText.innerText = "Lock Key";
-        lockIcon.setAttribute('data-lucide', 'lock');
-      }
-      lucide.createIcons();
-      updateStatusBadge();
+      saveKey();
     }
 
     function updateStatusBadge() {
+      const count = Object.keys(answerKey).length;
       const badge = document.getElementById('keyStatusBadge');
-      const count = Object.keys(activeKey).length;
-      if (!activeClass) {
-        badge.innerText = "Select a class to edit";
-        badge.className = "text-xs text-amber-400 font-medium";
-        return;
-      }
-
-      if (isKeyLocked) {
-        badge.innerHTML = `<span class="text-emerald-400 font-bold">🔒 Class ${activeClass} Locked (${count} Keys Set)</span>`;
+      if (count === 0) {
+        badge.innerText = `Editing Class ${currentClass} (0 Keys Set)`;
+        badge.className = "text-[11px] font-medium text-amber-400";
       } else {
-        badge.innerHTML = `<span class="text-amber-400 font-medium">✏️ Editing Class ${activeClass} (${count} Keys Set)</span>`;
+        badge.innerText = `Class ${currentClass} (${count}/${questionCount} Keys Set)`;
+        badge.className = "text-[11px] font-medium text-emerald-400";
       }
     }
 
-    function clearCurrentKey() {
-      if (isKeyLocked) return;
-      if (confirm(`Clear all answers for Class ${activeClass}?`)) {
-        activeKey = {};
-        saveCurrentKey();
-        const total = parseInt(document.getElementById('examTotalQ').value, 10);
-        renderGrid(total);
+    function saveKey() {
+      localStorage.setItem(`dhk_key_${currentClass}`, JSON.stringify(answerKey));
+      localStorage.setItem('dhk_master_key', JSON.stringify(answerKey));
+    }
+
+    function toggleKeyLock() {
+      isLocked = !isLocked;
+      const icon = document.getElementById('lockIcon');
+      const text = document.getElementById('lockBtnText');
+      if (isLocked) {
+        text.innerText = "Unlock Key";
+        icon.setAttribute('data-lucide', 'unlock');
+      } else {
+        text.innerText = "Lock Key";
+        icon.setAttribute('data-lucide', 'lock');
       }
+      lucide.createIcons();
+    }
+
+    function resetCurrentKey() {
+      if (confirm(`Reset all answer keys for Class ${currentClass}?`)) {
+        answerKey = {};
+        saveKey();
+        renderQuestions();
+        updateStatusBadge();
+      }
+    }
+
+    function saveAndProceed() {
+      saveKey();
+      localStorage.setItem('dhk_locked_class', currentClass);
+      const isUniversal = questionCount > 58;
+      window.location.href = `scan-mcq.html?format=${isUniversal ? 'universal' : 'gunotsav'}`;
     }
   </script>
 </body>
