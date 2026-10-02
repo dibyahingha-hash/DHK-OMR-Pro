@@ -172,17 +172,20 @@
       document.getElementById('addModal').classList.add('hidden');
     }
 
-    function saveStudent() {
-      const name = document.getElementById('newName').value.trim();
-      const cls = document.getElementById('newClass').value;
-      const roll = document.getElementById('newRoll').value.trim();
+        const name = document.getElementById('newName').value.trim();
+    const cls = document.getElementById('newClass').value.replace(/Class[- ]?/i, '').trim();
+    const roll = document.getElementById('newRoll').value.trim();
+        const secEl = document.getElementById('newSec') || document.getElementById('newSection');
+    const sec = secEl ? secEl.value.trim() : 'A';
+    
 
-      if (!name) {
-        alert("Please enter student name");
-        return;
-      }
+    if (!name) {
+      alert("Please enter student name");
+      return;
+    }
 
-      roster.push({ name, class: cls, roll, sec: 'A' });
+    roster.push({ name, class: cls, roll, sec: sec || 'A' });
+    
       localStorage.setItem('dhk_roster', JSON.stringify(roster));
       document.getElementById('newName').value = '';
       document.getElementById('newRoll').value = '';
@@ -218,6 +221,7 @@
         const newStudents = json.map(r => ({
           name: String(r['Student Name'] || r['name'] || r['NAME'] || '').trim(),
           class: String(r['Class'] || r['CLASS'] || r['class'] || r['Grade'] || r['GRADE'] || r['grade'] || r['Standard'] || r['Std'] || 'III').replace(/Class[- ]?/i, '').trim(),
+
           
           roll: String(r['Student ID'] || r['ID'] || r['Roll'] || '').trim(),
           sec: String(r['Section'] || 'A').trim()
