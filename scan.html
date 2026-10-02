@@ -514,8 +514,224 @@
       document.getElementById('modeIndicator').textContent = 
         mode === 'gunotsav' ? 'Gunotsav Active (43 Dashes)' : 'Universal Active (36 Dashes)';
     }
+// Master Key Controller State
+let activeMasterKey = {};
 
+function openKeyModal() {
+  const currentClass = document.getElementById('lockedClass').value;
+  document.getElementById('keyModalClassBadge').textContent = currentClass;
+
+  const savedKey = localStorage.getItem(`dhk_key_${currentClass}`);
+  if (savedKey) {
+    activeMasterKey = JSON.parse(savedKey);
+    const count = Object.keys(activeMasterKey).length;
+    document.getElementById('keyTotalCount').value = count;
+  } else {
+    const count = parseInt(document.getElementById('keyTotalCount').value, 10);
+    activeMasterKey = {};
+    for (let i = 1; i <= count; i++) activeMasterKey[i] = 'A';
+  }
+
+  switchKeyTab('manual');
+  renderKeyTapRows();
+  document.getElementById('masterKeyModal').classList.remove('hidden');
+}
+
+function closeKeyModal() {
+  document.getElementById('masterKeyModal').classList.add('hidden');
+}
+
+function switchKeyTab(tab) {
+  const manualTab = document.getElementById('tabManualContent');
+  const scanTab = document.getElementById('tabScanContent');
+  const manualBtn = document.getElementById('tabManualBtn');
+  const scanBtn = document.getElementById('tabScanBtn');
+
+  if (tab === 'manual') {
+    manualTab.classList.remove('hidden');
+    scanTab.classList.add('hidden');
+    manualBtn.className = "flex-1 py-2 font-bold text-center border-b-2 border-green-500 text-green-400";
+    scanBtn.className = "flex-1 py-2 font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200";
+  } else {
+    manualTab.classList.add('hidden');
+    scanTab.classList.remove('hidden');
+    scanBtn.className = "flex-1 py-2 font-bold text-center border-b-2 border-blue-500 text-blue-400";
+    manualBtn.className = "flex-1 py-2 font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200";
+  }
+}
+
+function renderKeyTapRows() {
+  const count = parseInt(document.getElementById('keyTotalCount').value, 10);
+  const container = document.getElementById('keyTapContainer');
+  container.innerHTML = '';
+
+  for (let q = 1; q <= count; q++) {
+    if (!activeMasterKey[q]) activeMasterKey[q] = 'A';
+
+    const row = document.createElement('div');
+    row.className = "flex items-center justify-between bg-gray-900/60 p-1.5 px-3 rounded border border-gray-700/60";
+
+    const label = document.createElement('span');
+    label.className = "text-gray-300 font-bold w-12";
+    label.textContent = `Q${q < 10 ? '0' + q : q}`;
+    row.appendChild(label);
+
+    const btnGroup = document.createElement('div');
+    btnGroup.className = "flex space-x-1.5";
+
+    ['A', 'B', 'C', 'D'].forEach(opt => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = opt;
+      const isSelected = activeMasterKey[q] === opt;
+
+      btn.className = `w-7 h-7 rounded-full text-xs font-bold transition-all ${
+        isSelected 
+          ? 'bg-green-500 text-black ring-2 ring-white' 
+          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+      }`;
+
+      btn.onclick = () => {
+        activeMasterKey[q] = opt;
+        Array.from(btnGroup.children).forEach(b => {
+          b.className = 'w-7 h-7 rounded-full text-xs font-bold bg-gray-700 text-gray-300 hover:bg-gray-600';
+        });
+        btn.className = 'w-7 h-7 rounded-full text-xs font-bold bg-green-500 text-black ring-2 ring-white';
+      };
+      btnGroup.appendChild(btn);
+    });
+
+    row.appendChild(btnGroup);
+    container.appendChild(row);
+  }
+}
+
+function triggerMasterCameraScan() {
+  closeKeyModal();
+  window.scanningAsMasterKey = true;
+  alert("Aim camera at the Teacher's Master Copy to auto-set the key.");
+}
+
+function handleMasterGallery(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const extractedKey = extractAnswersOnlyFromCanvas(canvas);
+      if (Object.keys(extractedKey).length > 0) {
+        activeMasterKey = extractedKey;
+        commitMasterKey();
+        alert(`Master Key scanned successfully (${Object.keys(activeMasterKey).length} Questions detected).`);
+      } else {
+        alert("Failed to read master sheet. Please ensure timing dashes are clearly visible.");
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function commitMasterKey() {
+  const currentClass = document.getElementById('lockedClass').value;
+  const count = parseInt(document.getElementById('keyTotalCount').value, 10);
+
+  const finalKey = {};
+  for (let i = 1; i <= count; i++) {
+    finalKey[i] = activeMasterKey[i] || 'A';
+  }
+  activeMasterKey = finalKey;
+
+  localStorage.setItem(`dhk_key_${currentClass}`, JSON.stringify(activeMasterKey));
+  closeKeyModal();
+  document.getElementById('modeIndicator').textContent = `${currentClass} Key Set (${count} Qs)`;
+    }
+    
     window.onload = startCamera;
   </script>
+  <!-- Master Answer Key Editor Modal -->
+<div id="masterKeyModal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-3">
+  <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 max-w-md w-full max-h-[92vh] flex flex-col shadow-2xl">
+    
+    <!-- Modal Header -->
+    <div class="flex justify-between items-center pb-3 border-b border-gray-700">
+      <div>
+        <h2 class="text-base font-black text-white">SET MASTER ANSWER KEY</h2>
+        <p class="text-xs text-gray-400">Class: <span id="keyModalClassBadge" class="text-green-400 font-bold">Class III</span></p>
+      </div>
+      <button onclick="closeKeyModal()" class="text-gray-400 hover:text-white text-lg font-bold">✕</button>
+    </div>
+
+    <!-- Dual Choice Tabs: Manual Tap vs Scan Master Sheet -->
+    <div class="flex border-b border-gray-700 text-xs">
+      <button id="tabManualBtn" onclick="switchKeyTab('manual')" class="flex-1 py-2 font-bold text-center border-b-2 border-green-500 text-green-400">
+        MANUAL TAP
+      </button>
+      <button id="tabScanBtn" onclick="switchKeyTab('scan')" class="flex-1 py-2 font-bold text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200">
+        SCAN TEACHER'S COPY
+      </button>
+    </div>
+
+    <!-- TAB 1: Manual Tap Grid -->
+    <div id="tabManualContent" class="flex-1 flex flex-col overflow-hidden py-2">
+      <div class="py-2 flex items-center justify-between text-xs border-b border-gray-700/60">
+        <span class="text-gray-300 font-bold">ACTIVE QUESTIONS:</span>
+        <select id="keyTotalCount" onchange="renderKeyTapRows()" class="bg-gray-700 text-white rounded px-2 py-1 border border-gray-600 font-bold text-xs">
+          <option value="20">20 Questions</option>
+          <option value="50">50 Questions</option>
+          <option value="58">58 Questions (Gunotsav)</option>
+          <option value="75">75 Questions</option>
+          <option value="100" selected>100 Questions</option>
+        </select>
+      </div>
+
+      <!-- Scrollable Answer Matrix -->
+      <div id="keyTapContainer" class="flex-1 overflow-y-auto py-2 space-y-1.5 pr-1 font-mono text-xs">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- TAB 2: Scan Master Sheet -->
+    <div id="tabScanContent" class="hidden flex-1 flex flex-col justify-center items-center py-6 text-center text-xs space-y-4">
+      <div class="w-16 h-16 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center">
+        <svg class="w-8 h-8 fill-current" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+        </svg>
+      </div>
+      <div class="px-4">
+        <p class="font-bold text-white text-sm mb-1">SCAN COMPLETED MASTER SHEET</p>
+        <p class="text-gray-400 text-xs">Point your camera or upload a photo of the filled master copy to auto-detect all correct answers.</p>
+      </div>
+      <div class="flex space-x-2 w-full px-4">
+        <button onclick="triggerMasterCameraScan()" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs">
+          USE CAMERA
+        </button>
+        <button onclick="document.getElementById('masterGalleryInput').click()" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-xs">
+          FROM GALLERY
+        </button>
+        <input type="file" id="masterGalleryInput" accept="image/*" class="hidden" onchange="handleMasterGallery(event)">
+      </div>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="pt-3 border-t border-gray-700 grid grid-cols-2 gap-2">
+      <button onclick="commitMasterKey()" class="py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg text-xs">
+        SAVE & ACTIVATE KEY
+      </button>
+      <button onclick="closeKeyModal()" class="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold rounded-lg text-xs">
+        CANCEL
+      </button>
+    </div>
+  </div>
+</div>
+  
 </body>
 </html>
