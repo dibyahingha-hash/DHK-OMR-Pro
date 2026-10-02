@@ -42,6 +42,7 @@
     .field-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .field-label { font-size: 0.85rem; color: var(--text-main); }
     .field-input { width: 75px; background: #0f172a; border: 1px solid var(--card-border); color: #fff; padding: 6px; border-radius: 6px; text-align: center; font-size: 0.9rem; font-weight: bold; }
+    .field-select { background: #0f172a; border: 1px solid var(--card-border); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; }
 
     /* Tables */
     .table-container { overflow-x: auto; margin-top: 8px; }
@@ -62,7 +63,7 @@
 
     @media print {
       body { background: #fff; color: #000; padding: 0; }
-      .nav-bar, .btn, .no-print, input { display: none !important; }
+      .nav-bar, .btn, .no-print, input, select { display: none !important; }
       .card { border: 1px solid #ccc; background: #fff; color: #000; break-inside: avoid; }
       .card-title { color: #000; border-bottom: 1px solid #000; padding-bottom: 4px; }
       th, td { color: #000 !important; border-bottom: 1px solid #ddd; }
@@ -104,6 +105,14 @@
   <!-- 1. Assessment & Skill Marks Setup -->
   <div class="card">
     <div class="card-title">1. Assessment & Skill Marks Configuration</div>
+    
+    <div class="field-row">
+      <label class="field-label" for="subjectFilterSelect">Active Subject Filter:</label>
+      <select id="subjectFilterSelect" class="field-select" onchange="renderAll()">
+        <option value="ALL">All Subjects (Combined)</option>
+      </select>
+    </div>
+
     <div class="field-row">
       <label class="field-label" for="maxSkillMarks">Max Skill / Descriptive Marks (Editable):</label>
       <input type="number" id="maxSkillMarks" class="field-input" value="0" min="0" onchange="updateMaxSkillMarks()">
@@ -154,6 +163,7 @@
           <tr>
             <th>Name</th>
             <th>Class</th>
+            <th>Subject</th>
             <th>MCQ Score</th>
             <th>Skill Marks</th>
             <th>Total Score</th>
@@ -163,7 +173,7 @@
           </tr>
         </thead>
         <tbody id="studentRecordsBody">
-          <tr><td colspan="8" class="empty-msg">No scanned evaluation records yet.</td></tr>
+          <tr><td colspan="9" class="empty-msg">No scanned evaluation records yet.</td></tr>
         </tbody>
       </table>
     </div>
@@ -182,6 +192,7 @@
     <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
       Manage existing scan data to start new exams or reset indicators.
     </p>
+    <button class="btn btn-green" onclick="startNewExamSession()">🆕 Start New Exam Session (Archive & Clear)</button>
     <button class="btn btn-warning-outline" onclick="clearExamScans()">🗑️ Clear Current Exam Scans Only</button>
     <button class="btn btn-warning-outline" onclick="resetSchoolEval()">🔄 Reset School Indicators (24 Indicators)</button>
     <button class="btn btn-danger-outline" onclick="factoryReset()">⚠️ Factory Reset (Purge All Data)</button>
@@ -260,17 +271,39 @@
       renderAll();
     }
 
+    function syncSubjectFilterDropdown() {
+      const select = document.getElementById('subjectFilterSelect');
+      const currentVal = select.value || 'ALL';
+      const subjects = [...new Set(evalRecords.map(r => r.subject || 'Gunotsav'))].filter(Boolean);
+
+      select.innerHTML = '<option value="ALL">All Subjects (Combined)</option>';
+      subjects.forEach(sub => {
+        const opt = document.createElement('option');
+        opt.value = sub;
+        opt.textContent = sub;
+        if (sub === currentVal) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
     function renderAll() {
+      syncSubjectFilterDropdown();
+
       document.getElementById('maxSkillMarks').value = maxSkillMarks;
       document.getElementById('scholasticWeight').value = evalRules.weights.scholasticWeight;
       document.getElementById('schoolWeight').value = evalRules.weights.schoolEvalWeight;
 
+      const activeSubjectFilter = document.getElementById('subjectFilterSelect').value;
+      const displayRecords = (activeSubjectFilter === 'ALL')
+        ? evalRecords
+        : evalRecords.filter(r => (r.subject || 'Gunotsav') === activeSubjectFilter);
+
       const totalEnrolled = students.length;
-      const totalEvaluated = evalRecords.length;
+      const totalEvaluated = displayRecords.length;
       document.getElementById('kpiEvaluated').innerText = `${totalEvaluated} / ${totalEnrolled}`;
 
       let totalPct = 0;
-      evalRecords.forEach(r => {
+      displayRecords.forEach(r => {
         const mcqScore = r.score || 0;
         const maxMcq = r.max_score || r.totalMarks || 58;
         const skill = r.skillMarks || 0;
@@ -297,11 +330,11 @@
         document.getElementById('kpiGrade').innerText = 'Pending';
       }
 
-      renderClassSummary();
-      renderStudentRecords();
+      renderClassSummary(displayRecords);
+      renderStudentRecords(displayRecords);
     }
 
-    function renderClassSummary() {
+    function renderClassSummary(recordsToDisplay) {
       const tbody = document.getElementById('classSummaryBody');
       if (students.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">No student records found in roster.</td></tr>';
@@ -313,9 +346,14 @@
 
       classes.forEach(cls => {
         const classStudents = students.filter(s => (s.class_level || s.class) === cls);
-        const classEvals = evalRecords.filter(r => {
-          const matched = students.find(s => (s.id || s.student_id || s.name) === (r.student_id || r.studentId));
-          return matched ? (matched.class_level || matched.class) === cls : (r.class === cls);
+        const classEvals = recordsToDisplay.filter(r => {
+          const matched = students.find(s => 
+            (s.id && (s.id === r.student_id || s.id === r.studentId)) ||
+            (s.student_id && (s.student_id === r.student_id || s.student_id === r.studentId)) ||
+            (s.name && (s.name === r.student_id || s.name === r.studentName))
+          );
+          const studentCls = matched ? (matched.class_level || matched.class) : (r.class || r.detectedClass);
+          return studentCls === cls;
         });
 
         let avgPct = 0;
@@ -336,18 +374,25 @@
       tbody.innerHTML = html;
     }
 
-    function renderStudentRecords() {
+    function renderStudentRecords(recordsToDisplay) {
       const tbody = document.getElementById('studentRecordsBody');
-      if (evalRecords.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">No scanned evaluation records yet.</td></tr>';
+      if (recordsToDisplay.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-msg">No scanned evaluation records found.</td></tr>';
         return;
       }
 
       let html = '';
-      evalRecords.forEach((r, idx) => {
-        const st = students.find(s => (s.id || s.student_id || s.name) === (r.student_id || r.studentId)) || {};
-        const name = st.name || r.studentName || 'Student ' + (idx + 1);
+      recordsToDisplay.forEach((r) => {
+        const globalIdx = evalRecords.indexOf(r);
+        const st = students.find(s => 
+          (s.id && (s.id === r.student_id || s.id === r.studentId)) ||
+          (s.student_id && (s.student_id === r.student_id || s.student_id === r.studentId)) ||
+          (s.name && (s.name === r.student_id || s.name === r.studentName))
+        ) || {};
+
+        const name = st.name || r.studentName || 'Student ' + (globalIdx + 1);
         const cls = st.class_level || st.class || r.class || '-';
+        const sub = r.subject || 'Gunotsav';
         const mcq = r.score || 0;
         const maxMcq = r.max_score || r.totalMarks || 58;
         const skill = r.skillMarks || 0;
@@ -360,16 +405,17 @@
           <tr>
             <td><strong>${name}</strong></td>
             <td>${cls}</td>
+            <td><span style="color:#38bdf8; font-weight:600;">${sub}</span></td>
             <td>${mcq} / ${maxMcq}</td>
             <td>
-              <input type="number" class="table-input" value="${skill}" min="0" onchange="updateStudentSkill(${idx}, this.value)">
+              <input type="number" class="table-input" value="${skill}" min="0" onchange="updateStudentSkill(${globalIdx}, this.value)">
               <span class="table-input-val">${skill}</span>
             </td>
             <td><strong>${total}</strong> / ${maxTotal}</td>
             <td>${pct.toFixed(1)}%</td>
             <td><span style="color:#facc15; font-weight:bold;">${grade}</span></td>
             <td class="no-print">
-              <button class="btn-del-sm" onclick="deleteStudentRecord(${idx})">✕</button>
+              <button class="btn-del-sm" onclick="deleteStudentRecord(${globalIdx})">✕</button>
             </td>
           </tr>
         `;
@@ -382,6 +428,27 @@
       evalRecords.splice(idx, 1);
       saveState();
       renderAll();
+    }
+
+    function startNewExamSession() {
+      if (evalRecords.length > 0) {
+        const backup = confirm("Export a backup Excel copy of current exam results before clearing?");
+        if (backup) {
+          exportResultsToExcel();
+        }
+      }
+
+      const proceed = confirm("⚠️ Are you ready to clear all scanned papers and keys for a new session?\n(Your student roster will be preserved)");
+      if (!proceed) return;
+
+      evalRecords = [];
+      localStorage.removeItem('dhk_evaluations');
+      localStorage.removeItem('dhk_eval_records');
+      localStorage.removeItem('dhk_master_key');
+
+      saveState();
+      renderAll();
+      alert("Ready for a new exam session! Set your new answer key in 'Exam & Key'.");
     }
 
     function clearExamScans() {
@@ -415,10 +482,21 @@
         return;
       }
 
-      const data = evalRecords.map((r, idx) => {
-        const st = students.find(s => (s.id || s.student_id || s.name) === (r.student_id || r.studentId)) || {};
+      const activeSubjectFilter = document.getElementById('subjectFilterSelect').value;
+      const exportList = (activeSubjectFilter === 'ALL')
+        ? evalRecords
+        : evalRecords.filter(r => (r.subject || 'Gunotsav') === activeSubjectFilter);
+
+      const data = exportList.map((r, idx) => {
+        const st = students.find(s => 
+          (s.id && (s.id === r.student_id || s.id === r.studentId)) ||
+          (s.student_id && (s.student_id === r.student_id || s.student_id === r.studentId)) ||
+          (s.name && (s.name === r.student_id || s.name === r.studentName))
+        ) || {};
+
         const name = st.name || r.studentName || 'Student ' + (idx + 1);
         const cls = st.class_level || st.class || r.class || '-';
+        const sub = r.subject || 'Gunotsav';
         const mcq = r.score || 0;
         const maxMcq = r.max_score || r.totalMarks || 58;
         const skill = r.skillMarks || 0;
@@ -430,6 +508,7 @@
           "Student ID": st.student_id || st.id || '',
           "Name": name,
           "Class": cls,
+          "Subject": sub,
           "MCQ Score": mcq,
           "Max MCQ": maxMcq,
           "Skill / Subjective Marks": skill,
@@ -445,10 +524,17 @@
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Exam Results");
-      XLSX.writeFile(wb, "DHK_OMR_Exam_Results.xlsx");
+      XLSX.writeFile(wb, `DHK_OMR_Results_${activeSubjectFilter}.xlsx`);
     }
 
     window.onload = renderAll;
+  </script>
+
+  <!-- Offline Service Worker Activation -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    }
   </script>
 </body>
 </html>
