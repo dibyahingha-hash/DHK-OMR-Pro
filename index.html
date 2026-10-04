@@ -8,6 +8,14 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; }
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      header, .no-print, section:has(button) { display: none !important; }
+      .bg-slate-900, .bg-slate-950 { background: #fff !important; color: #000 !important; border: 1px solid #ddd !important; }
+      .text-white, .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400 { color: #000 !important; }
+      table { border: 1px solid #ccc; }
+      th, td { border-bottom: 1px solid #eee !important; color: #000 !important; }
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none overflow-x-hidden">
@@ -66,8 +74,8 @@
       </div>
     </div>
 
-    <!-- 2. MODULAR SCANNER LAUNCHPAD (THE THREE ENGINES) -->
-    <section class="space-y-2">
+    <!-- 2. MODULAR SCANNER LAUNCHPAD -->
+    <section class="space-y-2 no-print">
       <h2 class="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
         <i data-lucide="camera" class="w-3.5 h-3.5 text-indigo-400"></i>
         <span>Evaluation Engines</span>
@@ -90,7 +98,7 @@
         </div>
       </a>
 
-      <!-- Engine 2: Primary Card (Classes I & II) -->
+      <!-- Engine 2: Primary Card -->
       <a href="scan-primary.html" class="flex items-center justify-between p-3.5 bg-slate-900 hover:bg-slate-850 active:scale-[0.99] border border-slate-800 hover:border-emerald-500/60 rounded-2xl shadow transition">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
@@ -125,7 +133,7 @@
       </a>
     </section>
 
-    <!-- 3. GUNOTSAV WEIGHTING CONFIGURATION -->
+    <!-- 3. WEIGHTING CONFIGURATION -->
     <section class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 shadow">
       <div class="flex items-center justify-between">
         <h2 class="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -146,7 +154,7 @@
         </div>
       </div>
       <p class="text-[10px] text-slate-500 leading-tight">
-        * Standard Gunotsav applies 90% Scholastic evaluation + 10% Institutional 24 Indicators[span_0](start_span)[span_0](end_span).
+        * Standard Gunotsav applies 90% Scholastic evaluation + 10% Institutional 24 Indicators.
       </p>
     </section>
 
@@ -157,7 +165,7 @@
           <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i>
           <span>2. Class-Wise Scholastic Summary</span>
         </h2>
-        <a href="roster.html" class="text-[10px] font-bold text-indigo-400 underline">Manage Students</a>
+        <a href="roster.html" class="text-[10px] font-bold text-indigo-400 underline no-print">Manage Students</a>
       </div>
 
       <div class="overflow-x-auto">
@@ -179,7 +187,7 @@
     </section>
 
     <!-- 5. EXPORT ACTIONS -->
-    <section class="flex gap-2">
+    <section class="flex gap-2 no-print">
       <button onclick="exportCSV()" class="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-slate-900 hover:bg-slate-850 active:scale-95 border border-slate-800 text-slate-300 text-xs font-bold transition">
         <i data-lucide="download" class="w-4 h-4 text-emerald-400"></i>
         <span>Export CSV Report</span>
@@ -193,7 +201,7 @@
   </main>
 
   <!-- DATA RESET MODAL -->
-  <div id="resetModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
+  <div id="resetModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 no-print">
     <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-4 shadow-2xl space-y-3">
       <div class="flex items-center gap-2 text-rose-400">
         <i data-lucide="alert-octagon" class="w-5 h-5"></i>
@@ -232,7 +240,6 @@
     let primaryScores = [];
     let schoolIndicators = null;
 
-    // Supports full school span from Class I through Class XII
     const allClasses = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -241,21 +248,10 @@
     });
 
     function loadAllDatasets() {
-      // 1. Roster
-      const r = localStorage.getItem('dhk_roster');
-      roster = r ? JSON.parse(r) : [];
-
-      // 2. MCQ Evaluations (Class III-XII)
-      const m = localStorage.getItem('dhk_scores_mcq');
-      mcqScores = m ? JSON.parse(m) : [];
-
-      // 3. Primary Evaluations (Class I-II)
-      const p = localStorage.getItem('dhk_scores_primary');
-      primaryScores = p ? JSON.parse(p) : [];
-
-      // 4. School 24 Indicators
-      const s = localStorage.getItem('dhk_school_indicators');
-      schoolIndicators = s ? JSON.parse(s) : null;
+      try { roster = JSON.parse(localStorage.getItem('dhk_roster') || '[]'); } catch(e) { roster = []; }
+      try { mcqScores = JSON.parse(localStorage.getItem('dhk_scores_mcq') || '[]'); } catch(e) { mcqScores = []; }
+      try { primaryScores = JSON.parse(localStorage.getItem('dhk_scores_primary') || '[]'); } catch(e) { primaryScores = []; }
+      try { schoolIndicators = JSON.parse(localStorage.getItem('dhk_school_indicators') || 'null'); } catch(e) { schoolIndicators = null; }
 
       computeDashboardMetrics();
     }
@@ -266,16 +262,13 @@
       const scannedPrimary = primaryScores.length;
       const totalEvaluated = scannedMCQ + scannedPrimary;
 
-      // Update Evaluated Box
       document.getElementById('evaluatedRatio').innerText = `${totalEvaluated} / ${totalEnrolled}`;
       const evalPct = totalEnrolled > 0 ? ((totalEvaluated / totalEnrolled) * 100).toFixed(0) : 0;
       document.getElementById('evaluatedPct').innerText = `${evalPct}% Completed`;
 
-      // 24 Indicators Score
       const indRaw = (schoolIndicators && schoolIndicators.rawTotal !== undefined) ? schoolIndicators.rawTotal : 0;
       document.getElementById('indicatorsQuickScore').innerText = `${indRaw} / 24`;
 
-      // Class-wise calculations
       const summaryBody = document.getElementById('classSummaryBody');
       summaryBody.innerHTML = '';
 
@@ -293,14 +286,20 @@
           const classScores = primaryScores.filter(s => s.class === cls);
           evalCount = classScores.length;
           if (evalCount > 0) {
-            const sumScore = classScores.reduce((acc, s) => acc + (s.totalScore / s.maxScore) * 100, 0);
+            const sumScore = classScores.reduce((acc, s) => {
+              const max = Number(s.maxScore) > 0 ? Number(s.maxScore) : 1;
+              return acc + ((Number(s.totalScore) || 0) / max) * 100;
+            }, 0);
             avgPct = sumScore / evalCount;
           }
         } else {
           const classScores = mcqScores.filter(s => s.class === cls);
           evalCount = classScores.length;
           if (evalCount > 0) {
-            const sumScore = classScores.reduce((acc, s) => acc + (s.score / s.total) * 100, 0);
+            const sumScore = classScores.reduce((acc, s) => {
+              const max = Number(s.total) > 0 ? Number(s.total) : 1;
+              return acc + ((Number(s.score) || 0) / max) * 100;
+            }, 0);
             avgPct = sumScore / evalCount;
           }
         }
@@ -325,11 +324,9 @@
         summaryBody.appendChild(tr);
       });
 
-      // Scholastic Average
       const overallScholasticAvg = scholasticEvaluatedCount > 0 ? (scholasticSumPercentages / scholasticEvaluatedCount) : 0;
       document.getElementById('scholasticAvg').innerText = `${overallScholasticAvg.toFixed(1)}%`;
 
-      // Gunotsav Composite Grade (Scholastic + Institutional)
       const schWeight = parseFloat(document.getElementById('scholasticWeight').value) || 90;
       const indWeight = parseFloat(document.getElementById('indicatorWeight').value) || 10;
 
@@ -358,18 +355,18 @@
     }
 
     function getGrade(pct) {
-      if (pct >= 85) return 'A+';
-      if (pct >= 70) return 'A';
-      if (pct >= 55) return 'B';
-      if (pct >= 40) return 'C';
+      if (pct >= 87) return 'A+';
+      if (pct >= 74) return 'A';
+      if (pct >= 61) return 'B';
+      if (pct >= 50) return 'C';
       return 'D';
     }
 
     function getGradeColor(pct) {
-      if (pct >= 85) return 'text-emerald-400';
-      if (pct >= 70) return 'text-indigo-400';
-      if (pct >= 55) return 'text-amber-400';
-      if (pct >= 40) return 'text-orange-400';
+      if (pct >= 87) return 'text-emerald-400';
+      if (pct >= 74) return 'text-indigo-400';
+      if (pct >= 61) return 'text-amber-400';
+      if (pct >= 50) return 'text-orange-400';
       return 'text-rose-400';
     }
 
@@ -377,7 +374,6 @@
       computeDashboardMetrics();
     }
 
-    // Modal & Cleanup
     function openResetModal() {
       document.getElementById('resetModal').classList.remove('hidden');
     }
@@ -402,28 +398,31 @@
       loadAllDatasets();
     }
 
-    // Export Utilities
     function exportCSV() {
-      let csv = "Student Name,Class,Roll,Type,Score,Max Score,Percentage\n";
+      let csv = "Student Name,Class,Roll,Type,Score,Max Score,Percentage,Grade\n";
 
-      // 1. Primary Records
       primaryScores.forEach(s => {
-        const pct = ((s.totalScore / s.maxScore) * 100).toFixed(1);
-        csv += `"${s.name}","${s.class}","${s.roll || ''}","Primary FLN",${s.totalScore},${s.maxScore},${pct}%\n`;
+        const max = Number(s.maxScore) > 0 ? Number(s.maxScore) : 1;
+        const score = Number(s.totalScore) || 0;
+        const pct = (score / max) * 100;
+        csv += `"${s.name || '-'}",${s.class || '-'},${s.roll || '-'},Primary,${score},${max},${pct.toFixed(1)}%,${getGrade(pct)}\n`;
       });
 
-      // 2. MCQ Records
       mcqScores.forEach(s => {
-        const pct = ((s.score / s.total) * 100).toFixed(1);
-        csv += `"${s.name}","${s.class}","${s.roll || ''}","MCQ",${s.score},${s.total},${pct}%\n`;
+        const max = Number(s.total) > 0 ? Number(s.total) : 1;
+        const score = Number(s.score) || 0;
+        const pct = (score / max) * 100;
+        csv += `"${s.name || s.studentName || '-'}",${s.class || '-'},${s.roll || '-'},MCQ,${score},${max},${pct.toFixed(1)}%,${getGrade(pct)}\n`;
       });
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `gunotsav_school_evaluation_${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Gunotsav_Summary_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
     function printSummary() {
