@@ -28,18 +28,18 @@
   <main class="flex-1 max-w-lg mx-auto w-full p-3.5 space-y-3 pb-16">
     <!-- ACTION BUTTONS -->
     <div class="grid grid-cols-3 gap-2">
-      <label class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-2.5 rounded-xl text-center text-xs flex flex-col items-center justify-center cursor-pointer shadow">
+      <label class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold p-2.5 rounded-xl text-center text-xs flex flex-col items-center justify-center cursor-pointer shadow active:scale-95 transition">
         <i data-lucide="upload" class="w-4 h-4 mb-0.5"></i>
         <span>Upload XLSX</span>
-        <input type="file" id="xlsxUpload" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)" />
+        <input type="file" id="xlsxUpload" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)" />
       </label>
 
-      <button onclick="openAddStudentModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-2.5 rounded-xl text-center text-xs flex flex-col items-center justify-center shadow">
+      <button onclick="openAddStudentModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-2.5 rounded-xl text-center text-xs flex flex-col items-center justify-center shadow active:scale-95 transition">
         <i data-lucide="user-plus" class="w-4 h-4 mb-0.5"></i>
         <span>Add Student</span>
       </button>
 
-      <button onclick="clearRoster()" class="bg-rose-700 hover:bg-rose-600 text-white font-bold p-2.5 rounded-xl text-center text-xs flex flex-col items-center justify-center shadow">
+      <button onclick="clearRoster()" class="bg-rose-700 hover:bg-rose-600 text-white font-bold p-2.5 rounded-xl text-center text-xs flex flex-col items-center justify-center shadow active:scale-95 transition">
         <i data-lucide="trash-2" class="w-4 h-4 mb-0.5"></i>
         <span>Clear List</span>
       </button>
@@ -74,13 +74,13 @@
       
       <div>
         <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Student Name</label>
-        <input type="text" id="newName" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white" placeholder="Full Name" />
+        <input type="text" id="newName" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500" placeholder="Full Name" />
       </div>
 
       <div class="grid grid-cols-2 gap-2">
         <div>
           <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Class</label>
-          <select id="newClass" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white">
+          <select id="newClass" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white focus:outline-none">
             <option value="Ka-Shreni">Ka-Shreni</option>
             <option value="I">Class I</option>
             <option value="II">Class II</option>
@@ -98,18 +98,18 @@
         </div>
         <div>
           <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Roll / ID</label>
-          <input type="text" id="newRoll" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white" placeholder="Roll No" />
+          <input type="text" id="newRoll" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-indigo-500" placeholder="Roll No" />
         </div>
       </div>
 
       <div>
         <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Section</label>
-        <input type="text" id="newSec" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white" placeholder="Section (Default: A)" />
+        <input type="text" id="newSec" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white focus:outline-none" placeholder="Section (Default: A)" />
       </div>
 
       <div class="flex gap-2 pt-2">
-        <button onclick="closeAddStudentModal()" class="flex-1 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">Cancel</button>
-        <button onclick="saveStudent()" class="flex-1 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Save Student</button>
+        <button onclick="closeAddStudentModal()" class="flex-1 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold hover:bg-slate-700">Cancel</button>
+        <button onclick="saveStudent()" class="flex-1 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500">Save Student</button>
       </div>
     </div>
   </div>
@@ -137,20 +137,22 @@
       const filtered = currentFilter === 'ALL' ? roster : roster.filter(s => s.class === currentFilter);
 
       if (filtered.length === 0) {
-        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-500">No students found. Upload XLSX or tap "Add Student".</div>`;
+        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-500">No students found in Class ${currentFilter}. Upload XLSX or tap "Add Student".</div>`;
         return;
       }
 
       filtered.forEach((s) => {
         const globalIdx = roster.indexOf(s);
         const div = document.createElement('div');
-        div.className = "flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800";
+        div.className = "flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition";
         div.innerHTML = `
           <div>
             <div class="font-bold text-white text-xs">${s.name}</div>
-            <div class="text-[10px] text-slate-400">Class-${s.class} ${s.sec ? '(Sec ' + s.sec + ')' : ''} | ID: ${s.roll || 'N/A'}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">
+              <span class="text-indigo-400 font-bold">Class-${s.class}</span> ${s.sec ? '(Sec ' + s.sec + ')' : ''} | ID: <span class="font-mono">${s.roll || 'N/A'}</span>
+            </div>
           </div>
-          <button onclick="deleteStudent(${globalIdx})" class="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg">
+          <button onclick="deleteStudent(${globalIdx})" class="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg transition" title="Delete Student">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         `;
@@ -216,29 +218,104 @@
       }
     }
 
+    // Smart Column Matcher: Inspects row keys to find student details
+    function extractStudentRow(r) {
+      const keys = Object.keys(r);
+
+      // 1. Identify Name
+      const nameKey = keys.find(k => /student.*name|^name$|student_name|candidate/i.test(k.trim())) || keys[0];
+      const rawName = String(r[nameKey] || '').trim();
+
+      // 2. Identify Class
+      const classKey = keys.find(k => /^(class|grade|standard|std|shreni|শ্রেণী)$|class.*sec|class.*grade/i.test(k.trim()));
+      let rawClass = classKey ? String(r[classKey]).trim() : '';
+
+      // Normalize Class formats (Numeric 1..12, Ka, Roman, etc.)
+      let normalizedClass = 'III';
+      if (rawClass) {
+        // Strip out words like "Class", "Grade", etc.
+        let cleanCls = rawClass.replace(/Class[- ]?|Grade[- ]?|Std[- ]?/gi, '').trim();
+
+        // Check for Ka-Shreni / Pre-Primary
+        if (/ka|pre|pp|kg/i.test(cleanCls)) {
+          normalizedClass = 'Ka-Shreni';
+        } else {
+          // Map digits: 1 -> I, 2 -> II, etc.
+          const digitMatch = cleanCls.match(/\b([1-9]|1[0-2])\b/);
+          const romanMatch = cleanCls.match(/\b(XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)\b/i);
+
+          const numToRoman = {
+            '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI',
+            '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X', '11': 'XI', '12': 'XII'
+          };
+
+          if (romanMatch) {
+            normalizedClass = romanMatch[1].toUpperCase();
+          } else if (digitMatch) {
+            normalizedClass = numToRoman[digitMatch[1]] || cleanCls;
+          } else {
+            normalizedClass = cleanCls || 'III';
+          }
+        }
+      }
+
+      // 3. Identify Roll or Student ID
+      const rollKey = keys.find(k => /roll|student.*id|^id$|reg.*no|admission/i.test(k.trim()));
+      const rawRoll = rollKey ? String(r[rollKey]).trim() : '';
+
+      // 4. Identify Section
+      const secKey = keys.find(k => /^sec$\vert{}^section$/i.test(k.trim()));
+      let rawSec = secKey ? String(r[secKey]).trim().toUpperCase() : '';
+
+      // If class cell contained section like "3-A" or "Class 5 (B)"
+      if (!rawSec && rawClass) {
+        const secMatch = rawClass.match(/[- (]([A-D])[)]?$/i);
+        if (secMatch) rawSec = secMatch[1].toUpperCase();
+      }
+
+      return {
+        name: rawName,
+        class: normalizedClass,
+        roll: rawRoll,
+        sec: rawSec || 'A'
+      };
+    }
+
     function handleExcelUpload(evt) {
       const file = evt.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = (e) => {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(firstSheet);
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(firstSheet);
 
-        const newStudents = json.map(r => ({
-          name: String(r['Student Name'] || r['name'] || r['NAME'] || '').trim(),
-          class: String(r['Class'] || r['CLASS'] || r['class'] || r['Grade'] || r['GRADE'] || r['grade'] || r['Standard'] || r['Std'] || 'III').replace(/Class[- ]?/i, '').trim(),
-          roll: String(r['Student ID'] || r['ID'] || r['Roll'] || r['roll'] || '').trim(),
-          sec: String(r['Section'] || r['Sec'] || 'A').trim().toUpperCase()
-        })).filter(s => s.name.length > 0);
+          if (!json || json.length === 0) {
+            alert("The uploaded Excel sheet contains no rows.");
+            return;
+          }
 
-        roster = roster.concat(newStudents);
-        localStorage.setItem('dhk_roster', JSON.stringify(roster));
-        renderStudents();
-        evt.target.value = ''; // Reset file input
-        alert(`Successfully imported ${newStudents.length} students!`);
+          const newStudents = json
+            .map(extractStudentRow)
+            .filter(s => s.name && s.name.length > 0 && !/^total$/i.test(s.name));
+
+          if (newStudents.length === 0) {
+            alert("Could not identify any valid student names from the columns.");
+            return;
+          }
+
+          roster = roster.concat(newStudents);
+          localStorage.setItem('dhk_roster', JSON.stringify(roster));
+          renderStudents();
+          alert(`Successfully imported ${newStudents.length} students across classes!`);
+        } catch (err) {
+          alert("Error parsing spreadsheet: " + err.message);
+        } finally {
+          evt.target.value = ''; // Reset input to allow re-uploading modified files
+        }
       };
       reader.readAsArrayBuffer(file);
     }
