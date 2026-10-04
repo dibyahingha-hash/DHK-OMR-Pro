@@ -25,9 +25,7 @@
         </a>
         <div>
           <h1 class="text-xs font-black text-white tracking-wider uppercase">MCQ Precision Engine</h1>
-          <div id="sessionStatus" class="text-[11px] font-medium flex items-center gap-1">
-            <!-- Dynamically populated status -->
-          </div>
+          <div id="sessionStatus" class="text-[11px] font-medium flex items-center gap-1"></div>
         </div>
       </div>
 
@@ -46,7 +44,7 @@
       </div>
     </div>
 
-    <!-- SCANNER MODE TOGGLE (STUDENT EVALUATION VS. MASTER KEY SCAN) -->
+    <!-- SCANNER MODE TOGGLE -->
     <div class="max-w-lg mx-auto mt-2 pt-2 border-t border-slate-800">
       <div class="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
         <button id="modeStudentBtn" onclick="setScanMode('student')" class="py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow">
@@ -60,11 +58,11 @@
       </div>
     </div>
 
-    <!-- CONTROLS STRIP (PHYSICALLY DISABLED WHEN LOCKED) -->
+    <!-- CONTROLS STRIP -->
     <div class="grid grid-cols-2 gap-2 mt-2 max-w-lg mx-auto text-xs">
       <div>
         <label class="block text-slate-400 font-semibold mb-1 text-[10px] uppercase">Format</label>
-        <select id="sheetFormat" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-white focus:outline-none disabled:opacity-50 disabled:bg-slate-900">
+        <select id="sheetFormat" onchange="updateFormatLabel()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-white focus:outline-none disabled:opacity-50 disabled:bg-slate-900">
           <option value="gunotsav">Gunotsav (43 Dashes)</option>
           <option value="universal">Universal DHK (34 Dashes)</option>
         </select>
@@ -76,18 +74,23 @@
           <option value="III">Class III (58 Qs)</option>
           <option value="IV">Class IV (58 Qs)</option>
           <option value="V">Class V (58 Qs)</option>
+          <option value="VI">Class VI (58 Qs)</option>
+          <option value="VII">Class VII (58 Qs)</option>
+          <option value="VIII">Class VIII (58 Qs)</option>
           <option value="IX">Class IX (100 Qs)</option>
           <option value="X">Class X (100 Qs)</option>
+          <option value="XI">Class XI (100 Qs)</option>
+          <option value="XII">Class XII (100 Qs)</option>
         </select>
       </div>
     </div>
   </header>
 
-  <!-- 90% ATTENDANCE COMPLETION ALERT -->
+  <!-- ATTENDANCE ALERT -->
   <div id="attendanceAlert" class="hidden bg-emerald-600 text-white text-xs px-3 py-1.5 flex items-center justify-between z-20">
     <div class="flex items-center gap-1.5 font-medium">
       <i data-lucide="check-circle" class="w-4 h-4"></i>
-      <span id="attendanceMsg">90% Done! 1 student left.</span>
+      <span id="attendanceMsg">90% Done!</span>
     </div>
     <div class="flex items-center gap-2">
       <button onclick="toggleUnscannedList()" class="underline font-bold text-emerald-100 text-[11px]">Missing</button>
@@ -95,12 +98,11 @@
     </div>
   </div>
 
-  <!-- VIEWFINDER: Explicit height prevents collapsing under mobile browser address bars -->
+  <!-- VIEWFINDER -->
   <main class="relative w-full h-[58vh] bg-black flex items-center justify-center overflow-hidden">
     <video id="videoFeed" playsinline autoplay muted class="absolute inset-0 w-full h-full object-cover"></video>
     <canvas id="procCanvas" class="hidden"></canvas>
 
-    <!-- Guide Border -->
     <div class="relative z-10 w-[88%] h-[88%] border-2 border-indigo-400/90 rounded-2xl scan-guide pointer-events-none flex flex-col justify-between p-2.5">
       <div class="flex justify-between items-center text-[10px] font-mono text-indigo-200 bg-slate-950/80 px-2 py-1 rounded">
         <span>TIMING RAIL ──►</span>
@@ -108,7 +110,7 @@
       </div>
 
       <div class="w-full border-b-2 border-dashed border-red-500/80 text-right pr-1">
-        <span class="text-[9px] font-bold text-red-300 bg-slate-950/80 px-1.5 py-0.5 rounded">PIECE #17: NAME ROW</span>
+        <span class="text-[9px] font-bold text-red-300 bg-slate-950/80 px-1.5 py-0.5 rounded">HEADER: ROLL / NAME</span>
       </div>
 
       <div id="viewfinderTip" class="text-[10px] font-medium text-center text-slate-200 bg-slate-950/80 py-1 rounded">
@@ -117,7 +119,7 @@
     </div>
   </main>
 
-  <!-- BOTTOM ACTION BAR: Guaranteed clickable & sticky -->
+  <!-- BOTTOM ACTION BAR -->
   <footer class="bg-slate-900 border-t border-slate-800 p-3 z-30 sticky bottom-0 shadow-2xl">
     <div class="max-w-lg mx-auto flex items-center justify-between gap-2.5">
       <button onclick="finishAndSwitchClass()" class="px-3.5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition">
@@ -130,7 +132,7 @@
     </div>
   </footer>
 
-  <!-- VERIFICATION MODAL FOR STUDENT EVALUATION -->
+  <!-- VERIFICATION MODAL -->
   <div id="evalModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
     <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-4 shadow-2xl space-y-3">
       <div class="flex justify-between items-center border-b border-slate-800 pb-2">
@@ -145,9 +147,7 @@
 
       <div>
         <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Student Match</label>
-        <select id="resStudentSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold text-sm focus:outline-none focus:border-indigo-500">
-          <!-- Populated dynamically -->
-        </select>
+        <select id="resStudentSelect" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-bold text-sm focus:outline-none focus:border-indigo-500"></select>
       </div>
 
       <div class="grid grid-cols-3 gap-2 bg-slate-950 p-2 rounded-xl text-center text-xs font-mono border border-slate-800">
@@ -190,7 +190,7 @@
       </div>
 
       <p class="text-xs text-slate-300 leading-relaxed">
-        The master answer key was successfully read from the sheet. Register and lock this key for the class?
+        The master answer key was read from this sheet. Register and lock this key for the class?
       </p>
 
       <div class="flex gap-2 pt-1">
@@ -220,12 +220,17 @@
     let videoTrack = null;
     let torchActive = false;
     let isUiLocked = false;
-    let scanMode = 'student'; // 'student' or 'master_key'
+    let scanMode = 'student';
     let masterKey = {};
     let classRoster = [];
     let scannedRecords = [];
     let currentEvaluation = null;
     let pendingScannedKey = null;
+
+    const classMaxQs = {
+      'III': 58, 'IV': 58, 'V': 58, 'VI': 58, 'VII': 58, 'VIII': 58,
+      'IX': 100, 'X': 100, 'XI': 100, 'XII': 100
+    };
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
@@ -233,7 +238,6 @@
       loadStoredData();
     });
 
-    // 1. Camera & Persistent Torch
     async function initCamera() {
       try {
         videoStream = await navigator.mediaDevices.getUserMedia({
@@ -243,7 +247,7 @@
         video.srcObject = videoStream;
         videoTrack = videoStream.getVideoTracks()[0];
       } catch (err) {
-        alert("Camera initialization error: " + err.message);
+        console.warn("Camera init note:", err.message);
       }
     }
 
@@ -272,7 +276,6 @@
       }
     }
 
-    // 2. Scan Mode Selector (Student vs. Register Master Key)
     function setScanMode(mode) {
       scanMode = mode;
       const sBtn = document.getElementById('modeStudentBtn');
@@ -293,13 +296,15 @@
       }
     }
 
-    // 3. Data Storage & Lock Management
-    function loadStoredData() {
-      const roster = localStorage.getItem('dhk_roster');
-      if (roster) classRoster = JSON.parse(roster);
+    function updateFormatLabel() {
+      const fmt = document.getElementById('sheetFormat').value;
+      const lbl = document.getElementById('activeModeLabel');
+      lbl.innerText = fmt === 'gunotsav' ? 'GUNOTSAV 43-DASH' : 'UNIVERSAL 34-DASH';
+    }
 
-      const scores = localStorage.getItem('dhk_scores_mcq');
-      if (scores) scannedRecords = JSON.parse(scores);
+    function loadStoredData() {
+      try { classRoster = JSON.parse(localStorage.getItem('dhk_roster') || '[]'); } catch(e) { classRoster = []; }
+      try { scannedRecords = JSON.parse(localStorage.getItem('dhk_scores_mcq') || '[]'); } catch(e) { scannedRecords = []; }
 
       const lockedClass = localStorage.getItem('dhk_locked_class');
       if (lockedClass) {
@@ -319,7 +324,6 @@
 
       localStorage.setItem('dhk_locked_class', val);
 
-      // Load specific key for this class
       let stored = localStorage.getItem(`dhk_key_${val}`) || localStorage.getItem('dhk_master_key');
       masterKey = {};
 
@@ -368,7 +372,6 @@
       const lockBtnText = document.getElementById('lockBtnText');
       const lockIcon = document.getElementById('lockIcon');
 
-      // Physical locking of HTML elements
       selClass.disabled = locked;
       selFormat.disabled = locked;
 
@@ -388,6 +391,7 @@
       if (confirm(`Finish evaluation session for Class ${currentClass || ''} and switch classes?`)) {
         setLockState(false);
         document.getElementById('lockedClass').value = "";
+        localStorage.removeItem('dhk_locked_class');
         masterKey = {};
         currentEvaluation = null;
         updateKeyBadge();
@@ -414,464 +418,294 @@
       }
     }
 
-    // 4. Timing Dashes Margins Sweeper
+    function toggleUnscannedList() {
+      const drawer = document.getElementById('unscannedDrawer');
+      const isHidden = drawer.classList.contains('hidden');
+      if (isHidden) {
+        const targetClass = document.getElementById('lockedClass').value;
+        const targetStudents = classRoster.filter(s => s.class === targetClass);
+        const scannedIds = new Set(scannedRecords.filter(r => r.class === targetClass).map(r => r.roll || r.name));
+        const unscanned = targetStudents.filter(s => !scannedIds.has(s.roll) && !scannedIds.has(s.name));
+
+        const c = document.getElementById('unscannedContainer');
+        c.innerHTML = '';
+        if (unscanned.length === 0) {
+          c.innerHTML = '<div class="text-emerald-400 p-2 text-center font-bold">All students scanned!</div>';
+        } else {
+          unscanned.forEach(s => {
+            const div = document.createElement('div');
+            div.className = "p-2 bg-slate-950 rounded-lg border border-slate-800 flex justify-between";
+            div.innerHTML = `<span class="font-bold text-white">${s.name}</span><span class="text-slate-400 font-mono">Roll: ${s.roll || '-'}</span>`;
+            c.appendChild(div);
+          });
+        }
+        drawer.classList.remove('hidden');
+      } else {
+        drawer.classList.add('hidden');
+      }
+    }
+
+    // 4. Timing Dashes Marginal Sweep
     function locateTimingDashes(ctx, width, height) {
       const startX = Math.floor(width * 0.015);
       const endX = Math.floor(width * 0.08);
-      const imgData = ctx.getImageData(startX, 0, endX - startX, height);
+      const w = endX - startX;
+      const imgData = ctx.getImageData(startX, 0, w, height);
       const d = imgData.data;
       const rowDarkness = new Array(height).fill(0);
 
       for (let y = 0; y < height; y++) {
         let darkCount = 0;
-        for (let x = 0; x < (endX - startX); x++) {
-          const idx = (y * (endX - startX) + x) * 4;
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
           const gray = 0.299 * d[idx] + 0.587 * d[idx + 1] + 0.114 * d[idx + 2];
           if (gray < 90) darkCount++;
         }
         rowDarkness[y] = darkCount;
       }
 
-      const dashes = [];
-      let inDash = false;
-      let startY = 0;
-      const minThreshold = (endX - startX) * 0.35;
+      // Peak identification
+      const peaks = [];
+      const threshold = w * 0.25;
+      let inPeak = false;
+      let peakStart = 0;
 
       for (let y = 0; y < height; y++) {
-        if (rowDarkness[y] > minThreshold && !inDash) {
-          inDash = true;
-          startY = y;
-        } else if (rowDarkness[y] <= minThreshold && inDash) {
-          inDash = false;
-          const dashH = y - startY;
-          if (dashH > 3 && dashH < (height * 0.04)) {
-            dashes.push({ center: Math.floor((startY + y) / 2), height: dashH });
+        if (rowDarkness[y] > threshold) {
+          if (!inPeak) { inPeak = true; peakStart = y; }
+        } else {
+          if (inPeak) {
+            inPeak = false;
+            const mid = Math.round((peakStart + y) / 2);
+            peaks.push(mid);
           }
         }
       }
-      return dashes;
+      return peaks;
     }
 
-    // 5. Execution Pipeline
+    // 5. Grid Sampling Engine (A, B, C, D)
+    function readAnswersFromFrame(ctx, width, height, numQuestions) {
+      const answers = {};
+      const colDefs = [
+        { startQ: 1, endQ: Math.min(20, numQuestions), leftRatio: 0.14, rightRatio: 0.38 },
+        { startQ: 21, endQ: Math.min(40, numQuestions), leftRatio: 0.42, rightRatio: 0.66 },
+        { startQ: 41, endQ: Math.min(numQuestions, 100), leftRatio: 0.70, rightRatio: 0.94 }
+      ];
+
+      const topOffset = height * 0.16;
+      const bottomOffset = height * 0.92;
+      const availableH = bottomOffset - topOffset;
+      const questionsPerCol = 20;
+      const rowStep = availableH / questionsPerCol;
+
+      colDefs.forEach(col => {
+        if (col.startQ > numQuestions) return;
+        const colW = (col.rightRatio - col.leftRatio) * width;
+        const optStep = colW / 4;
+
+        for (let q = col.startQ; q <= col.endQ; q++) {
+          const rowIdx = (q - col.startQ) % questionsPerCol;
+          const cy = topOffset + (rowIdx * rowStep) + (rowStep / 2);
+
+          let darkestOpt = null;
+          let minBrightness = 255;
+          let filledCount = 0;
+
+          ['A', 'B', 'C', 'D'].forEach((opt, oIdx) => {
+            const cx = (col.leftRatio * width) + (oIdx * optStep) + (optStep / 2);
+            const radius = Math.max(3, Math.floor(rowStep * 0.22));
+
+            const sample = ctx.getImageData(cx - radius, cy - radius, radius * 2, radius * 2);
+            let sum = 0, pxCount = 0;
+            for (let i = 0; i < sample.data.length; i += 4) {
+              const g = 0.299 * sample.data[i] + 0.587 * sample.data[i + 1] + 0.114 * sample.data[i + 2];
+              sum += g;
+              pxCount++;
+            }
+            const avg = sum / (pxCount || 1);
+
+            if (avg < 115) filledCount++;
+            if (avg < minBrightness) {
+              minBrightness = avg;
+              darkestOpt = opt;
+            }
+          });
+
+          if (filledCount === 1 && minBrightness < 125) {
+            answers[q] = darkestOpt;
+          } else if (filledCount > 1) {
+            answers[q] = 'MULTI';
+          } else {
+            answers[q] = null;
+          }
+        }
+      });
+      return answers;
+    }
+
+    // 6. Capture & Scan Execution
     async function triggerScan() {
-      const locked = document.getElementById('lockedClass').value;
-      if (!locked) {
-        alert("Please pick and lock a Class first.");
+      const activeClass = document.getElementById('lockedClass').value;
+      if (!activeClass) {
+        alert("Please choose a Class before scanning.");
         return;
       }
 
-      if (scanMode === 'student' && Object.keys(masterKey).length === 0) {
-        alert(`Warning: No Answer Key found for Class ${locked}! Use "Scan Master Key" first or configure it in Exam settings.`);
-        return;
-      }
-
-      const video = document.getElementById('videoFeed');
       const canvas = document.getElementById('procCanvas');
+      const video = document.getElementById('videoFeed');
       canvas.width = video.videoWidth || 1280;
       canvas.height = video.videoHeight || 720;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      await processSheet(canvas);
+      const totalQs = classMaxQs[activeClass] || 58;
+      const detectedAnswers = readAnswersFromFrame(ctx, canvas.width, canvas.height, totalQs);
+
+      if (scanMode === 'master_key') {
+        const validKeys = {};
+        for (const [k, v] of Object.entries(detectedAnswers)) {
+          if (v && v !== 'MULTI') validKeys[k] = v;
+        }
+        pendingScannedKey = validKeys;
+        document.getElementById('keyModalClassBadge').innerText = `Class ${activeClass}`;
+        document.getElementById('keyScannedCountBadge').innerText = `${Object.keys(validKeys).length} / ${totalQs} Detected`;
+        document.getElementById('keyScanModal').classList.remove('hidden');
+      } else {
+        processStudentAnswers(detectedAnswers, activeClass, totalQs, canvas);
+      }
     }
 
-    async function handleFileUpload(evt) {
+    function handleFileUpload(evt) {
       const file = evt.target.files[0];
       if (!file) return;
-      const img = new Image();
-      img.onload = async () => {
-        const canvas = document.getElementById('procCanvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        await processSheet(canvas);
+
+      const activeClass = document.getElementById('lockedClass').value;
+      if (!activeClass) {
+        alert("Please choose a Class before scanning.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.getElementById('procCanvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+
+          const totalQs = classMaxQs[activeClass] || 58;
+          const detected = readAnswersFromFrame(ctx, canvas.width, canvas.height, totalQs);
+
+          if (scanMode === 'master_key') {
+            const valid = {};
+            for (const [k, v] of Object.entries(detected)) {
+              if (v && v !== 'MULTI') valid[k] = v;
+            }
+            pendingScannedKey = valid;
+            document.getElementById('keyModalClassBadge').innerText = `Class ${activeClass}`;
+            document.getElementById('keyScannedCountBadge').innerText = `${Object.keys(valid).length} / ${totalQs} Detected`;
+            document.getElementById('keyScanModal').classList.remove('hidden');
+          } else {
+            processStudentAnswers(detected, activeClass, totalQs, canvas);
+          }
+        };
+        img.src = e.target.result;
       };
-      img.src = URL.createObjectURL(file);
+      reader.readAsDataURL(file);
     }
 
-    async function processSheet(canvas) {
-      const btn = document.getElementById('scanActionBtn');
-      btn.disabled = true;
-      btn.classList.add('opacity-50');
-
-      const ctx = canvas.getContext('2d');
-      const w = canvas.width;
-      const h = canvas.height;
-      const dashes = locateTimingDashes(ctx, w, h);
-      const mode = document.getElementById('sheetFormat').value;
-
-      try {
-        if (mode === 'gunotsav') {
-          await evaluateGunotsav(ctx, w, h, dashes);
-        } else {
-          await evaluateUniversal(ctx, w, h, dashes);
-        }
-      } catch (e) {
-        console.error("Evaluation failure:", e);
-        alert("Scan read failed. Please ensure even lighting and steady focus.");
-      } finally {
-        btn.disabled = false;
-        btn.classList.remove('opacity-50');
-      }
-    }
-
-    // 6. Gunotsav Processing: Piece #17 & Pieces #24-43
-    async function evaluateGunotsav(ctx, w, h, dashes) {
-      let rawName = "";
-
-      // 1. OCR Name Crop (Only in student mode)
-      if (scanMode === 'student') {
-        let nameBoxY, nameBoxH;
-        if (dashes && dashes.length >= 17) {
-          nameBoxY = dashes[16].center - Math.floor(dashes[16].height * 0.55);
-          nameBoxH = Math.floor(dashes[16].height * 1.25);
-        } else {
-          nameBoxY = Math.floor(h * 0.338);
-          nameBoxH = Math.floor(h * 0.024);
-        }
-
-        const nameBoxX = Math.floor(w * 0.36);
-        const nameBoxW = Math.floor(w * 0.38);
-
-        const nameCanvas = document.createElement('canvas');
-        nameCanvas.width = nameBoxW;
-        nameCanvas.height = nameBoxH;
-        const nCtx = nameCanvas.getContext('2d');
-        nCtx.drawImage(ctx.canvas, nameBoxX, nameBoxY, nameBoxW, nameBoxH, 0, 0, nameBoxW, nameBoxH);
-
-        const nData = nCtx.getImageData(0, 0, nameBoxW, nameBoxH);
-        const d = nData.data;
-        for (let i = 0; i < d.length; i += 4) {
-          const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-          const v = gray > 120 ? 255 : 0;
-          d[i] = d[i + 1] = d[i + 2] = v;
-        }
-        nCtx.putImageData(nData, 0, 0);
-
-        try {
-          const ocrRes = await Tesseract.recognize(nameCanvas, 'eng', {
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
-          });
-          rawName = ocrRes.data.text.trim().replace(/[^A-Z\s]/g, "");
-        } catch (e) {
-          console.warn("OCR error:", e);
-        }
-      }
-
-      // 2. Optical MCQ Detection
-      const rowYList = [];
-      if (dashes && dashes.length >= 43) {
-        for (let i = 23; i < dashes.length; i++) rowYList.push(dashes[i].center);
-      } else {
-        const step = (h * 0.395) / 20;
-        for (let i = 0; i < 20; i++) rowYList.push((h * 0.525) + (i * step));
-      }
-
-      const colBaseX = [0.11, 0.33, 0.55, 0.77];
-      const optionGap = 0.038;
-      const maxQ = 58;
-      const detectedAnswers = {};
-      let qIndex = 1;
-
-      for (let c = 0; c < 4 && qIndex <= maxQ; c++) {
-        for (let r = 0; r < rowYList.length && qIndex <= maxQ; r++) {
-          const cy = rowYList[r];
-          const samples = [];
-
-          ['A', 'B', 'C', 'D'].forEach((opt, idx) => {
-            const cx = (w * colBaseX[c]) + (idx * w * optionGap);
-            samples.push({ opt, density: sampleBubbleDensity(ctx, cx, cy, 7) });
-          });
-
-          samples.sort((a, b) => b.density - a.density);
-          const darkest = samples[0];
-          const runnerUp = samples[1];
-          const paperWhite = (samples[2].density + samples[3].density) / 2;
-
-          // Relative Dynamic Contrast Scoring
-          if (darkest.density > 0.28 && (darkest.density - paperWhite) > 0.16) {
-            if ((darkest.density - runnerUp.density) < 0.09 && runnerUp.density > 0.28) {
-              detectedAnswers[qIndex] = 'MULTI';
-            } else {
-              detectedAnswers[qIndex] = darkest.opt;
-            }
-          } else {
-            detectedAnswers[qIndex] = 'BLANK';
-          }
-          qIndex++;
-        }
-      }
-
-      if (scanMode === 'master_key') {
-        handleMasterKeyScanResult(detectedAnswers, maxQ);
-      } else {
-        compileStudentResults(rawName, detectedAnswers, maxQ);
-      }
-    }
-
-    // 7. Universal 34-Dash Engine
-    async function evaluateUniversal(ctx, w, h, dashes) {
-      let rawName = "";
-
-      if (scanMode === 'student') {
-        const nameCropY = Math.floor(h * 0.165);
-        const nameCropH = Math.floor(h * 0.035);
-        const nameCanvas = document.createElement('canvas');
-        nameCanvas.width = Math.floor(w * 0.44);
-        nameCanvas.height = nameCropH;
-        const nCtx = nameCanvas.getContext('2d');
-        nCtx.drawImage(ctx.canvas, Math.floor(w * 0.07), nameCropY, nameCanvas.width, nameCropH, 0, 0, nameCanvas.width, nameCropH);
-
-        try {
-          const ocrRes = await Tesseract.recognize(nameCanvas, 'eng', {
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
-          });
-          rawName = ocrRes.data.text.trim().replace(/[^A-Z\s]/g, "");
-        } catch (e) {
-          console.warn("OCR error:", e);
-        }
-      }
-
-      const rowYList = [];
-      if (dashes && dashes.length >= 34) {
-        for (let i = 0; i < 34; i++) rowYList.push(dashes[i].center);
-      } else {
-        const step = (h * 0.69) / 34;
-        for (let i = 0; i < 34; i++) rowYList.push((h * 0.21) + (i * step));
-      }
-
-      const colBaseX = [0.12, 0.41, 0.70];
-      const optionGap = 0.045;
-      const maxQ = 100;
-      const detectedAnswers = {};
-      let qIndex = 1;
-
-      for (let c = 0; c < 3 && qIndex <= maxQ; c++) {
-        for (let r = 0; r < rowYList.length && qIndex <= maxQ; r++) {
-          const cy = rowYList[r];
-          const samples = [];
-
-          ['A', 'B', 'C', 'D'].forEach((opt, idx) => {
-            const cx = (w * colBaseX[c]) + (idx * w * optionGap);
-            samples.push({ opt, density: sampleBubbleDensity(ctx, cx, cy, 7) });
-          });
-
-          samples.sort((a, b) => b.density - a.density);
-          const darkest = samples[0];
-          const runnerUp = samples[1];
-          const paperWhite = (samples[2].density + samples[3].density) / 2;
-
-          if (darkest.density > 0.28 && (darkest.density - paperWhite) > 0.16) {
-            if ((darkest.density - runnerUp.density) < 0.09 && runnerUp.density > 0.28) {
-              detectedAnswers[qIndex] = 'MULTI';
-            } else {
-              detectedAnswers[qIndex] = darkest.opt;
-            }
-          } else {
-            detectedAnswers[qIndex] = 'BLANK';
-          }
-          qIndex++;
-        }
-      }
-
-      if (scanMode === 'master_key') {
-        handleMasterKeyScanResult(detectedAnswers, maxQ);
-      } else {
-        compileStudentResults(rawName, detectedAnswers, maxQ);
-      }
-    }
-
-    function sampleBubbleDensity(ctx, cx, cy, radius) {
-      try {
-        const imgData = ctx.getImageData(Math.floor(cx - radius), Math.floor(cy - radius), radius * 2, radius * 2);
-        const data = imgData.data;
-        let darkPixels = 0;
-        let total = 0;
-
-        for (let i = 0; i < data.length; i += 4) {
-          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-          if (gray < 110) darkPixels++;
-          total++;
-        }
-        return total > 0 ? (darkPixels / total) : 0;
-      } catch (e) {
-        return 0;
-      }
-    }
-
-    // 8. Result Handlers
-    function handleMasterKeyScanResult(detectedAnswers, totalQ) {
-      const locked = document.getElementById('lockedClass').value;
-      const validKeys = {};
-      let count = 0;
-
-      for (let q = 1; q <= totalQ; q++) {
-        const ans = detectedAnswers[q];
-        if (ans && ans !== 'BLANK' && ans !== 'MULTI') {
-          validKeys[q] = ans;
-          count++;
-        }
-      }
-
-      pendingScannedKey = validKeys;
-      document.getElementById('keyModalClassBadge').innerText = `Class ${locked}`;
-      document.getElementById('keyScannedCountBadge').innerText = `${count} Keys Detected`;
-      document.getElementById('keyScanModal').classList.remove('hidden');
-    }
-
-    function confirmMasterKeySave() {
-      const locked = document.getElementById('lockedClass').value;
-      if (!locked || !pendingScannedKey) return;
-
-      masterKey = pendingScannedKey;
-      localStorage.setItem(`dhk_key_${locked}`, JSON.stringify(masterKey));
-      localStorage.setItem('dhk_master_key', JSON.stringify(masterKey)); // fallback
-
-      closeKeyModal();
-      setScanMode('student'); // Automatically return to student evaluation mode
-      updateKeyBadge();
-      alert(`Master Answer Key for Class ${locked} registered and locked!`);
-    }
-
-    function closeKeyModal() {
-      document.getElementById('keyScanModal').classList.add('hidden');
-      pendingScannedKey = null;
-    }
-
-    function compileStudentResults(rawName, answers, totalQuestions) {
-      const locked = document.getElementById('lockedClass').value;
-      const targetStudents = classRoster.filter(s => s.class === locked);
-
-      let matchedStudent = null;
-      let highestSim = 0;
-
-      if (rawName && rawName.length > 2) {
-        targetStudents.forEach(s => {
-          const sim = stringSimilarity(rawName.toUpperCase(), s.name.toUpperCase());
-          if (sim > highestSim) {
-            highestSim = sim;
-            matchedStudent = s;
-          }
-        });
-      }
-
-      if (highestSim < 0.40) matchedStudent = null;
-
-      let score = 0;
+    function processStudentAnswers(answers, curClass, totalQs, canvas) {
+      let correct = 0;
       let attempted = 0;
       let blank = 0;
       let multi = 0;
 
-      for (let q = 1; q <= totalQuestions; q++) {
-        const mark = answers[q];
-        if (mark === 'BLANK') blank++;
-        else if (mark === 'MULTI') multi++;
-        else attempted++;
-
-        if (masterKey[q] && masterKey[q] === mark) {
-          score++;
+      for (let q = 1; q <= totalQs; q++) {
+        const ans = answers[q];
+        const key = masterKey[q];
+        if (!ans) {
+          blank++;
+        } else if (ans === 'MULTI') {
+          multi++;
+        } else {
+          attempted++;
+          if (key && ans === key) correct++;
         }
       }
 
-      const selectBox = document.getElementById('resStudentSelect');
-      selectBox.innerHTML = '';
-
-      if (!matchedStudent) {
-        const defOpt = document.createElement('option');
-        defOpt.value = "";
-        defOpt.innerText = `⚠️ OCR: "${rawName || 'Unclear'}" - Tap to Pick`;
-        selectBox.appendChild(defOpt);
-      }
-
-      targetStudents
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s.name;
-          opt.innerText = `${s.name} ${s.roll ? '(Roll: ' + s.roll + ')' : ''}`;
-          if (matchedStudent && matchedStudent.name === s.name) opt.selected = true;
-          selectBox.appendChild(opt);
-        });
-
       currentEvaluation = {
-        class: locked,
-        score: score,
-        total: totalQuestions,
-        answers: answers
+        class: curClass,
+        score: correct,
+        total: totalQs,
+        attempted,
+        blank,
+        multi,
+        timestamp: new Date().toISOString()
       };
 
-      document.getElementById('modalClassBadge').innerText = `Class ${locked}`;
-      document.getElementById('scoreBadge').innerText = `Score: ${score}/${totalQuestions}`;
+      document.getElementById('modalClassBadge').innerText = `Class ${curClass}`;
+      document.getElementById('scoreBadge').innerText = `Score: ${correct} / ${totalQs}`;
       document.getElementById('resAttempted').innerText = attempted;
       document.getElementById('resBlank').innerText = blank;
       document.getElementById('resMulti').innerText = multi;
 
+      populateStudentPicker(curClass);
       document.getElementById('evalModal').classList.remove('hidden');
-      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
     }
 
-    function stringSimilarity(s1, s2) {
-      let longer = s1;
-      let shorter = s2;
-      if (s1.length < s2.length) { longer = s2; shorter = s1; }
-      const longerLength = longer.length;
-      if (longerLength === 0) return 1.0;
-      return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
-    }
+    function populateStudentPicker(curClass) {
+      const select = document.getElementById('resStudentSelect');
+      select.innerHTML = '';
 
-    function editDistance(s1, s2) {
-      s1 = s1.toLowerCase();
-      s2 = s2.toLowerCase();
-      const costs = [];
-      for (let i = 0; i <= s1.length; i++) {
-        let lastVal = i;
-        for (let j = 0; j <= s2.length; j++) {
-          if (i === 0) costs[j] = j;
-          else {
-            if (j > 0) {
-              let newVal = costs[j - 1];
-              if (s1.charAt(i - 1) !== s2.charAt(j - 1))
-                newVal = Math.min(Math.min(newVal, lastVal), costs[j]) + 1;
-              costs[j - 1] = lastVal;
-              lastVal = newVal;
-            }
-          }
-        }
-        if (i > 0) costs[s2.length] = lastVal;
-      }
-      return costs[s2.length];
-    }
+      const classStudents = classRoster.filter(s => s.class === curClass);
+      const scannedRolls = new Set(scannedRecords.filter(r => r.class === curClass).map(r => r.roll || r.name));
 
-    function saveAndNext() {
-      const selectBox = document.getElementById('resStudentSelect');
-      const selectedName = selectBox.value;
-
-      if (!selectedName) {
-        alert("Please pick the student name from the list.");
+      if (classStudents.length === 0) {
+        select.innerHTML = '<option value="">Unenrolled Student</option>';
         return;
       }
 
-      const locked = document.getElementById('lockedClass').value;
-      const targetStudent = classRoster.find(s => s.class === locked && s.name === selectedName);
+      classStudents.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = JSON.stringify({ name: s.name, roll: s.roll || '' });
+        const isDone = scannedRolls.has(s.roll || s.name);
+        opt.textContent = `${s.name} (Roll: ${s.roll || '-'}) ${isDone ? '✓ Scanned' : ''}`;
+        select.appendChild(opt);
+      });
+    }
 
-      currentEvaluation.name = selectedName;
-      currentEvaluation.roll = targetStudent && targetStudent.roll ? targetStudent.roll : "";
-
-      const existingIdx = scannedRecords.findIndex(r => r.class === locked && r.name === selectedName);
-      if (existingIdx !== -1) {
-        if (!confirm(`"${selectedName}" has already been evaluated. Overwrite score?`)) {
-          return;
-        }
-        scannedRecords[existingIdx] = currentEvaluation;
-      } else {
-        scannedRecords.push(currentEvaluation);
+    function saveAndNext() {
+      if (!currentEvaluation) return;
+      const selVal = document.getElementById('resStudentSelect').value;
+      let st = { name: "Anonymous Student", roll: "" };
+      if (selVal) {
+        try { st = JSON.parse(selVal); } catch(e) {}
       }
+
+      const rec = {
+        name: st.name,
+        studentName: st.name,
+        roll: st.roll,
+        class: currentEvaluation.class,
+        score: currentEvaluation.score,
+        total: currentEvaluation.total,
+        attempted: currentEvaluation.attempted,
+        blank: currentEvaluation.blank,
+        multi: currentEvaluation.multi,
+        subject: 'MCQ',
+        timestamp: currentEvaluation.timestamp
+      };
+
+      scannedRecords = scannedRecords.filter(r => !(r.class === rec.class && (r.roll === rec.roll || r.name === rec.name)));
+      scannedRecords.push(rec);
 
       localStorage.setItem('dhk_scores_mcq', JSON.stringify(scannedRecords));
       closeModal();
       updateAttendanceAlert();
+      alert(`Saved: ${rec.name} — Score: ${rec.score}/${rec.total}`);
     }
 
     function closeModal() {
@@ -879,29 +713,24 @@
       currentEvaluation = null;
     }
 
-    function toggleUnscannedList() {
-      const drawer = document.getElementById('unscannedDrawer');
-      const container = document.getElementById('unscannedContainer');
-      const locked = document.getElementById('lockedClass').value;
+    function confirmMasterKeySave() {
+      const activeClass = document.getElementById('lockedClass').value;
+      if (!activeClass || !pendingScannedKey) return;
 
-      if (drawer.classList.contains('hidden')) {
-        const targetStudents = classRoster.filter(s => s.class === locked);
-        const scannedNames = new Set(scannedRecords.filter(r => r.class === locked).map(r => r.name));
-        const unscanned = targetStudents.filter(s => !scannedNames.has(s.name));
+      masterKey = pendingScannedKey;
+      localStorage.setItem(`dhk_key_${activeClass}`, JSON.stringify(masterKey));
+      localStorage.setItem('dhk_master_key', JSON.stringify(masterKey));
 
-        container.innerHTML = unscanned.map(s => `
-          <div class="flex justify-between items-center p-2 rounded-lg bg-slate-950 border border-slate-800">
-            <span class="font-bold text-white">${s.name}</span>
-            <span class="text-slate-400">${s.roll ? 'Roll: ' + s.roll : ''}</span>
-          </div>
-        `).join('');
+      closeKeyModal();
+      setScanMode('student');
+      updateKeyBadge();
+      alert(`Master Answer Key saved and locked for Class ${activeClass}!`);
+    }
 
-        drawer.classList.remove('hidden');
-      } else {
-        drawer.classList.add('hidden');
-      }
+    function closeKeyModal() {
+      document.getElementById('keyScanModal').classList.add('hidden');
+      pendingScannedKey = null;
     }
   </script>
 </body>
 </html>
-
