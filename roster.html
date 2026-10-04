@@ -102,6 +102,11 @@
         </div>
       </div>
 
+      <div>
+        <label class="block text-slate-400 text-[10px] uppercase font-semibold mb-1">Section</label>
+        <input type="text" id="newSec" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white" placeholder="Section (Default: A)" />
+      </div>
+
       <div class="flex gap-2 pt-2">
         <button onclick="closeAddStudentModal()" class="flex-1 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">Cancel</button>
         <button onclick="saveStudent()" class="flex-1 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Save Student</button>
@@ -132,11 +137,12 @@
       const filtered = currentFilter === 'ALL' ? roster : roster.filter(s => s.class === currentFilter);
 
       if (filtered.length === 0) {
-        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-500">No students in Class ${currentFilter}. Upload XLSX or tap "Add Student".</div>`;
+        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-500">No students found. Upload XLSX or tap "Add Student".</div>`;
         return;
       }
 
-      filtered.forEach((s, idx) => {
+      filtered.forEach((s) => {
+        const globalIdx = roster.indexOf(s);
         const div = document.createElement('div');
         div.className = "flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800";
         div.innerHTML = `
@@ -144,7 +150,7 @@
             <div class="font-bold text-white text-xs">${s.name}</div>
             <div class="text-[10px] text-slate-400">Class-${s.class} ${s.sec ? '(Sec ' + s.sec + ')' : ''} | ID: ${s.roll || 'N/A'}</div>
           </div>
-          <button onclick="deleteStudent(${idx})" class="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg">
+          <button onclick="deleteStudent(${globalIdx})" class="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         `;
@@ -172,28 +178,31 @@
       document.getElementById('addModal').classList.add('hidden');
     }
 
-        const name = document.getElementById('newName').value.trim();
-    const cls = document.getElementById('newClass').value.replace(/Class[- ]?/i, '').trim();
-    const roll = document.getElementById('newRoll').value.trim();
-        const secEl = document.getElementById('newSec') || document.getElementById('newSection');
-    const sec = secEl ? secEl.value.trim() : 'A';
-    
+    function saveStudent() {
+      const name = document.getElementById('newName').value.trim();
+      const cls = document.getElementById('newClass').value.replace(/Class[- ]?/i, '').trim();
+      const roll = document.getElementById('newRoll').value.trim();
+      const secEl = document.getElementById('newSec');
+      const sec = secEl && secEl.value.trim() ? secEl.value.trim().toUpperCase() : 'A';
 
-    if (!name) {
-      alert("Please enter student name");
-      return;
-    }
+      if (!name) {
+        alert("Please enter student name");
+        return;
+      }
 
-    roster.push({ name, class: cls, roll, sec: sec || 'A' });
-    
+      roster.push({ name, class: cls, roll, sec });
       localStorage.setItem('dhk_roster', JSON.stringify(roster));
+
       document.getElementById('newName').value = '';
       document.getElementById('newRoll').value = '';
+      if (secEl) secEl.value = '';
+
       closeAddStudentModal();
       renderStudents();
     }
 
     function deleteStudent(index) {
+      if (index < 0 || index >= roster.length) return;
       roster.splice(index, 1);
       localStorage.setItem('dhk_roster', JSON.stringify(roster));
       renderStudents();
@@ -221,15 +230,14 @@
         const newStudents = json.map(r => ({
           name: String(r['Student Name'] || r['name'] || r['NAME'] || '').trim(),
           class: String(r['Class'] || r['CLASS'] || r['class'] || r['Grade'] || r['GRADE'] || r['grade'] || r['Standard'] || r['Std'] || 'III').replace(/Class[- ]?/i, '').trim(),
-
-          
-          roll: String(r['Student ID'] || r['ID'] || r['Roll'] || '').trim(),
-          sec: String(r['Section'] || 'A').trim()
+          roll: String(r['Student ID'] || r['ID'] || r['Roll'] || r['roll'] || '').trim(),
+          sec: String(r['Section'] || r['Sec'] || 'A').trim().toUpperCase()
         })).filter(s => s.name.length > 0);
 
         roster = roster.concat(newStudents);
         localStorage.setItem('dhk_roster', JSON.stringify(roster));
         renderStudents();
+        evt.target.value = ''; // Reset file input
         alert(`Successfully imported ${newStudents.length} students!`);
       };
       reader.readAsArrayBuffer(file);
