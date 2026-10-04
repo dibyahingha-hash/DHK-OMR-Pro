@@ -195,14 +195,13 @@
     <button class="btn btn-green" onclick="startNewExamSession()">🆕 Start New Exam Session (Archive & Clear)</button>
     <button class="btn btn-warning-outline" onclick="clearExamScans()">🗑️ Clear Current Exam Scans Only</button>
     <button class="btn btn-warning-outline" onclick="resetSchoolEval()">🔄 Reset School Indicators (24 Indicators)</button>
-    <button class="btn btn-danger-outline" onclick="factoryReset()">⚠️ Factory Reset (Purge All Data)</button>
+    <button class="btn btn-danger-outline" onclick="factoryReset()">⚠️️ Factory Reset (Purge All Data)</button>
   </div>
 
   <script>
     let students = [];
     try { students = JSON.parse(localStorage.getItem('dhk_students') || '[]'); } catch(e) { students = []; }
 
-    // Normalize records between dhk_evaluations and dhk_eval_records
     let evalRecords = [];
     try {
       evalRecords = JSON.parse(localStorage.getItem('dhk_evaluations') || localStorage.getItem('dhk_eval_records') || '[]');
@@ -454,26 +453,25 @@
     function clearExamScans() {
       if (!confirm("⚠️ This will remove ALL scanned student results for the current exam. Roster and School setup will NOT be deleted. Proceed?")) return;
       evalRecords = [];
+      localStorage.removeItem('dhk_evaluations');
+      localStorage.removeItem('dhk_eval_records');
       saveState();
       renderAll();
-      alert("Evaluation records have been reset.");
+      alert("Current exam scans cleared.");
     }
 
     function resetSchoolEval() {
-      if (!confirm("Reset the 24 School Evaluation indicators?")) return;
+      if (!confirm("Reset all 24 school evaluation indicators?")) return;
       schoolEval = { totalYes: 0, score: 0 };
-      localStorage.removeItem('dhk_school_eval_data');
+      localStorage.setItem('dhk_school_eval_data', JSON.stringify(schoolEval));
       renderAll();
-      alert("School Evaluation indicators reset.");
+      alert("School indicators reset.");
     }
 
     function factoryReset() {
-      const pin = prompt("DANGER: This will wipe ALL roster students, keys, indicators, and scan records.\nType 'RESET' to confirm:");
-      if (pin === 'RESET') {
-        localStorage.clear();
-        alert("All local records purged.");
-        location.reload();
-      }
+      if (!confirm("⚠️ DANGER: This will wipe ALL rosters, evaluations, keys, and settings. Are you sure?")) return;
+      localStorage.clear();
+      location.reload();
     }
 
     function exportResultsToExcel() {
@@ -481,60 +479,44 @@
         alert("No evaluation records available to export.");
         return;
       }
-
-      const activeSubjectFilter = document.getElementById('subjectFilterSelect').value;
-      const exportList = (activeSubjectFilter === 'ALL')
-        ? evalRecords
-        : evalRecords.filter(r => (r.subject || 'Gunotsav') === activeSubjectFilter);
-
-      const data = exportList.map((r, idx) => {
+      
+      const rows = evalRecords.map((r, i) => {
         const st = students.find(s => 
           (s.id && (s.id === r.student_id || s.id === r.studentId)) ||
           (s.student_id && (s.student_id === r.student_id || s.student_id === r.studentId)) ||
           (s.name && (s.name === r.student_id || s.name === r.studentName))
         ) || {};
 
-        const name = st.name || r.studentName || 'Student ' + (idx + 1);
-        const cls = st.class_level || st.class || r.class || '-';
-        const sub = r.subject || 'Gunotsav';
         const mcq = r.score || 0;
         const maxMcq = r.max_score || r.totalMarks || 58;
         const skill = r.skillMarks || 0;
         const total = r._calcTotal || (mcq + skill);
         const maxTotal = r._calcMax || (maxMcq + maxSkillMarks);
-        const pct = r._calcPct || 0;
+        const pct = r._calcPct !== undefined ? r._calcPct : (maxTotal > 0 ? (total / maxTotal) * 100 : 0);
 
         return {
-          "Student ID": st.student_id || st.id || '',
-          "Name": name,
-          "Class": cls,
-          "Subject": sub,
+          "Student ID": st.student_id || st.id || '-',
+          "Student Name": st.name || r.studentName || `Student ${i + 1}`,
+          "Class": st.class_level || st.class || r.class || '-',
+          "Subject": r.subject || 'Gunotsav',
           "MCQ Score": mcq,
           "Max MCQ": maxMcq,
-          "Skill / Subjective Marks": skill,
-          "Max Skill": maxSkillMarks,
-          "Composite Total": total,
-          "Max Composite Total": maxTotal,
+          "Skill Marks": skill,
+          "Total Score": total,
+          "Max Total": maxTotal,
           "Percentage": pct.toFixed(2) + '%',
-          "Grade": calculateGrade(pct),
-          "Evaluation Date": r.timestamp || new Date().toLocaleDateString()
+          "Grade": calculateGrade(pct)
         };
       });
 
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Exam Results");
-      XLSX.writeFile(wb, `DHK_OMR_Results_${activeSubjectFilter}.xlsx`);
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "GradeCard");
+      XLSX.writeFile(workbook, "OMR_Assessment_Results.xlsx");
     }
 
-    window.onload = renderAll;
-  </script>
-
-  <!-- Offline Service Worker Activation -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(console.error);
-    }
+    // Initialize layout on DOM load
+    document.addEventListener('DOMContentLoaded', renderAll);
   </script>
 </body>
 </html>
