@@ -12,11 +12,12 @@
     #galleryPreview { display: none; width: 100%; height: 100%; object-fit: contain; background: #000; }
   </style>
 </head>
-<body class="text-gray-200 flex flex-col min-h-screen">
+<body class="text-gray-200 flex flex-col min-h-screen select-none">
 
+  <!-- Header -->
   <header class="p-3 bg-gray-900 border-b border-gray-800 flex justify-between items-center z-10">
     <div class="flex items-center space-x-2">
-      <a href="index.html" class="p-2 bg-gray-800 rounded-lg text-gray-300">
+      <a href="index.html" class="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300">
         <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
       </a>
       <div>
@@ -26,29 +27,30 @@
     </div>
     
     <div class="flex space-x-2">
-      <button onclick="document.getElementById('galleryInput').click()" title="Select Image" class="p-2.5 bg-gray-800 rounded-lg text-blue-400">
+      <button onclick="document.getElementById('galleryInput').click()" title="Select Image" class="p-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-blue-400">
         <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/></svg>
       </button>
       <input type="file" id="galleryInput" accept="image/*" class="hidden" onchange="handleGalleryUpload(event)">
       
-      <button id="torchBtn" onclick="toggleTorch()" title="Flashlight" class="p-2.5 bg-gray-800 rounded-lg text-yellow-400">
+      <button id="torchBtn" onclick="toggleTorch()" title="Flashlight" class="p-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-yellow-400">
         <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zm-2-3a3 3 0 016 0H6z" clip-rule="evenodd"/></svg>
       </button>
     </div>
   </header>
 
+  <!-- Controls Strip -->
   <div class="bg-gray-900/90 px-3 py-2 border-b border-gray-800 flex items-center justify-between space-x-2 text-xs">
     <div class="flex-1">
       <label class="block text-[10px] font-bold text-gray-400 uppercase">Class Session</label>
       <select id="lockedClass" onchange="onClassChange()" class="w-full bg-gray-800 text-white rounded p-1.5 border border-gray-700 font-bold">
-        <option value="Class III">Class III</option>
-        <option value="Class IV">Class IV</option>
-        <option value="Class V">Class V</option>
-        <option value="Class VI">Class VI</option>
-        <option value="Class VII">Class VII</option>
-        <option value="Class VIII">Class VIII</option>
-        <option value="Class IX">Class IX</option>
-        <option value="Class X">Class X</option>
+        <option value="III">Class III</option>
+        <option value="IV">Class IV</option>
+        <option value="V">Class V</option>
+        <option value="VI">Class VI</option>
+        <option value="VII">Class VII</option>
+        <option value="VIII">Class VIII</option>
+        <option value="IX">Class IX</option>
+        <option value="X">Class X</option>
       </select>
     </div>
 
@@ -60,15 +62,19 @@
     </div>
   </div>
 
+  <!-- Viewfinder -->
   <div id="videoContainer">
     <video id="cameraStream" autoplay playsinline muted></video>
     <img id="galleryPreview" alt="Upload">
+    <canvas id="scanCanvas" class="hidden"></canvas>
+    
     <div class="absolute inset-4 border-2 border-dashed border-indigo-400/50 rounded-xl pointer-events-none flex flex-col justify-between p-2">
       <span class="text-[10px] bg-black/60 px-2 py-0.5 rounded text-indigo-300 w-max font-mono">ALIGN TIMING RAIL ON LEFT</span>
       <span id="scanStatusBadge" class="text-[10px] bg-black/60 px-2 py-0.5 rounded text-gray-300 self-center font-mono">READY TO SCAN</span>
     </div>
   </div>
 
+  <!-- Bottom CTA -->
   <div class="p-3 bg-gray-900 border-t border-gray-800 flex-1 flex flex-col justify-between">
     <div class="text-center py-1">
       <p id="classProgressSummary" class="text-xs font-bold text-gray-400">Class III: Ready</p>
@@ -78,7 +84,42 @@
     </button>
   </div>
 
-  <!-- Answer Key Modal -->
+  <!-- Evaluation Result Modal -->
+  <div id="evalResultModal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-3">
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 max-w-sm w-full space-y-3 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+        <h3 class="text-xs font-bold uppercase text-white tracking-wider">Evaluation Verified</h3>
+        <span id="modalScoreDisplay" class="bg-green-600 text-white font-mono px-2 py-0.5 rounded font-black text-xs">--/--</span>
+      </div>
+
+      <div>
+        <label class="block text-[10px] uppercase font-bold text-gray-400 mb-1">Select Enrolled Student</label>
+        <select id="modalStudentSelect" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 text-xs font-bold"></select>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2 bg-gray-900 p-2 rounded-lg text-center font-mono text-xs border border-gray-700">
+        <div>
+          <span class="text-gray-400 text-[9px] uppercase block">Attempted</span>
+          <span id="statAttempted" class="text-green-400 font-bold">0</span>
+        </div>
+        <div>
+          <span class="text-gray-400 text-[9px] uppercase block">Blank</span>
+          <span id="statBlank" class="text-yellow-400 font-bold">0</span>
+        </div>
+        <div>
+          <span class="text-gray-400 text-[9px] uppercase block">Multi</span>
+          <span id="statMulti" class="text-red-400 font-bold">0</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button onclick="commitStudentResult()" class="py-2.5 bg-green-600 hover:bg-green-500 font-bold rounded-lg text-xs text-white">SAVE RESULT</button>
+        <button onclick="closeEvalModal()" class="py-2.5 bg-gray-700 hover:bg-gray-600 font-bold rounded-lg text-xs text-gray-300">DISCARD</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Master Key Modal -->
   <div id="masterKeyModal" class="hidden fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-3">
     <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 max-w-md w-full max-h-[92vh] flex flex-col shadow-2xl">
       <div class="flex justify-between items-center pb-3 border-b border-gray-700">
@@ -100,8 +141,9 @@
           <select id="keyTotalCount" onchange="renderKeyTapRows()" class="bg-gray-700 text-white rounded px-2 py-1 border border-gray-600 font-bold text-xs">
             <option value="20">20 Qs</option>
             <option value="50">50 Qs</option>
+            <option value="58" selected>58 Qs (Standard)</option>
             <option value="75">75 Qs</option>
-            <option value="100" selected>100 Qs</option>
+            <option value="100">100 Qs</option>
           </select>
         </div>
         <div id="keyTapContainer" class="flex-1 overflow-y-auto py-2 space-y-1.5 pr-1 font-mono text-xs"></div>
@@ -109,7 +151,7 @@
 
       <div id="tabScanContent" class="hidden flex-1 flex flex-col justify-center items-center py-6 text-center text-xs space-y-4">
         <p class="font-bold text-white text-sm">SCAN TEACHER MASTER</p>
-        <p class="text-gray-400 text-xs">Aim camera or upload an image of the master copy.</p>
+        <p class="text-gray-400 text-xs">Upload an image of the solved master copy to read keys automatically.</p>
         <button onclick="document.getElementById('galleryInput').click(); closeKeyModal();" class="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs">Upload Photo</button>
       </div>
 
@@ -123,11 +165,13 @@
   <script>
     let activeMasterKey = {};
     let videoTrack = null;
+    let currentEvaluationResult = null;
+    let pendingGalleryUrl = null;
 
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false
         });
         const video = document.getElementById('cameraStream');
@@ -140,11 +184,11 @@
     }
 
     function toggleTorch() {
-      if (videoTrack && videoTrack.getCapabilities().torch) {
+      if (videoTrack?.getCapabilities?.()?.torch) {
         const current = videoTrack.getSettings().torch || false;
         videoTrack.applyConstraints({ advanced: [{ torch: !current }] });
       } else {
-        alert("Torch not available.");
+        alert("Torch not available on this device.");
       }
     }
 
@@ -153,17 +197,18 @@
       const savedKey = localStorage.getItem(`dhk_key_${cls}`);
       if (savedKey) {
         activeMasterKey = JSON.parse(savedKey);
-        document.getElementById('modeIndicator').textContent = `${cls} (${Object.keys(activeMasterKey).length} Qs)`;
+        const count = Object.keys(activeMasterKey).length;
+        document.getElementById('modeIndicator').textContent = `Class ${cls} (${count} Qs)`;
       } else {
         activeMasterKey = {};
-        document.getElementById('modeIndicator').textContent = `${cls} (No Key)`;
+        document.getElementById('modeIndicator').textContent = `Class ${cls} (No Key)`;
       }
-      document.getElementById('classProgressSummary').textContent = `${cls}: Ready`;
+      document.getElementById('classProgressSummary').textContent = `Class ${cls}: Ready`;
     }
 
     function openKeyModal() {
       const currentClass = document.getElementById('lockedClass').value;
-      document.getElementById('keyModalClassBadge').textContent = currentClass;
+      document.getElementById('keyModalClassBadge').textContent = `Class ${currentClass}`;
       const savedKey = localStorage.getItem(`dhk_key_${currentClass}`);
       if (savedKey) {
         activeMasterKey = JSON.parse(savedKey);
@@ -241,29 +286,185 @@
       activeMasterKey = finalKey;
       localStorage.setItem(`dhk_key_${currentClass}`, JSON.stringify(activeMasterKey));
       closeKeyModal();
-      document.getElementById('modeIndicator').textContent = `${currentClass} (${count} Qs)`;
-      alert(`Master Key for ${currentClass} saved!`);
-    }
-
-    function captureAndScanStudent() {
-      const currentClass = document.getElementById('lockedClass').value;
-      if (!activeMasterKey || Object.keys(activeMasterKey).length === 0) {
-        alert(`Set the Master Key for ${currentClass} first!`);
-        openKeyModal();
-        return;
-      }
-      alert(`Sheet processed for ${currentClass}! Ready for evaluation.`);
+      document.getElementById('modeIndicator').textContent = `Class ${currentClass} (${count} Qs)`;
+      alert(`Master Key for Class ${currentClass} saved!`);
     }
 
     function handleGalleryUpload(event) {
       const file = event.target.files[0];
       if (file) {
+        if (pendingGalleryUrl) URL.revokeObjectURL(pendingGalleryUrl);
+        pendingGalleryUrl = URL.createObjectURL(file);
+        
         const preview = document.getElementById('galleryPreview');
         const video = document.getElementById('cameraStream');
-        preview.src = URL.createObjectURL(file);
+        preview.src = pendingGalleryUrl;
         preview.style.display = 'block';
         video.style.display = 'none';
+        document.getElementById('scanStatusBadge').textContent = 'IMAGE LOADED';
       }
+    }
+
+    // OMR Bubble Reader Logic
+    function sampleAnswersFromCanvas(ctx, width, height, totalQs) {
+      const answers = {};
+      const colDefs = [
+        { start: 1, end: Math.min(20, totalQs), left: 0.15, right: 0.38 },
+        { start: 21, end: Math.min(40, totalQs), left: 0.42, right: 0.65 },
+        { start: 41, end: Math.min(totalQs, 100), left: 0.69, right: 0.92 }
+      ];
+
+      const topOffset = height * 0.16;
+      const bottomOffset = height * 0.92;
+      const rowStep = (bottomOffset - topOffset) / 20;
+
+      colDefs.forEach(col => {
+        if (col.start > totalQs) return;
+        const colWidth = (col.right - col.left) * width;
+        const optStep = colWidth / 4;
+
+        for (let q = col.start; q <= col.end; q++) {
+          const rowIdx = (q - col.start) % 20;
+          const cy = topOffset + (rowIdx * rowStep) + (rowStep / 2);
+          let darkCount = 0;
+          let minVal = 255;
+          let bestOpt = null;
+
+          ['A', 'B', 'C', 'D'].forEach((opt, oIdx) => {
+            const cx = (col.left * width) + (oIdx * optStep) + (optStep / 2);
+            const radius = Math.max(3, Math.floor(rowStep * 0.22));
+            const imgData = ctx.getImageData(cx - radius, cy - radius, radius * 2, radius * 2);
+            
+            let sum = 0, count = 0;
+            for (let i = 0; i < imgData.data.length; i += 4) {
+              const lum = 0.299 * imgData.data[i] + 0.587 * imgData.data[i+1] + 0.114 * imgData.data[i+2];
+              sum += lum; count++;
+            }
+            const avg = sum / (count || 1);
+            if (avg < 115) darkCount++;
+            if (avg < minVal) { minVal = avg; bestOpt = opt; }
+          });
+
+          if (darkCount === 1 && minVal < 125) answers[q] = bestOpt;
+          else if (darkCount > 1) answers[q] = 'MULTI';
+          else answers[q] = null;
+        }
+      });
+      return answers;
+    }
+
+    function captureAndScanStudent() {
+      const currentClass = document.getElementById('lockedClass').value;
+      const keyCount = Object.keys(activeMasterKey).length;
+      if (!activeMasterKey || keyCount === 0) {
+        alert(`Set the Master Key for Class ${currentClass} first!`);
+        openKeyModal();
+        return;
+      }
+
+      const canvas = document.getElementById('scanCanvas');
+      const video = document.getElementById('cameraStream');
+      const preview = document.getElementById('galleryPreview');
+      const ctx = canvas.getContext('2d');
+
+      if (preview.style.display === 'block') {
+        canvas.width = preview.naturalWidth || 1280;
+        canvas.height = preview.naturalHeight || 720;
+        ctx.drawImage(preview, 0, 0, canvas.width, canvas.height);
+      } else {
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+
+      const scannedAnswers = sampleAnswersFromCanvas(ctx, canvas.width, canvas.height, keyCount);
+
+      let correct = 0, attempted = 0, blank = 0, multi = 0;
+      for (let q = 1; q <= keyCount; q++) {
+        const userAns = scannedAnswers[q];
+        const targetKey = activeMasterKey[q];
+        if (!userAns) blank++;
+        else if (userAns === 'MULTI') multi++;
+        else {
+          attempted++;
+          if (userAns === targetKey) correct++;
+        }
+      }
+
+      currentEvaluationResult = {
+        class: currentClass,
+        score: correct,
+        totalMarks: keyCount,
+        max_score: keyCount,
+        attempted,
+        blank,
+        multi,
+        subject: 'General',
+        timestamp: new Date().toISOString()
+      };
+
+      // Populate Modal
+      document.getElementById('modalScoreDisplay').textContent = `${correct} / ${keyCount}`;
+      document.getElementById('statAttempted').textContent = attempted;
+      document.getElementById('statBlank').textContent = blank;
+      document.getElementById('statMulti').textContent = multi;
+
+      populateStudentSelect(currentClass);
+      document.getElementById('evalResultModal').classList.remove('hidden');
+    }
+
+    function populateStudentSelect(cls) {
+      const select = document.getElementById('modalStudentSelect');
+      select.innerHTML = '';
+      let roster = [];
+      try { roster = JSON.parse(localStorage.getItem('dhk_roster') || '[]'); } catch(e) { roster = []; }
+
+      const studentsInClass = roster.filter(s => s.class === cls);
+      if (studentsInClass.length === 0) {
+        select.innerHTML = '<option value="Unknown Student">Unenrolled Student</option>';
+        return;
+      }
+
+      studentsInClass.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = JSON.stringify({ name: s.name, roll: s.roll || '' });
+        opt.textContent = `${s.name} (Roll: ${s.roll || '-'})`;
+        select.appendChild(opt);
+      });
+    }
+
+    function commitStudentResult() {
+      if (!currentEvaluationResult) return;
+      const selectVal = document.getElementById('modalStudentSelect').value;
+      let student = { name: "Student", roll: "" };
+      try { student = JSON.parse(selectVal); } catch(e) { student.name = selectVal; }
+
+      let evals = [];
+      try {
+        evals = JSON.parse(localStorage.getItem('dhk_evaluations') || localStorage.getItem('dhk_eval_records') || '[]');
+      } catch(e) { evals = []; }
+
+      const record = {
+        ...currentEvaluationResult,
+        studentName: student.name,
+        student_id: student.roll || student.name,
+        roll: student.roll
+      };
+
+      // Filter out duplicate scans for the same student in this class
+      evals = evals.filter(r => !(r.class === record.class && (r.student_id === record.student_id || r.studentName === record.studentName)));
+      evals.push(record);
+
+      localStorage.setItem('dhk_evaluations', JSON.stringify(evals));
+      localStorage.setItem('dhk_eval_records', JSON.stringify(evals));
+
+      closeEvalModal();
+      alert(`Score saved for ${record.studentName}: ${record.score}/${record.totalMarks}`);
+    }
+
+    function closeEvalModal() {
+      document.getElementById('evalResultModal').classList.add('hidden');
+      currentEvaluationResult = null;
     }
 
     window.onload = startCamera;
